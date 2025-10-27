@@ -18,8 +18,8 @@ pub enum FirstWeekday {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MeetingTime {
-    pub day: Weekday,
-    pub time: NaiveTime,
+    pub day: chrono::Weekday,
+    pub time: chrono::NaiveTime,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

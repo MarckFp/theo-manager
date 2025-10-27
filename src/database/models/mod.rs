@@ -1,2 +1,9 @@
 pub mod user;
-pub mod preaching_group;
+pub mod field_service_group;
+pub mod field_service_meeting;
+pub mod field_service_report;
+pub mod role;
+pub mod privilege;
+pub mod special_event;
+pub mod congregation;
+pub mod meeting_attendance;

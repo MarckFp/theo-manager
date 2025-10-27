@@ -6,7 +6,7 @@ use crate::database::db::get_db;
 use chrono::NaiveDate;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct EmergencyContact {
+pub struct UserEmergencyContact {
     pub firstname: String,
     pub lastname: Option<String>,
     pub email: Option<String>,
@@ -26,7 +26,7 @@ pub enum UserType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Appointment {
+pub enum UserAppointment {
     Elder,
     MinisterialServant,
 }
@@ -50,10 +50,10 @@ pub struct User {
     pub baptism_date: Option<NaiveDate>,
     pub anointed: Option<bool>,
     pub publisher_type: Option<UserType>,
-    pub appointment: Option<Appointment>,
+    pub appointment: Option<UserAppointment>,
     pub preaching_group: Option<Thing>, // Reference to a Preaching Group
     #[serde(default)]
-    pub emergency_contacts: Vec<EmergencyContact>,
+    pub emergency_contacts: Vec<UserEmergencyContact>,
 }
 
 // === DAO Implementation ===
