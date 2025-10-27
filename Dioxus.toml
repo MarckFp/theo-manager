@@ -3,7 +3,7 @@
 [web.app]
 
 # HTML title tag content
-title = "theo-manager"
+title = "Theo Manager"
 
 # include `assets` in web platform
 [web.resource]
