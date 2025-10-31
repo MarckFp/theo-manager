@@ -12,8 +12,8 @@ pub enum FieldServiceReportStatus {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum FieldServiceReportCommitment {
-    15,
-    30,
+    Fifteen,
+    Thirty,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -33,14 +33,14 @@ impl FieldServiceReport {
     /// CREATE
     pub async fn create(field_service_report: FieldServiceReport) -> surrealdb::Result<FieldServiceReport> {
         let db = get_db().await?;
-        let created: FieldServiceReport = db.create("field_service_report").content(field_service_report).await?;
-        Ok(created)
+        let created: Option<FieldServiceReport> = db.create("field_service_report").content(field_service_report).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create field service report".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<FieldServiceReport>> {
         let db = get_db().await?;
-        let record: Option<FieldServiceReport> = db.select(id).await?;
+        let record: Option<FieldServiceReport> = db.select(("field_service_report", id)).await?;
         Ok(record)
     }
 
@@ -54,14 +54,14 @@ impl FieldServiceReport {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: FieldServiceReport) -> surrealdb::Result<FieldServiceReport> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: FieldServiceReport = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<FieldServiceReport> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update field service report".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<FieldServiceReport> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: FieldServiceReport = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<FieldServiceReport> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete field service report".to_string())))
     }
 }

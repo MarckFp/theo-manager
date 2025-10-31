@@ -16,14 +16,14 @@ impl FieldServiceGroup {
     /// CREATE
     pub async fn create(field_service_group: FieldServiceGroup) -> surrealdb::Result<FieldServiceGroup> {
         let db = get_db().await?;
-        let created: FieldServiceGroup = db.create("field_service_group").content(field_service_group).await?;
-        Ok(created)
+        let created: Option<FieldServiceGroup> = db.create("field_service_group").content(field_service_group).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create field service group".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<FieldServiceGroup>> {
         let db = get_db().await?;
-        let record: Option<FieldServiceGroup> = db.select(id).await?;
+        let record: Option<FieldServiceGroup> = db.select((("field_service_group", id))).await?;
         Ok(record)
     }
 
@@ -37,14 +37,14 @@ impl FieldServiceGroup {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: FieldServiceGroup) -> surrealdb::Result<FieldServiceGroup> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: FieldServiceGroup = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<FieldServiceGroup> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update field service group".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<FieldServiceGroup> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: FieldServiceGroup = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<FieldServiceGroup> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete field service group".to_string())))
     }
 }

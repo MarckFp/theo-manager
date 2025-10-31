@@ -27,7 +27,7 @@ pub enum RoleType {
 pub struct Role {
     pub id: surrealdb::RecordId,
     pub publisher: Option<Thing>, // Reference to a User
-    pub type: RoleType,
+    pub r#type: RoleType,
     pub start_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
     pub notes: Option<String>,
@@ -37,14 +37,14 @@ impl Role {
     /// CREATE
     pub async fn create(role: Role) -> surrealdb::Result<Role> {
         let db = get_db().await?;
-        let created: Role = db.create("role").content(role).await?;
-        Ok(created)
+        let created: Option<Role> = db.create("role").content(role).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create role".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<Role>> {
         let db = get_db().await?;
-        let record: Option<Role> = db.select(id).await?;
+        let record: Option<Role> = db.select(("role", id)).await?;
         Ok(record)
     }
 
@@ -58,14 +58,14 @@ impl Role {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: Role) -> surrealdb::Result<Role> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: Role = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<Role> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update role".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<Role> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: Role = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<Role> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete role".to_string())))
     }
 }

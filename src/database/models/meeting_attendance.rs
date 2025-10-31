@@ -16,14 +16,14 @@ impl MeetingAttendance {
     /// CREATE
     pub async fn create(meeting_attendance: MeetingAttendance) -> surrealdb::Result<MeetingAttendance> {
         let db = get_db().await?;
-        let created: MeetingAttendance = db.create("meeting_attendance").content(meeting_attendance).await?;
-        Ok(created)
+        let created: Option<MeetingAttendance> = db.create("meeting_attendance").content(meeting_attendance).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create meeting attendance".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<MeetingAttendance>> {
         let db = get_db().await?;
-        let record: Option<MeetingAttendance> = db.select(id).await?;
+        let record: Option<MeetingAttendance> = db.select(("meeting_attendance", id)).await?;
         Ok(record)
     }
 
@@ -37,14 +37,14 @@ impl MeetingAttendance {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: MeetingAttendance) -> surrealdb::Result<MeetingAttendance> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: MeetingAttendance = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<MeetingAttendance> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update meeting attendance".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<MeetingAttendance> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: MeetingAttendance = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<MeetingAttendance> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete meeting attendance".to_string())))
     }
 }

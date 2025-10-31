@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 use surrealdb::sql::Thing;
 use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
@@ -58,11 +58,28 @@ pub struct User {
 
 // === DAO Implementation ===
 impl User {
+    /// Hash a password using bcrypt
+    pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
+        bcrypt::hash(password, bcrypt::DEFAULT_COST)
+    }
+    
+    /// Verify a password against a hash
+    pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
+        bcrypt::verify(password, hash)
+    }
+    
     /// CREATE
-    pub async fn create(new_user: User) -> surrealdb::Result<User> {
+    pub async fn create(mut new_user: User) -> surrealdb::Result<User> {
+        // Hash password if present
+        if let Some(ref password) = new_user.password {
+            let hashed = Self::hash_password(password)
+                .map_err(|e| surrealdb::Error::Api(surrealdb::error::Api::Query(format!("Password hashing failed: {}", e))))?;
+            new_user.password = Some(hashed);
+        }
+        
         let db: &Surreal<Any> = get_db().await?;
-        let inserted: User = db.create("user").content(new_user).await?;
-        Ok(inserted)
+        let inserted: Option<User> = db.create("user").content(new_user).await?;
+        inserted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create user".to_string())))
     }
 
     /// FIND by ID
@@ -82,14 +99,14 @@ impl User {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: User) -> surrealdb::Result<User> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: User = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<User> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update user".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<User> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: User = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<User> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete user".to_string())))
     }
 }

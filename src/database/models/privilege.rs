@@ -31,7 +31,6 @@ pub enum PrivilegeType {
     PublicTalk,
     WatchtowerConductor,
     WatchtowerReader,
-    FieldServiceMeeting,
     PublicWitnessing,
 }
 
@@ -39,7 +38,7 @@ pub enum PrivilegeType {
 pub struct Privilege {
     pub id: surrealdb::RecordId,
     pub publisher: Option<Thing>, // Reference to a User
-    pub type: PrivilegeType,
+    pub r#type: PrivilegeType,
     pub start_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
     pub notes: Option<String>,
@@ -49,14 +48,14 @@ impl Privilege {
     /// CREATE
     pub async fn create(privilege: Privilege) -> surrealdb::Result<Privilege> {
         let db = get_db().await?;
-        let created: Privilege = db.create("privilege").content(privilege).await?;
-        Ok(created)
+        let created: Option<Privilege> = db.create("privilege").content(privilege).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create privilege".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<Privilege>> {
         let db = get_db().await?;
-        let record: Option<Privilege> = db.select(id).await?;
+        let record: Option<Privilege> = db.select(("privilege", id)).await?;
         Ok(record)
     }
 
@@ -70,14 +69,14 @@ impl Privilege {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: Privilege) -> surrealdb::Result<Privilege> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: Privilege = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<Privilege> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update privilege".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<Privilege> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: Privilege = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<Privilege> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete privilege".to_string())))
     }
 }

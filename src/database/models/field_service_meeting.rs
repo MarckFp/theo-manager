@@ -17,14 +17,14 @@ impl FieldServiceMeeting {
     /// CREATE
     pub async fn create(field_service_meeting: FieldServiceMeeting) -> surrealdb::Result<FieldServiceMeeting> {
         let db = get_db().await?;
-        let created: FieldServiceMeeting = db.create("field_service_meeting").content(field_service_meeting).await?;
-        Ok(created)
+        let created: Option<FieldServiceMeeting> = db.create("field_service_meeting").content(field_service_meeting).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create field service meeting".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<FieldServiceMeeting>> {
         let db = get_db().await?;
-        let record: Option<FieldServiceMeeting> = db.select(id).await?;
+        let record: Option<FieldServiceMeeting> = db.select(("field_service_meeting", id)).await?;
         Ok(record)
     }
 
@@ -38,14 +38,14 @@ impl FieldServiceMeeting {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: FieldServiceMeeting) -> surrealdb::Result<FieldServiceMeeting> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: FieldServiceMeeting = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<FieldServiceMeeting> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update field service meeting".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<FieldServiceMeeting> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: FieldServiceMeeting = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<FieldServiceMeeting> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete field service meeting".to_string())))
     }
 }

@@ -17,14 +17,14 @@ impl Absence {
     /// CREATE
     pub async fn create(absence: Absence) -> surrealdb::Result<Absence> {
         let db = get_db().await?;
-        let created: Absence = db.create("absence").content(absence).await?;
-        Ok(created)
+        let created: Option<Absence> = db.create("absence").content(absence).await?;
+        created.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to create absence".to_string())))
     }
 
     /// FIND by ID
     pub async fn find(id: &str) -> surrealdb::Result<Option<Absence>> {
         let db = get_db().await?;
-        let record: Option<Absence> = db.select(id).await?;
+        let record: Option<Absence> = db.select(("absence", id)).await?;
         Ok(record)
     }
 
@@ -38,14 +38,14 @@ impl Absence {
     /// UPDATE
     pub async fn update(id: surrealdb::RecordId, update: Absence) -> surrealdb::Result<Absence> {
         let db: &Surreal<Any> = get_db().await?;
-        let updated: Absence = db.update(id).content(update).await?;
-        Ok(updated)
+        let updated: Option<Absence> = db.update(id).content(update).await?;
+        updated.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to update absence".to_string())))
     }
 
     /// DELETE
     pub async fn delete(id: surrealdb::RecordId) -> surrealdb::Result<Absence> {
         let db: &Surreal<Any> = get_db().await?;
-        let deleted: Absence = db.delete(id).await?;
-        Ok(deleted)
+        let deleted: Option<Absence> = db.delete(id).await?;
+        deleted.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Failed to delete absence".to_string())))
     }
 }
