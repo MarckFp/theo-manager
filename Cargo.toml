@@ -24,6 +24,7 @@ default = ["web"]
 web = ["dioxus/web", "surrealdb/kv-indxdb", "surrealdb/protocol-ws"]
 desktop = ["dioxus/desktop", "surrealdb/kv-rocksdb", "surrealdb/protocol-ws"]
 mobile = ["dioxus/mobile", "surrealdb/kv-rocksdb", "surrealdb/protocol-ws"]
+bundle = []
 
 [profile.release]
 opt-level = "z"
