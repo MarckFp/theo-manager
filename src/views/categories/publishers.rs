@@ -8,7 +8,7 @@ pub struct PublishersProps {
 #[component]
 pub fn Publishers(props: PublishersProps) -> Element {
     let submenu_items = vec![
-        ("users", "Publishers", "👥", "Manage congregation members"),
+        ("users", "Users", "👥", "Manage congregation members"),
         ("field-service-reports", "Field Service Reports", "📊", "Track monthly reports"),
         ("roles", "Privileges", "🔑", "Assign roles and privileges"),
         ("field-service-groups", "Field Service Groups", "📋", "Organize service groups"),

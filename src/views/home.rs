@@ -57,21 +57,23 @@ pub fn Home() -> Element {
             
             // Main Content Area
             main { class: "flex-1 lg:ml-64 p-4 lg:p-8 pb-20 lg:pb-8",
-                // Header
-                div { class: "mb-8 mt-0 lg:mt-0",
-                    match (congregation(), current_user()) {
-                        (Some(Some(_)), Some(Some(_))) => rsx! {
-                            h1 { class: "text-3xl lg:text-4xl font-bold text-base-content",
-                                "Welcome, {format_name()}!"
-                            }
-                            p { class: "text-base-content/70 mt-2",
-                                "Manage your congregation efficiently"
-                            }
-                        },
-                        _ => rsx! {
-                            div { class: "flex items-center gap-2",
-                                span { class: "loading loading-spinner loading-md" }
-                                span { "Loading..." }
+                // Header - only show on dashboard
+                if current_section() == "dashboard" {
+                    div { class: "mb-8 mt-0 lg:mt-0",
+                        match (congregation(), current_user()) {
+                            (Some(Some(_)), Some(Some(_))) => rsx! {
+                                h1 { class: "text-3xl lg:text-4xl font-bold text-base-content",
+                                    "Welcome, {format_name()}!"
+                                }
+                                p { class: "text-base-content/70 mt-2",
+                                    "Manage your congregation efficiently"
+                                }
+                            },
+                            _ => rsx! {
+                                div { class: "flex items-center gap-2",
+                                    span { class: "loading loading-spinner loading-md" }
+                                    span { "Loading..." }
+                                }
                             }
                         }
                     }
@@ -106,9 +108,7 @@ pub fn Home() -> Element {
                         }
                     },
                     _ => rsx! {
-                        div { class: "bg-base-100 rounded-lg shadow-lg p-6",
-                            {render_section_content(current_section(), current_section)}
-                        }
+                        {render_section_content(current_section(), current_section)}
                     }
                 }
             }
@@ -121,23 +121,23 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
     let (parent_category, parent_name, section_name) = match section.as_str() {
         // Publishers subcategories
         "users" => ("publishers-category", "Publishers", "Users"),
-        "reports" => ("publishers-category", "Publishers", "Reports"),
-        "privileges" => ("publishers-category", "Publishers", "Privileges"),
-        "groups" => ("publishers-category", "Publishers", "Groups"),
+        "field-service-reports" => ("publishers-category", "Publishers", "Field Service Reports"),
+        "roles" => ("publishers-category", "Publishers", "Privileges"),
+        "field-service-groups" => ("publishers-category", "Publishers", "Field Service Groups"),
         
         // Meetings subcategories
         "weekday-meeting" => ("meetings-category", "Meetings", "Weekday Meeting"),
         "weekend-meeting" => ("meetings-category", "Meetings", "Weekend Meeting"),
-        "field-service-meeting" => ("meetings-category", "Meetings", "Field Service Meeting"),
-        "attendance" => ("meetings-category", "Meetings", "Attendance"),
+        "field-service-meetings" => ("meetings-category", "Meetings", "Field Service Meetings"),
+        "meeting-attendance" => ("meetings-category", "Meetings", "Meeting Attendance"),
         
         // Congregation subcategories
-        "events" => ("congregation-category", "Congregation", "Events"),
+        "special-events" => ("congregation-category", "Congregation", "Special Events"),
         "absences" => ("congregation-category", "Congregation", "Absences"),
         "cleaning" => ("congregation-category", "Congregation", "Cleaning Schedule"),
         "maintenance" => ("congregation-category", "Congregation", "Maintenance"),
         "attendant" => ("congregation-category", "Congregation", "Attendant Schedule"),
-        "av" => ("congregation-category", "Congregation", "A/V Schedule"),
+        "audio-video" => ("congregation-category", "Congregation", "Audio & Video"),
         "territory" => ("congregation-category", "Congregation", "Territory"),
         
         // Settings subcategories
@@ -151,7 +151,7 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
     
     match section.as_str() {
         "dashboard" => rsx! {
-            div {
+            div { class: "bg-base-100 rounded-lg shadow-lg p-6",
                 h2 { class: "text-2xl font-bold mb-4", "Dashboard" }
                 div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4",
                     // Quick Stats Cards
@@ -179,7 +179,7 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
             
             rsx! {
                 div {
-                    // Breadcrumbs
+                    // Breadcrumbs (outside card)
                     if has_parent {
                         div { class: "text-sm breadcrumbs mb-4",
                             ul {
@@ -202,10 +202,13 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
                         }
                     }
                     
-                    h2 { class: "text-2xl font-bold mb-4", "{section_name}" }
-                    p { class: "text-base-content/70", "This feature is currently in development" }
-                    div { class: "alert alert-info mt-4",
-                        span { "👷 This section is under construction" }
+                    // Content card
+                    div { class: "bg-base-100 rounded-lg shadow-lg p-6",
+                        h2 { class: "text-2xl font-bold mb-4", "{section_name}" }
+                        p { class: "text-base-content/70", "This feature is currently in development" }
+                        div { class: "alert alert-info mt-4",
+                            span { "👷 This section is under construction" }
+                        }
                     }
                 }
             }

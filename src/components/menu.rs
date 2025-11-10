@@ -1,5 +1,21 @@
 use dioxus::prelude::*;
 
+// Helper function to check if current section belongs to a category
+fn is_in_category(section: &str, category: &str) -> bool {
+    if section == category {
+        return true;
+    }
+    
+    // Check if section is a subcategory of this category
+    match category {
+        "publishers-category" => matches!(section, "users" | "field-service-reports" | "roles" | "field-service-groups"),
+        "meetings-category" => matches!(section, "weekday-meeting" | "weekend-meeting" | "field-service-meetings" | "meeting-attendance"),
+        "congregation-category" => matches!(section, "special-events" | "absences" | "cleaning" | "maintenance" | "attendant" | "audio-video" | "territory"),
+        "settings-category" => matches!(section, "user-settings" | "congregation-settings"),
+        _ => false,
+    }
+}
+
 #[derive(Props, Clone, PartialEq)]
 pub struct MenuProps {
     pub current_section: String,
@@ -52,7 +68,7 @@ pub fn Menu(props: MenuProps) -> Element {
                         key: "{id}",
                         class: format!(
                             "group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {}",
-                            if props.current_section == *id {
+                            if is_in_category(&props.current_section, id) {
                                 "bg-primary text-primary-content shadow-lg shadow-primary/30 scale-[1.02]"
                             } else {
                                 "text-base-content/70 hover:text-base-content hover:bg-base-100 hover:shadow-md hover:scale-[1.01]"
@@ -84,8 +100,8 @@ pub fn Menu(props: MenuProps) -> Element {
                     button {
                         key: "{id}",
                         class: format!(
-                            "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-all duration-200 min-w-[64px] {}",
-                            if props.current_section == *id {
+                            "relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-all duration-200 min-w-[64px] {}",
+                            if is_in_category(&props.current_section, id) {
                                 "text-primary scale-105"
                             } else {
                                 "text-base-content/60 active:scale-95"
@@ -99,12 +115,12 @@ pub fn Menu(props: MenuProps) -> Element {
                         span { 
                             class: format!(
                                 "text-[10px] font-medium {}",
-                                if props.current_section == *id { "font-semibold" } else { "" }
+                                if is_in_category(&props.current_section, id) { "font-semibold" } else { "" }
                             ),
                             "{name}"
                         }
                         // Active indicator
-                        if props.current_section == *id {
+                        if is_in_category(&props.current_section, id) {
                             div { class: "absolute bottom-0 w-12 h-1 bg-primary rounded-t-full" }
                         }
                     }

@@ -1,4 +1,4 @@
-/*! tailwindcss v4.1.16 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.1.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
 @layer theme {
@@ -35,9 +35,7 @@
     --leading-relaxed: 1.625;
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
-    --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --blur-sm: 8px;
     --default-transition-duration: 150ms;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
@@ -176,9 +174,6 @@
   ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
     padding-block: 0;
   }
-  ::-webkit-calendar-picker-indicator {
-    line-height: 1;
-  }
   :-moz-ui-invalid {
     box-shadow: none;
   }
@@ -193,55 +188,6 @@
   }
 }
 @layer utilities {
-  .drawer-side {
-    :where(&) {
-      @layer daisyui.component {
-        overflow-x: hidden;
-        overflow-y: hidden;
-      }
-    }
-    @layer daisyui.component {
-      pointer-events: none;
-      visibility: hidden;
-      position: fixed;
-      inset-inline-start: calc(0.25rem * 0);
-      top: calc(0.25rem * 0);
-      z-index: 10;
-      grid-column-start: 1;
-      grid-row-start: 1;
-      display: grid;
-      width: 100%;
-      grid-template-columns: repeat(1, minmax(0, 1fr));
-      grid-template-rows: repeat(1, minmax(0, 1fr));
-      align-items: flex-start;
-      justify-items: start;
-      overscroll-behavior: contain;
-      background-color: transparent;
-      opacity: 0%;
-      transition: opacity 0.2s ease-out 0.1s allow-discrete, visibility 0.3s ease-out 0.1s allow-discrete;
-      height: 100vh;
-      height: 100dvh;
-      > .drawer-overlay {
-        position: sticky;
-        top: calc(0.25rem * 0);
-        cursor: pointer;
-        place-self: stretch;
-        background-color: oklch(0% 0 0 / 40%);
-      }
-      > * {
-        grid-column-start: 1;
-        grid-row-start: 1;
-      }
-      > *:not(.drawer-overlay) {
-        will-change: transform;
-        transition: translate 0.3s ease-out, width 0.2s ease-out;
-        translate: -100%;
-        [dir="rtl"] & {
-          translate: 100%;
-        }
-      }
-    }
-  }
   .drawer-open {
     @layer daisyui.modifier {
       :where(& > .drawer-side) {
@@ -272,34 +218,6 @@
           pointer-events: auto;
           visibility: visible;
         }
-      }
-    }
-  }
-  .drawer-toggle {
-    @layer daisyui.component {
-      position: fixed;
-      height: calc(0.25rem * 0);
-      width: calc(0.25rem * 0);
-      appearance: none;
-      opacity: 0%;
-      &:checked {
-        & ~ .drawer-side {
-          pointer-events: auto;
-          visibility: visible;
-          overflow-y: auto;
-          opacity: 100%;
-          scrollbar-color: currentColor oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
-          @supports (color: color-mix(in lab, red, red)) {
-            scrollbar-color: color-mix(in oklch, currentColor 35%, #0000) oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
-          }
-          & > *:not(.drawer-overlay) {
-            translate: 0%;
-          }
-        }
-      }
-      &:focus-visible ~ .drawer-content label.drawer-button {
-        outline: 2px solid;
-        outline-offset: 2px;
       }
     }
   }
@@ -1483,17 +1401,14 @@
   .fixed {
     position: fixed;
   }
+  .relative {
+    position: relative;
+  }
   .static {
     position: static;
   }
-  .inset-0 {
-    inset: calc(var(--spacing) * 0);
-  }
   .top-0 {
     top: calc(var(--spacing) * 0);
-  }
-  .top-4 {
-    top: calc(var(--spacing) * 4);
   }
   .right-0 {
     right: calc(var(--spacing) * 0);
@@ -1503,9 +1418,6 @@
   }
   .left-0 {
     left: calc(var(--spacing) * 0);
-  }
-  .left-4 {
-    left: calc(var(--spacing) * 4);
   }
   .textarea {
     @layer daisyui.component {
@@ -1585,9 +1497,6 @@
   .z-30 {
     z-index: 30;
   }
-  .z-40 {
-    z-index: 40;
-  }
   .z-50 {
     z-index: 50;
   }
@@ -1596,13 +1505,6 @@
   }
   .order-2 {
     order: 2;
-  }
-  .drawer-content {
-    @layer daisyui.component {
-      grid-column-start: 2;
-      grid-row-start: 1;
-      min-width: calc(0.25rem * 0);
-    }
   }
   .stat-value {
     @layer daisyui.component {
@@ -1804,9 +1706,6 @@
   }
   .mt-8 {
     margin-top: calc(var(--spacing) * 8);
-  }
-  .mt-12 {
-    margin-top: calc(var(--spacing) * 12);
   }
   .breadcrumbs {
     @layer daisyui.component {
@@ -2073,14 +1972,6 @@
   .table {
     display: table;
   }
-  .btn-circle {
-    @layer daisyui.modifier {
-      border-radius: calc(infinity * 1px);
-      padding-inline: calc(0.25rem * 0);
-      width: var(--size);
-      height: var(--size);
-    }
-  }
   .h-1 {
     height: calc(var(--spacing) * 1);
   }
@@ -2107,12 +1998,6 @@
   }
   .h-24 {
     height: calc(var(--spacing) * 24);
-  }
-  .h-\[calc\(100vh-120px\)\] {
-    height: calc(100vh - 120px);
-  }
-  .h-full {
-    height: 100%;
   }
   .h-screen {
     height: 100vh;
@@ -2186,14 +2071,6 @@
   .border-collapse {
     border-collapse: collapse;
   }
-  .-translate-x-full {
-    --tw-translate-x: -100%;
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-  }
-  .translate-x-0 {
-    --tw-translate-x: calc(var(--spacing) * 0);
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-  }
   .scale-105 {
     --tw-scale-x: 105%;
     --tw-scale-y: 105%;
@@ -2220,24 +2097,6 @@
       background-position-x: -50%;
       @media (prefers-reduced-motion: no-preference) {
         animation: skeleton 1.8s ease-in-out infinite;
-      }
-    }
-  }
-  .link {
-    @layer daisyui.component {
-      cursor: pointer;
-      text-decoration-line: underline;
-      &:focus {
-        --tw-outline-style: none;
-        outline-style: none;
-        @media (forced-colors: active) {
-          outline: 2px solid transparent;
-          outline-offset: 2px;
-        }
-      }
-      &:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
       }
     }
   }
@@ -2412,21 +2271,6 @@
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
-  .bg-black {
-    background-color: var(--color-black);
-  }
-  .bg-black\/30 {
-    background-color: color-mix(in srgb, #000 30%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-black) 30%, transparent);
-    }
-  }
-  .bg-black\/50 {
-    background-color: color-mix(in srgb, #000 50%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-black) 50%, transparent);
-    }
-  }
   .bg-error {
     background-color: var(--color-error);
   }
@@ -2523,9 +2367,6 @@
   .py-2\.5 {
     padding-block: calc(var(--spacing) * 2.5);
   }
-  .py-3 {
-    padding-block: calc(var(--spacing) * 3);
-  }
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
   }
@@ -2589,9 +2430,6 @@
   .tracking-wide {
     --tw-tracking: var(--tracking-wide);
     letter-spacing: var(--tracking-wide);
-  }
-  .text-wrap {
-    text-wrap: wrap;
   }
   .alert-error {
     @layer daisyui.modifier {
@@ -2717,16 +2555,6 @@
   .uppercase {
     text-transform: uppercase;
   }
-  .link-hover {
-    @layer daisyui.modifier {
-      text-decoration-line: none;
-      &:hover {
-        @media (hover: hover) {
-          text-decoration-line: underline;
-        }
-      }
-    }
-  }
   .underline {
     text-decoration-line: underline;
   }
@@ -2800,32 +2628,17 @@
     -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
     backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
   }
-  .backdrop-blur-sm {
-    --tw-backdrop-blur: blur(var(--blur-sm));
-    -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
-    backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
-  }
   .backdrop-filter {
     -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
     backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
   }
   .transition {
-    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, visibility, content-visibility, overlay, pointer-events;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
   .transition-all {
     transition-property: all;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
-  }
-  .transition-colors {
-    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
-  }
-  .transition-opacity {
-    transition-property: opacity;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
@@ -2845,10 +2658,6 @@
   .ease-in-out {
     --tw-ease: var(--ease-in-out);
     transition-timing-function: var(--ease-in-out);
-  }
-  .ease-out {
-    --tw-ease: var(--ease-out);
-    transition-timing-function: var(--ease-out);
   }
   .btn-outline {
     @layer daisyui.modifier {
@@ -2957,13 +2766,6 @@
       }
     }
   }
-  .hover\:bg-base-200 {
-    &:hover {
-      @media (hover: hover) {
-        background-color: var(--color-base-200);
-      }
-    }
-  }
   .hover\:text-base-content {
     &:hover {
       @media (hover: hover) {
@@ -3048,11 +2850,6 @@
       flex-direction: row;
     }
   }
-  .sm\:items-center {
-    @media (width >= 40rem) {
-      align-items: center;
-    }
-  }
   .sm\:p-8 {
     @media (width >= 40rem) {
       padding: calc(var(--spacing) * 8);
@@ -3111,12 +2908,6 @@
   .lg\:hidden {
     @media (width >= 64rem) {
       display: none;
-    }
-  }
-  .lg\:translate-x-0 {
-    @media (width >= 64rem) {
-      --tw-translate-x: calc(var(--spacing) * 0);
-      translate: var(--tw-translate-x) var(--tw-translate-y);
     }
   }
   .lg\:grid-cols-2 {
@@ -3459,21 +3250,6 @@
     background-position-x: -115%;
   }
 }
-@property --tw-translate-x {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --tw-translate-y {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
-@property --tw-translate-z {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
-}
 @property --tw-scale-x {
   syntax: "*";
   inherits: false;
@@ -3748,9 +3524,6 @@
 @layer properties {
   @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
-      --tw-translate-x: 0;
-      --tw-translate-y: 0;
-      --tw-translate-z: 0;
       --tw-scale-x: 1;
       --tw-scale-y: 1;
       --tw-scale-z: 1;
