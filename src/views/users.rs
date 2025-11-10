@@ -1189,7 +1189,6 @@ fn UserModal(props: UserModalProps) -> Element {
                                 }
                             }
                             }
-                            }
                         }
                     }
                     
