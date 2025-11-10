@@ -7,6 +7,7 @@ use crate::views::categories::meetings::Meetings;
 use crate::views::categories::congregation::Congregation as CongregationCategory;
 use crate::views::categories::settings::Settings as SettingsCategory;
 use crate::views::congregation_settings::CongregationSettings;
+use crate::views::users::Users;
 
 #[component]
 pub fn Home() -> Element {
@@ -104,6 +105,11 @@ pub fn Home() -> Element {
                     },
                     "congregation-settings" => rsx! {
                         CongregationSettings {
+                            on_navigate: move |section| current_section.set(section)
+                        }
+                    },
+                    "users" => rsx! {
+                        Users {
                             on_navigate: move |section| current_section.set(section)
                         }
                     },

@@ -1,0 +1,256 @@
+name: 'Deploy 🚀'
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+#For NDK see: https://developer.android.com/ndk/downloads
+env:
+  GH_TOKEN: ${{ github.token }}
+  NDK_VERSION: "28.1.13356709"
+  DX_VERSION: "0.7.1"
+
+jobs:
+  deploy:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    environment:
+      name: production
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+      discussions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # Windows
+          - name: 'Windows x86 🪟'
+            os: 'windows-2025'
+            target: 'i686-pc-windows-msvc'
+            platform: desktop
+          - name: 'Windows x64 🪟'
+            os: 'windows-2025'
+            target: 'x86_64-pc-windows-msvc'
+            platform: desktop
+          - name: 'Windows ARM64 🪟'
+            os: 'windows-2025'
+            target: 'aarch64-pc-windows-msvc'
+            platform: desktop
+          # MacOS
+          - name: 'MacOS x64 🍏'
+            os: 'macos-15'
+            target: 'x86_64-apple-darwin'
+            platform: desktop
+          - name: 'MacOS ARM64 🍏'
+            os: 'macos-15'
+            target: 'aarch64-apple-darwin'
+            platform: desktop
+          # Linux
+          - name: 'Linux x64 🐧'
+            os: 'ubuntu-24.04'
+            target: 'x86_64-unknown-linux-gnu'
+            platform: desktop
+          - name: 'Linux ARM64 🐧'
+            os: 'ubuntu-24.04-arm'
+            target: 'aarch64-unknown-linux-gnu'
+            platform: desktop
+          # Android
+          - name: 'Android 🤖'
+            os: 'macos-15'
+            target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
+            platform: android
+          # iOS
+          - name: 'iOS 📱'
+            os: 'macos-15'
+            target: 'aarch64-apple-ios aarch64-apple-ios-sim'
+            platform: ios
+          # Web
+          - name: 'Web 🌐'
+            os: 'ubuntu-24.04'
+            target: 'wasm32-unknown-unknown'
+            platform: web
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v5
+
+      - name: Set version 📝
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mv Cargo.toml Cargo.toml.orig
+          sed "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" Cargo.toml.orig >Cargo.toml
+
+      - name: Setup Rust Targets 🦀
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Setup Java ☕
+        if: ${{ matrix.platform == 'android'}}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'corretto'
+          java-version: '21'
+
+      - name: Setup Android 🤖
+        if: ${{ matrix.platform == 'android'}}
+        uses: android-actions/setup-android@v3
+
+      - name: Install Cargo Binstall 🛠️
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Setup Dependencies & Configs 🛠️
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+          case "${{ runner.os }}" in
+            "Linux")
+              sudo apt update -y 
+              sudo apt install build-essential librsvg2-dev -y
+
+              if [[ "${{ matrix.platform }}" != 'web' ]]; then
+                sudo apt install libwebkit2gtk-4.1-dev libxdo-dev libglib2.0-dev libayatana-appindicator3-dev -y
+              fi
+
+              ARCH=$(uname -m)
+              [[ "$ARCH" == "aarch64" ]] && TAILWIND_NAME="tailwindcss-linux-arm64" || TAILWIND_NAME="tailwindcss-linux-x64"
+              ;;
+
+            "macOS")
+              TAILWIND_NAME="tailwindcss-macos-arm64"
+              ;;
+
+            "Windows")
+              TAILWIND_NAME="tailwindcss-windows-x64.exe"
+              ;;
+          esac
+
+          curl -sLO "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/$TAILWIND_NAME"
+          chmod +x $TAILWIND_NAME
+
+          case "${{ matrix.platform }}" in
+            "web")
+              sed -i '/^\[web\.app\]$/a base_path = "theo-manager"' Dioxus.toml
+              ;;
+
+            "android")
+              sdkmanager "ndk;$NDK_VERSION"
+              ;;
+          esac
+
+          ./$TAILWIND_NAME -i ./input.css -o ./assets/tailwind.css
+          cargo binstall dioxus-cli --version $DX_VERSION -y
+
+      - name: Build & Deploy ${{ matrix.name }} 🚀
+        shell: bash
+        run: |
+          case "${{ matrix.platform }}" in
+            "desktop")
+              dx bundle --release --platform ${{ matrix.platform }} --target ${{ matrix.target }} --features bundle
+              ;;
+
+            "android")
+              dx build --release --platform android
+              dx bundle --release --platform android --features bundle
+              ;;
+
+            "ios")
+              dx bundle --release --platform ios --features bundle
+              ;;
+
+            *)
+              dx bundle --release --platform ${{ matrix.platform }} --features bundle
+              ;;
+          esac
+
+          if [[ "${{ matrix.platform }}" == "web" ]]; then
+            cp target/dx/theo-manager/release/web/public/index.html target/dx/theo-manager/release/web/public/404.html
+          fi
+
+      - name: Optimize Wasm ⚡
+        if: ${{ matrix.platform == 'web'}}
+        uses: NiklasEi/wasm-opt-action@v2
+        with:
+          file: target/dx/theo-manager/release/web/public/wasm/*.wasm
+          optimize_all: true
+          options: -Oz
+
+      - name: Upload Github Pages 📤
+        if: ${{ matrix.platform == 'web'}}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: target/dx/theo-manager/release/web/public/
+
+      - name: Deploy Github Pages 🌐
+        if: ${{ matrix.platform == 'web' }}
+        id: deployment
+        uses: actions/deploy-pages@v4
+      
+      - name: Install UPX 🛠️
+        if: ${{ matrix.platform == 'desktop' && matrix.name != 'MacOS x64 🍏' && matrix.name != 'MacOS ARM64 🍏'}}
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          install-only: true
+
+      - name: Upload Artifacts 📦
+        if: ${{ matrix.platform != 'web' }}
+        shell: bash
+        run: |
+          case "${{ matrix.name }}" in
+            "Windows x86 🪟")
+              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x86_en-US.msi \
+                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
+              ;;
+            "Windows x64 🪟")
+              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x64_en-US.msi \
+                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
+              ;;
+
+            "Windows ARM64 🪟")
+              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_arm64_en-US.msi \
+                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
+              ;;
+
+            "Linux x64 🐧")
+              upx --best target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_amd64.deb \
+                target/dx/theo-manager/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.x86_64.rpm \
+                target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
+              ;;
+
+            "Linux ARM64 🐧")
+              upx --best target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_arm64.deb \
+                target/dx/theo-manager/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.aarch64.rpm \
+                target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
+              ;;
+
+            "MacOS x64 🍏")
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_x64.dmg
+              ;;
+
+            "MacOS ARM64 🍏")
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_aarch64.dmg
+              ;;
+
+            "iOS 📱")
+              mkdir Payload
+              mv target/dx/theo-manager/release/ios/DxApp.app Payload/
+              zip -r TheoManager_${{ github.ref_name }}.ipa Payload
+              gh release upload ${{ github.ref_name }} TheoManager_${{ github.ref_name }}.ipa
+              ;;
+
+            "Android 🤖")
+              mv target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk
+              mv target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager-aarch64-linux-android.aab target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
+              gh release upload ${{ github.ref_name }} target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk \
+                target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
+              ;;
+          esac

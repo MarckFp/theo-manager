@@ -5,7 +5,7 @@ use surrealdb::engine::any::Any;
 use crate::database::db::get_db;
 use chrono::NaiveDate;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct UserEmergencyContact {
     pub firstname: String,
     pub lastname: Option<String>,
@@ -15,7 +15,7 @@ pub struct UserEmergencyContact {
     pub notes: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum UserType {
     Student,
     UnbaptizedPublisher,
@@ -25,13 +25,13 @@ pub enum UserType {
     ContiniousAuxiliaryPioneer,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum UserAppointment {
     Elder,
     MinisterialServant,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct User {
     pub id: surrealdb::RecordId,
     pub firstname: String,
