@@ -19,3 +19,36 @@ script = []
 # Javascript code file
 # serve: [dev-server] only
 script = []
+
+#------------------------------------------
+# Bundler
+#------------------------------------------
+[bundle]
+identifier = "io.github.theo-manager"
+publisher = "MarckFp"
+copyright = ""
+category = "Utility"
+short_description = "An amazing dioxus application."
+long_description = """
+An amazing dioxus application.
+"""
+#------------------------------------------
+# Windows
+#------------------------------------------
+[bundle.windows]
+icon_path = "icons/Windows/Square310x310Logo.scale-400.png"
+allow_downgrades = false
+tsp = false
+webview_install_mode = {DownloadBootstrapper = {silent = true}}
+silent = true
+[bundle.windows.nsis]
+installer_icon = "icons/Windows/Square310x310Logo.scale-400.png"
+install_mode = "Both"
+display_language_selector = false
+
+#------------------------------------------
+# MacOS
+#------------------------------------------
+[bundle.macos]
+hardened_runtime = true
+[bundle.macos.files]

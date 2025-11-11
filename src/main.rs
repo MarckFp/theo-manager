@@ -1,9 +1,5 @@
 use dioxus::prelude::*;
 
-const FAVICON: Asset = asset!("/assets/favicon.ico");
-const MAIN_CSS: Asset = asset!("/assets/main.css");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-
 mod database;
 mod views;
 mod components;
@@ -26,10 +22,20 @@ fn App() -> Element {
     });
 
     rsx! {
-        document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS }
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        
+        // Icons
+        document::Link { rel: "icon", type: "image/x-icon", href: asset!("/assets/favicon.ico") }
+        document::Link { rel: "icon", type: "image/png", sizes: "32x32", href: asset!("/assets/favicon-32x32.png") }
+        document::Link { rel: "icon", type: "image/png", sizes: "16x16", href: asset!("/assets/favicon-16x16.png") }
+        document::Link { rel: "icon", href: asset!("/assets/favicon.ico") }
+        document::Link { rel: "apple-touch-icon", sizes: "180x180" ,href: asset!("/assets/apple-touch-icon.png") }
+
+        // Stylesheets
+        document::Link { rel: "stylesheet", href: asset!("/assets/main.css") }
+        document::Link { rel: "stylesheet", href: asset!("/assets/tailwind.css") }
+
+        // Manifest
+        document::Link { rel: "manifest", href: asset!("/assets/site.webmanifest") }
+
         body {
             match has_data() {
                 Some(true) => rsx! {
