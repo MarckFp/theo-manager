@@ -145,11 +145,6 @@ jobs:
           ./$TAILWIND_NAME -i ./tailwind.css -o ./assets/tailwind.css
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
-      - name: Patch config.sub for jemalloc 🩹
-        if: ${{ matrix.platform == 'ios' }}
-        run: |
-          find target -name config.sub -exec sed -i '' 's/ios\*)/ios* | ios-sim)/g' {} +
-
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
         run: |
