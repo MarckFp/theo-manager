@@ -154,11 +154,14 @@ jobs:
               ;;
 
             "android")
-              RUSTFLAGS="-C target-feature=+crt-static" dx build --release --platform android
-              RUSTFLAGS="-C target-feature=+crt-static" dx bundle --release --platform android --features bundle
+              RUSTFLAGS='-C link-arg=-lstdc++ -C link-arg=-lc++_shared -C link-arg=-landroid -C link-arg=-lgcc' \
+              dx build --release --platform android
+              RUSTFLAGS='-C link-arg=-lstdc++ -C link-arg=-lc++_shared -C link-arg=-landroid -C link-arg=-lgcc' \
+              dx bundle --release --platform android --features bundle
               ;;
 
             "ios")
+              CC=clang CXX=clang++ \
               dx bundle --release --platform ios --features bundle
               ;;
 
