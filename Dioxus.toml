@@ -1,48 +1,63 @@
 [application]
 
+#------------------------------------------
+# Web
+#------------------------------------------
 [web.app]
-
-# HTML title tag content
 title = "Theo Manager"
-
-# include `assets` in web platform
 [web.resource]
-
-# Additional CSS style files
 style = []
-
-# Additional JavaScript files
 script = []
-
 [web.resource.dev]
-
-# Javascript code file
-# serve: [dev-server] only
 script = []
-
+[web.watcher]
+index_on_404 = true
+watch_path = ["src", "assets"]
+[web.wasm_opt]
+level = "z"
+debug = false
 #------------------------------------------
 # Bundler
 #------------------------------------------
 [bundle]
 identifier = "io.github.theo-manager"
 publisher = "MarckFp"
-copyright = ""
+icon = [
+    "icons/32x32.png",
+    "icons/64x64.png",
+    "icons/128x128.png",
+    "icons/128x128@2x.png",
+    "icons/icon.icns",
+    "icons/icon.ico",
+    "icons/icon.png",
+    "Square107x107Logo.png",
+    "Square142x142Logo.png",
+    "Square150x150Logo.png",
+    "Square284x284Logo.png",
+    "Square30x30Logo.png",
+    "Square310x310Logo.png",
+    "Square44x44Logo.png",
+    "Square71x71Logo.png",
+    "Square89x89Logo.png",
+    "StoreLogo.png"
+]
+copyright = "Copyright 2025 TheoManager"
 category = "Utility"
-short_description = "An amazing dioxus application."
+short_description = "An application to manage you congregation"
 long_description = """
-An amazing dioxus application.
+An amazing application that let you manage, handle and configure everything related to your congregation in an easy, fast and secure way.
 """
 #------------------------------------------
 # Windows
 #------------------------------------------
 [bundle.windows]
-icon_path = "icons/Windows/Square310x310Logo.scale-400.png"
+icon_path = "icons/icon.ico"
 allow_downgrades = false
 tsp = false
 webview_install_mode = {DownloadBootstrapper = {silent = true}}
 silent = true
 [bundle.windows.nsis]
-installer_icon = "icons/Windows/Square310x310Logo.scale-400.png"
+installer_icon = "icons/icon.ico"
 install_mode = "Both"
 display_language_selector = false
 

@@ -8,7 +8,7 @@ on:
 #For NDK see: https://developer.android.com/ndk/downloads
 env:
   GH_TOKEN: ${{ github.token }}
-  NDK_VERSION: "28.1.13356709"
+  NDK_VERSION: "25.2.9519653"
   DX_VERSION: "0.7.1"
 
 jobs:
@@ -66,7 +66,7 @@ jobs:
           # iOS
           - name: 'iOS 📱'
             os: 'macos-15'
-            target: 'aarch64-apple-ios'
+            target: 'aarch64-apple-ios aarch64-apple-ios-sim'
             platform: ios
           # Web
           - name: 'Web 🌐'
@@ -144,6 +144,11 @@ jobs:
 
           ./$TAILWIND_NAME -i ./tailwind.css -o ./assets/tailwind.css
           cargo binstall dioxus-cli --version $DX_VERSION -y
+
+      - name: Patch config.sub for jemalloc 🩹
+        if: ${{ matrix.platform == 'ios' }}
+        run: |
+          find target -name config.sub -exec sed -i '' 's/ios\*)/ios* | ios-sim)/g' {} +
 
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
