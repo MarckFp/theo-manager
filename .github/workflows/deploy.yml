@@ -66,7 +66,7 @@ jobs:
           # iOS
           - name: 'iOS 📱'
             os: 'macos-15'
-            target: 'aarch64-apple-ios aarch64-apple-ios-sim'
+            target: 'aarch64-apple-ios'
             platform: ios
           # Web
           - name: 'Web 🌐'
