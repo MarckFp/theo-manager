@@ -65,7 +65,7 @@ jobs:
             platform: android
           # iOS
           - name: 'iOS 📱'
-            os: 'macos-26'
+            os: 'macos-15-intel'
             target: 'aarch64-apple-ios aarch64-apple-ios-sim'
             platform: ios
           # Web
@@ -154,6 +154,7 @@ jobs:
               ;;
 
             "android")
+              export RUSTFLAGS="-C link-arg=-lunwind"
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
