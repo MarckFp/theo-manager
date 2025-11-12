@@ -9,7 +9,7 @@ on:
 env:
   GH_TOKEN: ${{ github.token }}
   NDK_VERSION: "29.0.14206865"
-  DX_VERSION: "0.7.1"
+  DX_VERSION: "0.7.0"
 
 jobs:
   deploy:
@@ -154,7 +154,6 @@ jobs:
               ;;
 
             "android")
-              export RUSTFLAGS="-Lnative=/usr/local/lib/android/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/lib/linux/aarch64 -Clink-arg=-lunwind"
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
