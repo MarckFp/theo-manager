@@ -145,6 +145,25 @@ jobs:
           ./$TAILWIND_NAME -i ./tailwind.css -o ./assets/tailwind.css
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
+      - name: Configure Cargo for Android Linker 🛠️
+        if: ${{ matrix.platform == 'android'}}
+        shell: bash
+        run: |
+          mkdir -p .cargo
+          cat << EOF > .cargo/config.toml
+          [target.aarch64-linux-android]
+          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
+
+          [target.armv7-linux-androideabi]
+          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
+
+          [target.i686-linux-android]
+          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
+
+          [target.x86_64-linux-android]
+          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
+          EOF
+
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
         run: |
@@ -154,14 +173,12 @@ jobs:
               ;;
 
             "android")
-              find $ANDROID_HOME/ndk/$NDK_VERSION -type f -name "libgcc.a"
-              export RUSTFLAGS="-Clink-arg=-lgcc -Clink-arg=-lunwind"
-              RUSTFLAGS="-Clink-arg=-v" dx build --release --platform android
+              find $ANDROID_HOME/ndk/$NDK_VERSION -type f | grep -E "libgcc|libunwind" || true
+              dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
 
             "ios")
-              export JEMALLOC_SYS_WITHOUT_AUTOCONF=1
               dx bundle --release --platform ios --features bundle
               ;;
 
