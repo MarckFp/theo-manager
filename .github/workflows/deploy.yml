@@ -8,7 +8,7 @@ on:
 #For NDK see: https://developer.android.com/ndk/downloads
 env:
   GH_TOKEN: ${{ github.token }}
-  NDK_VERSION: "29.0.14206865"
+  NDK_VERSION: "28.1.13356709"
   DX_VERSION: "0.7.1"
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
             platform: desktop
           # Android
           - name: 'Android 🤖'
-            os: 'ubuntu-24.04'
+            os: 'macos-26'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           # iOS
@@ -154,10 +154,6 @@ jobs:
               ;;
 
             "android")
-              ANDROID_ROOT=/usr/local/lib/android
-              ANDROID_SDK_ROOT=${ANDROID_ROOT}/sdk
-              ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk-bundle
-              ln -sfn $ANDROID_SDK_ROOT/ndk/$NDK_VERSION $ANDROID_NDK_ROOT
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
