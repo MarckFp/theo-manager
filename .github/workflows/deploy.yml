@@ -145,33 +145,6 @@ jobs:
           ./$TAILWIND_NAME -i ./tailwind.css -o ./assets/tailwind.css
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
-      - name: Configure Android Build Environment 🤖
-        if: ${{ matrix.platform == 'android'}}
-        shell: bash
-        run: |
-          export NDK_ROOT="$ANDROID_HOME/ndk/$NDK_VERSION"
-          echo "RUST_ANDROID_NDK=$NDK_ROOT" >> $GITHUB_ENV
-          echo "Set RUST_ANDROID_NDK to: $NDK_ROOT"
-          
-          TOOLCHAIN_PATH="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          echo "PATH=$TOOLCHAIN_PATH:\$PATH" >> $GITHUB_ENV
-          echo "Added toolchain path to PATH: $TOOLCHAIN_PATH"
-
-          mkdir -p .cargo
-          cat << EOF > .cargo/config.toml
-          [target.aarch64-linux-android]
-          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
-
-          [target.armv7-linux-androideabi]
-          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
-
-          [target.i686-linux-android]
-          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
-
-          [target.x86_64-linux-android]
-          rustflags = ["-Clink-args=-Wl,--as-needed", "-Clink-args=-Wl,-Bstatic", "-Clink-args=-lstdc++", "-Clink-args=-lc++_shared", "-Clink-args=-lz", "-Clink-args=-landroid", "-Clink-args=-ldl", "-Clink-args=-llog", "-Clink-args=-lunwind", "-Clink-args=-lm", "-Clink-args=-lc"]
-          EOF
-
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
         run: |
@@ -181,6 +154,7 @@ jobs:
               ;;
 
             "android")
+              export RUSTFLAGS="-Lnative=/usr/local/lib/android/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/lib/linux/aarch64 -Clink-arg=-lunwind"
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
