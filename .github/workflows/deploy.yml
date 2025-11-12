@@ -109,8 +109,8 @@ jobs:
 
           case "${{ runner.os }}" in
             "Linux")
-              sudo apt update -y 
-              sudo apt install build-essential librsvg2-dev -y
+              sudo apt update -y
+              sudo apt install build-essential librsvg2-dev libudev-dev -y
 
               if [[ "${{ matrix.platform }}" != 'web' ]]; then
                 sudo apt install libwebkit2gtk-4.1-dev libxdo-dev libglib2.0-dev libayatana-appindicator3-dev -y
@@ -154,27 +154,6 @@ jobs:
               ;;
 
             "android")
-              export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
-              export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
-              export NDK_TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64"
-              export CC_aarch64_linux_android="$NDK_TOOLCHAIN/bin/aarch64-linux-android21-clang"
-              export CXX_aarch64_linux_android="$NDK_TOOLCHAIN/bin/aarch64-linux-android21-clang++"
-              export AR_aarch64_linux_android="$NDK_TOOLCHAIN/bin/llvm-ar"
-              export CC_armv7_linux_androideabi="$NDK_TOOLCHAIN/bin/armv7a-linux-androideabi21-clang"
-              export CXX_armv7_linux_androideabi="$NDK_TOOLCHAIN/bin/armv7a-linux-androideabi21-clang++"
-              export AR_armv7_linux_androideabi="$NDK_TOOLCHAIN/bin/llvm-ar"
-              export CC_i686_linux_android="$NDK_TOOLCHAIN/bin/i686-linux-android21-clang"
-              export CXX_i686_linux_android="$NDK_TOOLCHAIN/bin/i686-linux-android21-clang++"
-              export AR_i686_linux_android="$NDK_TOOLCHAIN/bin/llvm-ar"
-              export CC_x86_64_linux_android="$NDK_TOOLCHAIN/bin/x86_64-linux-android21-clang"
-              export CXX_x86_64_linux_android="$NDK_TOOLCHAIN/bin/x86_64-linux-android21-clang++"
-              export AR_x86_64_linux_android="$NDK_TOOLCHAIN/bin/llvm-ar"
-              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
-              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$CC_armv7_linux_androideabi"
-              export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$CC_i686_linux_android"
-              export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$CC_x86_64_linux_android"
-              export RUSTFLAGS="-Clink-arg=-Wl,--allow-shlib-undefined"
-
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
@@ -275,3 +254,27 @@ jobs:
                 target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
               ;;
           esac
+  release:
+    name: 'Release Notes 📝'
+    runs-on: ubuntu-24.04
+    needs: deploy
+    steps:
+      - name: Create Release Notes 📝
+        run: |
+          echo "## Release ${{ github.ref_name }}" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Desktop Apps:" >> release_notes.md
+          echo "- [Windows x86 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x86-setup.exe)" >> release_notes.md
+          echo "- [Windows x64 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64-setup.exe)" >> release_notes.md
+          echo "- [Windows ARM64 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64-setup.exe)" >> release_notes.md
+          echo "- [MacOS x64 🍏](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.dmg)" >> release_notes.md
+          echo "- [MacOS ARM64 🍏](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.dmg)" >> release_notes.md
+          echo "- [Linux x64 🐧](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.AppImage)" >> release_notes.md
+          echo "- [Linux ARM64 🐧](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.AppImage)" >> release_notes.md
+          echo "### Mobile Apps:" >> release_notes.md
+          echo "- [iOS 📱](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.ipa)" >> release_notes.md
+          echo "- [Android APK 🤖](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.apk)" >> release_notes.md
+          echo "- [Android AAB 🤖](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.aab)" >> release_notes.md
+          echo "### Web App:" >> release_notes.md
+          echo "- [Web 🌐](https://marckfp.github.io/theo-manager/)" >> release_notes.md
+          gh release edit ${{ github.ref_name }} --notes-file release_notes.md

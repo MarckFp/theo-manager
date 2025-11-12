@@ -1,6 +1,9 @@
 {
     "name": "TheoManager",
     "short_name": "tm",
+    "id": "/theo-manager/",
+    "start_url": "/theo-manager/",
+    "scope": "/theo-manager/",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
