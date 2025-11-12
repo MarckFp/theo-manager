@@ -8,7 +8,7 @@ on:
 #For NDK see: https://developer.android.com/ndk/downloads
 env:
   GH_TOKEN: ${{ github.token }}
-  NDK_VERSION: "28.1.13356709"
+  NDK_VERSION: "29.0.14206865"
   DX_VERSION: "0.7.1"
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
             platform: desktop
           # Android
           - name: 'Android 🤖'
-            os: 'macos-26'
+            os: 'ubuntu-24.04'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           # iOS
@@ -154,11 +154,14 @@ jobs:
               ;;
 
             "android")
-              dx build --release --platform android
+              find $ANDROID_HOME/ndk/$NDK_VERSION -type f -name "libgcc.a"
+              export RUSTFLAGS="-Clink-arg=-lgcc -Clink-arg=-lunwind"
+              RUSTFLAGS="-Clink-arg=-v" dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
 
             "ios")
+              export JEMALLOC_SYS_WITHOUT_AUTOCONF=1
               dx bundle --release --platform ios --features bundle
               ;;
 
