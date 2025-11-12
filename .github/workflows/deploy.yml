@@ -110,7 +110,7 @@ jobs:
           case "${{ runner.os }}" in
             "Linux")
               sudo apt update -y
-              sudo apt install build-essential librsvg2-dev libudev-dev -y
+              sudo apt install build-essential librsvg2-dev -y
 
               if [[ "${{ matrix.platform }}" != 'web' ]]; then
                 sudo apt install libwebkit2gtk-4.1-dev libxdo-dev libglib2.0-dev libayatana-appindicator3-dev -y
@@ -154,6 +154,10 @@ jobs:
               ;;
 
             "android")
+              ANDROID_ROOT=/usr/local/lib/android
+              ANDROID_SDK_ROOT=${ANDROID_ROOT}/sdk
+              ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk-bundle
+              ln -sfn $ANDROID_SDK_ROOT/ndk/$NDK_VERSION $ANDROID_NDK_ROOT
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
