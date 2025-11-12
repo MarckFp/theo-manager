@@ -10,7 +10,6 @@ env:
   GH_TOKEN: ${{ github.token }}
   NDK_VERSION: "29.0.14206865"
   DX_VERSION: "0.7.1"
-  RUSTFLAGS: "-Clink-arg=-lunwind"
 
 jobs:
   deploy:
@@ -182,7 +181,6 @@ jobs:
               ;;
 
             "android")
-              find $ANDROID_HOME/ndk/$NDK_VERSION -type f | grep -E "libgcc|libunwind" || true
               dx build --release --platform android
               dx bundle --release --platform android --features bundle
               ;;
