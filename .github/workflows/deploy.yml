@@ -60,7 +60,7 @@ jobs:
             platform: desktop
           # Android
           - name: 'Android 🤖'
-            os: 'macos-26'
+            os: 'ubuntu-24.04'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           # iOS
