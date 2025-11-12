@@ -10,6 +10,7 @@ env:
   GH_TOKEN: ${{ github.token }}
   NDK_VERSION: "29.0.14206865"
   DX_VERSION: "0.7.1"
+  RUSTFLAGS: "-Clink-arg=-lunwind"
 
 jobs:
   deploy:
@@ -145,10 +146,18 @@ jobs:
           ./$TAILWIND_NAME -i ./tailwind.css -o ./assets/tailwind.css
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
-      - name: Configure Cargo for Android Linker 🛠️
+      - name: Configure Android Build Environment 🤖
         if: ${{ matrix.platform == 'android'}}
         shell: bash
         run: |
+          export NDK_ROOT="$ANDROID_HOME/ndk/$NDK_VERSION"
+          echo "RUST_ANDROID_NDK=$NDK_ROOT" >> $GITHUB_ENV
+          echo "Set RUST_ANDROID_NDK to: $NDK_ROOT"
+          
+          TOOLCHAIN_PATH="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "PATH=$TOOLCHAIN_PATH:\$PATH" >> $GITHUB_ENV
+          echo "Added toolchain path to PATH: $TOOLCHAIN_PATH"
+
           mkdir -p .cargo
           cat << EOF > .cargo/config.toml
           [target.aarch64-linux-android]
