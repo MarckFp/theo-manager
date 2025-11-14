@@ -26,7 +26,7 @@ fn App() -> Element {
     let html = document.document_element().unwrap();
 
     html.set_attribute("lang", "en").unwrap();
-    html.set_attribute("data-theme", "aqua").unwrap();
+    html.set_attribute("data-theme", "black").unwrap();
 
     rsx! {
         // Icons
