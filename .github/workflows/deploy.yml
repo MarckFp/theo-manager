@@ -160,9 +160,8 @@ jobs:
               ;;
 
             "android")
-              export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
-              dx build --release --platform ${{ matrix.platform }}
-              dx bundle --release --platform ${{ matrix.platform }} --features bundle
+              NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" dx build --release --platform ${{ matrix.platform }}
+              NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" dx bundle --release --platform ${{ matrix.platform }} --features bundle
               ;;
 
             "ios")
@@ -171,7 +170,7 @@ jobs:
               ;;
 
             *)
-              dx bundle --release --platform ${{ matrix.platform }} --features bundle --wasm-split
+              dx bundle --release --platform ${{ matrix.platform }} --features bundle
               ;;
           esac
 

@@ -23,7 +23,7 @@ web-sys = { version = "0.3.72", features = ["Window", "Location", "Document", "E
 default = ["web"]
 web = ["dioxus/web", "surrealdb/kv-indxdb", "surrealdb/protocol-ws"]
 desktop = ["dioxus/desktop", "surrealdb/kv-rocksdb", "surrealdb/protocol-ws"]
-mobile = ["dioxus/mobile", "surrealdb/kv-rocksdb", "surrealdb/protocol-ws"]
+mobile = ["dioxus/mobile", "surrealdb/kv-mem", "surrealdb/protocol-ws"]
 bundle = []
 
 [profile.release]
