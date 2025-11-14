@@ -29,15 +29,15 @@ jobs:
         include:
         # Windows
           - name: 'Windows x86 🪟'
-            os: 'ubuntu-24.04'
+            os: 'windows-2025'
             target: 'i686-pc-windows-msvc'
             platform: desktop
           - name: 'Windows x64 🪟'
-            os: 'ubuntu-24.04'
+            os: 'windows-2025'
             target: 'x86_64-pc-windows-msvc'
             platform: desktop
           - name: 'Windows ARM64 🪟'
-            os: 'ubuntu-24.04-arm'
+            os: 'windows-2025'
             target: 'aarch64-pc-windows-msvc'
             platform: desktop
           # MacOS
@@ -59,7 +59,11 @@ jobs:
             target: 'aarch64-unknown-linux-gnu'
             platform: desktop
           # Android
-          - name: 'Android 🤖'
+          - name: 'Android APK🤖'
+            os: 'macos-26'
+            target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
+            platform: android
+          - name: 'Android AAB🤖'
             os: 'macos-26'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
@@ -123,12 +127,6 @@ jobs:
               ;;
           esac
 
-          case "${{ matrix.name }}" in
-            "Windows x86 🪟"|"Windows x64 🪟"|"Windows ARM64 🪟")
-              sudo apt-get install mingw-w64 -y
-              ;;
-          esac
-
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
       - name: Build & Deploy ${{ matrix.name }} 🚀
@@ -140,8 +138,15 @@ jobs:
               ;;
 
             "android")
-              dx build --release --platform ${{ matrix.platform }}
-              dx bundle --release --platform ${{ matrix.platform }} --features bundle
+              case "${{ matrix.name }}" in
+                "Android APK🤖")
+                  dx build --release --platform ${{ matrix.platform }}
+                  ;;
+
+                "Android AAB🤖")
+                  dx bundle --release --platform ${{ matrix.platform }} --features bundle
+                  ;;
+              esac
               ;;
 
             "ios")
@@ -233,11 +238,14 @@ jobs:
               gh release upload ${{ github.ref_name }} TheoManager_${{ github.ref_name }}.ipa
               ;;
 
-            "Android 🤖")
+            "Android APK🤖")
               mv target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk
+              ;;
+
+            "Android AAB🤖")
               mv target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager-aarch64-linux-android.aab target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
-              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk \
-                target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
               ;;
           esac
   release:
