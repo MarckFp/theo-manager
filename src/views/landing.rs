@@ -16,21 +16,15 @@ pub fn Landing() -> Element {
     const TOTAL_STEPS: i32 = 4;
 
     rsx! {
-        div { 
-            class: "min-h-screen w-full flex items-center justify-center bg-base-200 p-4",
-            
+        div { class: "min-h-screen w-full flex items-center justify-center bg-base-200 p-4",
             // Centered card container
-            div { 
-                class: "card w-full max-w-2xl bg-base-100 shadow-xl",
-                
+            div { class: "card w-full max-w-2xl bg-base-100 shadow-xl",
                 div { class: "card-body p-6 sm:p-8",
-                    
                     // Stepper component
-                    Stepper { 
+                    Stepper {
                         current_step: current_step(),
-                        total_steps: TOTAL_STEPS
+                        total_steps: TOTAL_STEPS,
                     }
-                    
                     // Step content
                     div { class: "mt-6",
                         match current_step() {
@@ -38,7 +32,7 @@ pub fn Landing() -> Element {
                                 WelcomeStep {
                                     on_next: move |_| {
                                         current_step.set(2);
-                                    }
+                                    },
                                 }
                             },
                             2 => rsx! {
@@ -49,7 +43,7 @@ pub fn Landing() -> Element {
                                     },
                                     on_back: move |_| {
                                         current_step.set(1);
-                                    }
+                                    },
                                 }
                             },
                             3 => rsx! {
@@ -60,35 +54,45 @@ pub fn Landing() -> Element {
                                     },
                                     on_back: move |_| {
                                         current_step.set(2);
-                                    }
+                                    },
                                 }
                             },
                             4 => rsx! {
                                 if setup_complete() {
                                     div { class: "text-center p-8 space-y-6",
                                         div { class: "flex justify-center",
-                                            svg { 
+                                            svg {
                                                 class: "w-24 h-24 text-success",
                                                 fill: "none",
                                                 stroke: "currentColor",
                                                 view_box: "0 0 24 24",
-                                                path { 
+                                                path {
                                                     stroke_linecap: "round",
                                                     stroke_linejoin: "round",
                                                     stroke_width: "2",
-                                                    d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                    d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
                                                 }
                                             }
                                         }
-                                        h2 { class: "text-3xl font-bold text-base-content",
-                                            "Setup Complete!"
-                                        }
-                                        p { class: "text-base-content/70",
-                                            "Your congregation has been successfully configured."
-                                        }
-                                        p { class: "text-sm text-base-content/60",
-                                            "Refreshing application..."
-                                        }
+
+                                        // Spawn async task to save data
+
+                                        // Database is already initialized from main.rs
+                                        // Just save the data
+
+                                        // Save congregation
+                                        // Save user
+                                        // Create Owner role for the user
+                                        // Extract table and id from RecordId
+
+                                        // Wait 2 seconds to show success message, then reload
+                                        // Force a full page reload to re-check database
+
+                                        // On desktop, the app will automatically re-render and check congregation data
+                                        // No need for delay or manual reload
+                                        h2 { class: "text-3xl font-bold text-base-content", "Setup Complete!" }
+                                        p { class: "text-base-content/70", "Your congregation has been successfully configured." }
+                                        p { class: "text-sm text-base-content/60", "Refreshing application..." }
                                         span { class: "loading loading-spinner loading-md text-primary" }
                                     }
                                 } else if is_submitting() {
@@ -100,15 +104,15 @@ pub fn Landing() -> Element {
                                 } else if let Some(error) = submission_error() {
                                     div { class: "text-center p-8 space-y-4",
                                         div { class: "alert alert-error",
-                                            svg { 
+                                            svg {
                                                 class: "stroke-current shrink-0 h-6 w-6",
                                                 fill: "none",
                                                 view_box: "0 0 24 24",
-                                                path { 
+                                                path {
                                                     stroke_linecap: "round",
                                                     stroke_linejoin: "round",
                                                     stroke_width: "2",
-                                                    d: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                    d: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z",
                                                 }
                                             }
                                             div {
@@ -116,7 +120,7 @@ pub fn Landing() -> Element {
                                                 p { class: "text-sm", "{error}" }
                                             }
                                         }
-                                        button { 
+                                        button {
                                             class: "btn btn-primary btn-lg",
                                             onclick: move |_| {
                                                 submission_error.set(None);
@@ -129,92 +133,87 @@ pub fn Landing() -> Element {
                                     UserCreationStep {
                                         on_create: move |user: User| {
                                             is_submitting.set(true);
-                                            
-                                            // Spawn async task to save data
+        
                                             let congregation = congregation_data().unwrap();
-                                            let mode = working_mode().unwrap();
-                                            
+                                            let _mode = working_mode().unwrap();
+        
                                             spawn(async move {
-                                                // Initialize database based on mode
-                                                let db_result = match mode {
-                                                    WorkingMode::Offline => {
-                                                        crate::database::db::init("congregation", false).await
-                                                    },
-                                                    WorkingMode::Online => {
-                                                        crate::database::db::init("congregation", true).await
-                                                    }
-                                                };
-                                                
-                                                match db_result {
+        
+                                                match Congregation::create(congregation).await {
                                                     Ok(_) => {
-                                                        // Save congregation
-                                                        match Congregation::create(congregation).await {
-                                                            Ok(_) => {
-                                                                // Save user
-                                                                match User::create(user.clone()).await {
-                                                                    Ok(created_user) => {
-                                                                        // Create Owner role for the user
-                                                                        // Extract table and id from RecordId
-                                                                        let user_record_string = created_user.id.to_string();
-                                                                        let user_thing = surrealdb::sql::Thing::from(("user".to_string(), user_record_string.clone()));
-                                                                        
-                                                                        let owner_role = Role {
-                                                                            id: surrealdb::RecordId::from(("role", format!("owner_{}", user_record_string))),
-                                                                            publisher: Some(user_thing),
-                                                                            r#type: RoleType::Owner,
-                                                                            start_date: None,
-                                                                            end_date: None,
-                                                                            notes: None,
-                                                                        };
-                                                                        
-                                                                        match Role::create(owner_role).await {
-                                                                            Ok(_) => {
-                                                                                is_submitting.set(false);
-                                                                                setup_complete.set(true);
-                                                                                
-                                                                                // Wait 2 seconds to show success message, then reload
-                                                                                spawn(async move {
-                                                                                    gloo_timers::future::TimeoutFuture::new(2_000).await;
-                                                                                    // Force a full page reload to re-check database
-                                                                                    if let Some(window) = web_sys::window() {
-                                                                                        let _ = window.location().reload();
-                                                                                    }
-                                                                                });
-                                                                            },
-                                                                            Err(e) => {
-                                                                                is_submitting.set(false);
-                                                                                submission_error.set(Some(format!("User created but failed to assign Owner role: {}", e)));
-                                                                            }
+                                                        match User::create(user.clone()).await {
+                                                            Ok(created_user) => {
+                                                                let user_record_string = created_user.id.to_string();
+                                                                let user_thing = surrealdb::sql::Thing::from((
+        
+        
+                                                                    "user".to_string(),
+                                                                    user_record_string.clone(),
+                                                                ));
+                                                                let owner_role = Role {
+                                                                    id: surrealdb::RecordId::from((
+                                                                        "role",
+                                                                        format!("owner_{}", user_record_string),
+                                                                    )),
+                                                                    publisher: Some(user_thing),
+                                                                    r#type: RoleType::Owner,
+                                                                    start_date: None,
+                                                                    end_date: None,
+                                                                    notes: None,
+                                                                };
+                                                                match Role::create(owner_role).await {
+                                                                    Ok(_) => {
+                                                                        is_submitting.set(false);
+                                                                        setup_complete.set(true);
+                                                                        #[cfg(target_arch = "wasm32")]
+                                                                        {
+                                                                            spawn(async move {
+                                                                                gloo_timers::future::TimeoutFuture::new(2_000).await;
+                                                                                if let Some(window) = web_sys::window() {
+                                                                                    let _ = window.location().reload();
+                                                                                }
+                                                                            });
                                                                         }
-                                                                    },
+                                                                        #[cfg(not(target_arch = "wasm32"))] {}
+                                                                    }
                                                                     Err(e) => {
                                                                         is_submitting.set(false);
-                                                                        submission_error.set(Some(format!("Failed to create user: {}", e)));
+                                                                        submission_error
+                                                                            .set(
+                                                                                Some(
+                                                                                    format!(
+                                                                                        "User created but failed to assign Owner role: {}",
+                                                                                        e,
+                                                                                    ),
+                                                                                ),
+                                                                            );
                                                                     }
                                                                 }
-                                                            },
+                                                            }
                                                             Err(e) => {
                                                                 is_submitting.set(false);
-                                                                submission_error.set(Some(format!("Failed to create congregation: {}", e)));
+                                                                submission_error
+                                                                    .set(Some(format!("Failed to create user: {}", e)));
                                                             }
                                                         }
-                                                    },
+                                                    }
                                                     Err(e) => {
                                                         is_submitting.set(false);
-                                                        submission_error.set(Some(format!("Failed to initialize database: {}", e)));
+                                                        submission_error
+                                                            .set(Some(format!("Failed to create congregation: {}", e)));
                                                     }
                                                 }
                                             });
                                         },
                                         on_back: move |_| {
                                             current_step.set(3);
-                                        }
+                                        },
                                     }
                                 }
                             },
                             _ => rsx! {
                                 div { "Invalid step" }
-                            }
+                            },
                         }
                     }
                 }

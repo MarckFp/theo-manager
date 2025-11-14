@@ -46,9 +46,7 @@ pub fn Menu(props: MenuProps) -> Element {
     
     rsx! {
         // Desktop Sidebar
-        aside {
-            class: "hidden lg:block fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-base-100 to-base-200 border-r border-base-300 z-30",
-            
+        aside { class: "hidden lg:block fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-base-100 to-base-200 border-r border-base-300 z-30",
             // Header
             div { class: "h-20 flex items-center justify-center border-b border-base-300/50 bg-base-100/50 backdrop-blur",
                 div { class: "text-center",
@@ -60,10 +58,9 @@ pub fn Menu(props: MenuProps) -> Element {
                     }
                 }
             }
-            
             // Navigation
             nav { class: "flex-1 overflow-y-auto p-3 space-y-1",
-                for (id, name, icon) in menu_items.iter() {
+                for (id , name , icon) in menu_items.iter() {
                     button {
                         key: "{id}",
                         class: format!(
@@ -72,31 +69,28 @@ pub fn Menu(props: MenuProps) -> Element {
                                 "bg-primary text-primary-content shadow-lg shadow-primary/30 scale-[1.02]"
                             } else {
                                 "text-base-content/70 hover:text-base-content hover:bg-base-100 hover:shadow-md hover:scale-[1.01]"
-                            }
+                            },
                         ),
                         onclick: {
                             let section = id.to_string();
                             move |_| handle_menu_click(section.clone())
                         },
-                        span { class: "text-xl transition-transform group-hover:scale-110", "{icon}" }
+                        span { class: "text-xl transition-transform group-hover:scale-110",
+                            "{icon}"
+                        }
                         span { class: "text-sm font-medium", "{name}" }
                     }
                 }
             }
-            
             // Footer
             div { class: "h-16 border-t border-base-300/50 flex items-center justify-center bg-base-100/30",
-                p { class: "text-xs text-base-content/50",
-                    "v1.0.0"
-                }
+                p { class: "text-xs text-base-content/50", "v1.0.0" }
             }
         }
-        
         // Mobile Bottom Navigation Bar
-        nav {
-            class: "lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 shadow-2xl",
+        nav { class: "lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 shadow-2xl",
             div { class: "flex items-center justify-around h-16 px-2 safe-bottom",
-                for (id, name, icon) in mobile_menu_items.iter() {
+                for (id , name , icon) in mobile_menu_items.iter() {
                     button {
                         key: "{id}",
                         class: format!(
@@ -105,17 +99,17 @@ pub fn Menu(props: MenuProps) -> Element {
                                 "text-primary scale-105"
                             } else {
                                 "text-base-content/60 active:scale-95"
-                            }
+                            },
                         ),
                         onclick: {
                             let section = id.to_string();
                             move |_| handle_menu_click(section.clone())
                         },
                         span { class: "text-2xl", "{icon}" }
-                        span { 
+                        span {
                             class: format!(
                                 "text-[10px] font-medium {}",
-                                if is_in_category(&props.current_section, id) { "font-semibold" } else { "" }
+                                if is_in_category(&props.current_section, id) { "font-semibold" } else { "" },
                             ),
                             "{name}"
                         }

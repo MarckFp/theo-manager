@@ -256,7 +256,6 @@ pub fn Users(props: UsersProps) -> Element {
                     li { "Users" }
                 }
             }
-            
             // Header with title and action buttons
             div { class: "flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6",
                 div {
@@ -292,7 +291,6 @@ pub fn Users(props: UsersProps) -> Element {
                     }
                 }
             }
-            
             // Message banner
             if let Some(msg) = message() {
                 div { class: "alert alert-info shadow-lg",
@@ -304,7 +302,6 @@ pub fn Users(props: UsersProps) -> Element {
                     }
                 }
             }
-            
             // Filters section (sticky and collapsible)
             div { class: "mb-6 bg-base-200",
                 div { class: "card bg-base-100 shadow-lg sticky top-0 z-10 pb-4",
@@ -322,121 +319,115 @@ pub fn Users(props: UsersProps) -> Element {
                                 }
                             }
                         }
-                    
-                    // Collapsible content
-                    if !filters_collapsed() {
-                        div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
-                            // Search by name
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text", "Search by name" }
+                        // Collapsible content
+                        if !filters_collapsed() {
+                            div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
+                                // Search by name
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text", "Search by name" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered",
+                                        placeholder: "John Doe",
+                                        value: "{search_query()}",
+                                        oninput: move |evt| {
+                                            search_query.set(evt.value());
+                                            apply_filters();
+                                        },
+                                    }
                                 }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered",
-                                    placeholder: "John Doe",
-                                    value: "{search_query()}",
-                                    oninput: move |evt| {
-                                        search_query.set(evt.value());
-                                        apply_filters();
+                                // Gender filter
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text", "Gender" }
+                                    }
+                                    select {
+                                        class: "select select-bordered",
+                                        onchange: move |evt| {
+                                            match evt.value().as_str() {
+                                                "all" => gender_filter.set(None),
+                                                "male" => gender_filter.set(Some(true)),
+                                                "female" => gender_filter.set(Some(false)),
+                                                _ => {}
+                                            }
+                                            apply_filters();
+                                        },
+                                        option { value: "all", "All" }
+                                        option { value: "male", "Male" }
+                                        option { value: "female", "Female" }
+                                    }
+                                }
+                                // Appointment filter
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text", "Appointment" }
+                                    }
+                                    select {
+                                        class: "select select-bordered",
+                                        onchange: move |evt| {
+                                            match evt.value().as_str() {
+                                                "all" => appointment_filter.set(None),
+                                                "elder" => appointment_filter.set(Some(UserAppointment::Elder)),
+                                                "ms" => appointment_filter.set(Some(UserAppointment::MinisterialServant)),
+                                                _ => {}
+                                            }
+                                            apply_filters();
+                                        },
+                                        option { value: "all", "All" }
+                                        option { value: "elder", "Elder" }
+                                        option { value: "ms", "Ministerial Servant" }
+                                    }
+                                }
+                                // Type filter
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text", "Publisher Type" }
+                                    }
+                                    select {
+                                        class: "select select-bordered",
+                                        onchange: move |evt| {
+                                            match evt.value().as_str() {
+                                                "all" => type_filter.set(None),
+                                                "student" => type_filter.set(Some(UserType::Student)),
+                                                "unbaptized" => type_filter.set(Some(UserType::UnbaptizedPublisher)),
+                                                "baptized" => type_filter.set(Some(UserType::BaptizedPublisher)),
+                                                "regular_pioneer" => type_filter.set(Some(UserType::RegularPioneer)),
+                                                "special_pioneer" => type_filter.set(Some(UserType::SpecialPioneer)),
+                                                "aux_pioneer" => type_filter.set(Some(UserType::ContiniousAuxiliaryPioneer)),
+                                                _ => {}
+                                            }
+                                            apply_filters();
+                                        },
+                                        option { value: "all", "All" }
+                                        option { value: "student", "Student" }
+                                        option { value: "unbaptized", "Unbaptized Publisher" }
+                                        option { value: "baptized", "Baptized Publisher" }
+                                        option { value: "regular_pioneer", "Regular Pioneer" }
+                                        option { value: "special_pioneer", "Special Pioneer" }
+                                        option { value: "aux_pioneer", "Auxiliary Pioneer" }
                                     }
                                 }
                             }
-                            
-                            // Gender filter
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text", "Gender" }
-                                }
-                                select {
-                                    class: "select select-bordered",
-                                    onchange: move |evt| {
-                                        match evt.value().as_str() {
-                                            "all" => gender_filter.set(None),
-                                            "male" => gender_filter.set(Some(true)),
-                                            "female" => gender_filter.set(Some(false)),
-                                            _ => {}
-                                        }
+                            // Clear filters button
+                            div { class: "mt-4",
+                                button {
+                                    class: "btn btn-outline btn-sm",
+                                    onclick: move |_| {
+                                        search_query.set(String::new());
+                                        gender_filter.set(None);
+                                        appointment_filter.set(None);
+                                        type_filter.set(None);
                                         apply_filters();
                                     },
-                                    option { value: "all", "All" }
-                                    option { value: "male", "Male" }
-                                    option { value: "female", "Female" }
+                                    "Clear Filters"
                                 }
-                            }
-                            
-                            // Appointment filter
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text", "Appointment" }
-                                }
-                                select {
-                                    class: "select select-bordered",
-                                    onchange: move |evt| {
-                                        match evt.value().as_str() {
-                                            "all" => appointment_filter.set(None),
-                                            "elder" => appointment_filter.set(Some(UserAppointment::Elder)),
-                                            "ms" => appointment_filter.set(Some(UserAppointment::MinisterialServant)),
-                                            _ => {}
-                                        }
-                                        apply_filters();
-                                    },
-                                    option { value: "all", "All" }
-                                    option { value: "elder", "Elder" }
-                                    option { value: "ms", "Ministerial Servant" }
-                                }
-                            }
-                            
-                            // Type filter
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text", "Publisher Type" }
-                                }
-                                select {
-                                    class: "select select-bordered",
-                                    onchange: move |evt| {
-                                        match evt.value().as_str() {
-                                            "all" => type_filter.set(None),
-                                            "student" => type_filter.set(Some(UserType::Student)),
-                                            "unbaptized" => type_filter.set(Some(UserType::UnbaptizedPublisher)),
-                                            "baptized" => type_filter.set(Some(UserType::BaptizedPublisher)),
-                                            "regular_pioneer" => type_filter.set(Some(UserType::RegularPioneer)),
-                                            "special_pioneer" => type_filter.set(Some(UserType::SpecialPioneer)),
-                                            "aux_pioneer" => type_filter.set(Some(UserType::ContiniousAuxiliaryPioneer)),
-                                            _ => {}
-                                        }
-                                        apply_filters();
-                                    },
-                                    option { value: "all", "All" }
-                                    option { value: "student", "Student" }
-                                    option { value: "unbaptized", "Unbaptized Publisher" }
-                                    option { value: "baptized", "Baptized Publisher" }
-                                    option { value: "regular_pioneer", "Regular Pioneer" }
-                                    option { value: "special_pioneer", "Special Pioneer" }
-                                    option { value: "aux_pioneer", "Auxiliary Pioneer" }
-                                }
-                            }
-                        }
-                        
-                        // Clear filters button
-                        div { class: "mt-4",
-                            button {
-                                class: "btn btn-outline btn-sm",
-                                onclick: move |_| {
-                                    search_query.set(String::new());
-                                    gender_filter.set(None);
-                                    appointment_filter.set(None);
-                                    type_filter.set(None);
-                                    apply_filters();
-                                },
-                                "Clear Filters"
                             }
                         }
                     }
                 }
             }
-            }
-            
             // Users grid
             div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
                 for user in paginated_users.iter() {
@@ -446,13 +437,13 @@ pub fn Users(props: UsersProps) -> Element {
                         let user_id_for_checkbox = user_id.clone();
                         let user_id_for_delete = user_id.clone();
                         let is_selected = selected_users().contains(&user_id);
-                        
+
                         rsx! {
                             div {
                                 key: "{user.id}",
                                 class: format!(
                                     "card bg-base-100 shadow-lg hover:shadow-xl transition-all cursor-pointer {}",
-                                    if is_selected { "ring-2 ring-primary" } else { "" }
+                                    if is_selected { "ring-2 ring-primary" } else { "" },
                                 ),
                                 div { class: "card-body p-4",
                                     // Selection checkbox
@@ -464,15 +455,36 @@ pub fn Users(props: UsersProps) -> Element {
                                             onclick: move |evt| {
                                                 evt.stop_propagation();
                                                 toggle_selection(user_id_for_checkbox.clone());
-                                            }
+                                            },
                                         }
                                         // Gender icon
-                                        div { class: format!("badge badge-sm {}", if user.gender { "badge-info" } else { "badge-secondary" }),
-                                            if user.gender { "♂ Male" } else { "♀ Female" }
+                                        div {
+
+                                            // Name
+
+                                            // Labels/Tags
+                                            // Appointment badge
+
+                                            // Publisher type badge
+
+                                            // Anointed badge
+
+                                            // Family head badge
+
+                                            // Contact info preview
+
+                                            // Action buttons
+                                            class: format!(
+                                                "badge badge-sm {}",
+                                                if user.gender { "badge-info" } else { "badge-secondary" },
+                                            ),
+                                            if user.gender {
+                                                "♂ Male"
+                                            } else {
+                                                "♀ Female"
+                                            }
                                         }
                                     }
-                                    
-                                    // Name
                                     h3 {
                                         class: "font-bold text-lg mb-2",
                                         onclick: {
@@ -481,10 +493,7 @@ pub fn Users(props: UsersProps) -> Element {
                                         },
                                         "{format_name(&user)}"
                                     }
-                                    
-                                    // Labels/Tags
                                     div { class: "flex flex-wrap gap-1 mb-3",
-                                        // Appointment badge
                                         if let Some(ref appointment) = user.appointment {
                                             div { class: "badge badge-primary badge-sm",
                                                 match appointment {
@@ -493,8 +502,6 @@ pub fn Users(props: UsersProps) -> Element {
                                                 }
                                             }
                                         }
-                                        
-                                        // Publisher type badge
                                         if let Some(ref pub_type) = user.publisher_type {
                                             div { class: "badge badge-secondary badge-sm",
                                                 match pub_type {
@@ -507,26 +514,18 @@ pub fn Users(props: UsersProps) -> Element {
                                                 }
                                             }
                                         }
-                                        
-                                        // Anointed badge
                                         if user.anointed == Some(true) {
                                             div { class: "badge badge-accent badge-sm", "Anointed" }
                                         }
-                                        
-                                        // Family head badge
                                         if user.family_head {
                                             div { class: "badge badge-info badge-sm", "Family Head" }
                                         }
                                     }
-                                    
-                                    // Contact info preview
                                     div { class: "text-xs text-base-content/70 space-y-1",
                                         if let Some(ref phone) = user.phone {
                                             div { "📞 {phone}" }
                                         }
                                     }
-                                    
-                                    // Action buttons
                                     div { class: "card-actions justify-end mt-3",
                                         button {
                                             class: "btn btn-error btn-sm btn-circle",
@@ -546,16 +545,16 @@ pub fn Users(props: UsersProps) -> Element {
                     }
                 }
             }
-            
             // Empty state
             if filtered_users().is_empty() {
                 div { class: "text-center py-12",
                     div { class: "text-6xl mb-4", "👥" }
                     h3 { class: "text-xl font-bold mb-2", "No users found" }
-                    p { class: "text-base-content/70", "Try adjusting your filters or create a new user" }
+                    p { class: "text-base-content/70",
+                        "Try adjusting your filters or create a new user"
+                    }
                 }
             }
-            
             // Pagination
             if total_pages > 1 {
                 div { class: "flex justify-center mt-6",
@@ -571,7 +570,7 @@ pub fn Users(props: UsersProps) -> Element {
                                 key: "{page}",
                                 class: format!(
                                     "join-item btn btn-sm {}",
-                                    if page == current_page() { "btn-active" } else { "" }
+                                    if page == current_page() { "btn-active" } else { "" },
                                 ),
                                 onclick: move |_| current_page.set(page),
                                 "{page + 1}"
@@ -586,14 +585,12 @@ pub fn Users(props: UsersProps) -> Element {
                     }
                 }
             }
-            
             // Floating action button for mobile
             button {
                 class: "lg:hidden btn btn-primary btn-circle btn-lg fixed bottom-20 right-4 shadow-2xl z-40",
                 onclick: handle_create,
                 span { class: "text-2xl text-white", "+" }
             }
-            
             // User modal (create/edit)
             if show_modal() {
                 UserModal {
@@ -604,16 +601,17 @@ pub fn Users(props: UsersProps) -> Element {
                         show_modal.set(false);
                         load_users();
                         message.set(Some("User saved successfully".to_string()));
-                    }
+                    },
                 }
             }
-            
             // Delete confirmation dialog
             if show_delete_confirm() {
                 div { class: "modal modal-open",
                     div { class: "modal-box",
                         h3 { class: "font-bold text-lg mb-4", "Confirm Delete" }
-                        p { class: "py-4", "Are you sure you want to delete this user? This action cannot be undone." }
+                        p { class: "py-4",
+                            "Are you sure you want to delete this user? This action cannot be undone."
+                        }
                         div { class: "modal-action",
                             button {
                                 class: "btn btn-ghost",
@@ -629,7 +627,6 @@ pub fn Users(props: UsersProps) -> Element {
                     }
                 }
             }
-            
             // Bulk delete confirmation dialog
             if show_bulk_delete_confirm() {
                 div { class: "modal modal-open",
@@ -818,7 +815,11 @@ fn UserModal(props: UserModalProps) -> Element {
                 // Header
                 div { class: "flex items-center justify-between mb-6",
                     h3 { class: "font-bold text-2xl",
-                        if mode_for_display == ModalMode::Create { "Create New User" } else { "Edit User" }
+                        if mode_for_display == ModalMode::Create {
+                            "Create New User"
+                        } else {
+                            "Edit User"
+                        }
                     }
                     button {
                         class: "btn btn-sm btn-circle btn-ghost",
@@ -826,204 +827,202 @@ fn UserModal(props: UserModalProps) -> Element {
                         "✕"
                     }
                 }
-                
                 // Error message
                 if let Some(err) = error_message() {
                     div { class: "alert alert-error mb-4",
                         span { "{err}" }
                     }
                 }
-                
                 // Form
                 div { class: "space-y-6",
                     // Basic Information
                     // Basic Information
                     div {
-                        div { class: "flex items-center justify-between mb-3 cursor-pointer",
+                        div {
+                            class: "flex items-center justify-between mb-3 cursor-pointer",
                             onclick: move |_| basic_info_collapsed.set(!basic_info_collapsed()),
                             h4 { class: "font-semibold text-lg", "Basic Information" }
                             span { class: "text-lg",
-                                if basic_info_collapsed() { "▼" } else { "▲" }
+                                if basic_info_collapsed() {
+                                    "▼"
+                                } else {
+                                    "▲"
+                                }
                             }
                         }
-                        
                         if !basic_info_collapsed() {
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "First Name *" }
-                                }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{firstname()}",
-                                    oninput: move |evt| firstname.set(evt.value())
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Last Name *" }
-                                }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{lastname()}",
-                                    oninput: move |evt| lastname.set(evt.value())
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Gender" }
-                                }
-                                select {
-                                    class: "select select-bordered w-full",
-                                    value: if gender() { "male" } else { "female" },
-                                    onchange: move |evt| gender.set(evt.value() == "male"),
-                                    option { value: "male", "Male" }
-                                    option { value: "female", "Female" }
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Birthday" }
-                                }
-                                input {
-                                    r#type: "date",
-                                    class: "input input-bordered w-full",
-                                    value: "{birthday()}",
-                                    oninput: move |evt| birthday.set(evt.value())
-                                }
-                            }
-                        }
-                        
-                        div { class: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4",
-                            div { class: "form-control",
-                                label { class: "label cursor-pointer justify-start gap-2",
-                                    input {
-                                        r#type: "checkbox",
-                                        class: "checkbox checkbox-primary",
-                                        checked: family_head(),
-                                        onchange: move |evt| family_head.set(evt.checked())
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "First Name *" }
                                     }
-                                    span { class: "label-text", "Family Head" }
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label cursor-pointer justify-start gap-2",
                                     input {
-                                        r#type: "checkbox",
-                                        class: "checkbox checkbox-primary",
-                                        checked: anointed(),
-                                        onchange: move |evt| anointed.set(evt.checked())
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{firstname()}",
+                                        oninput: move |evt| firstname.set(evt.value()),
                                     }
-                                    span { class: "label-text", "Anointed" }
+                                }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Last Name *" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{lastname()}",
+                                        oninput: move |evt| lastname.set(evt.value()),
+                                    }
+                                }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Gender" }
+                                    }
+                                    select {
+                                        class: "select select-bordered w-full",
+                                        value: if gender() { "male" } else { "female" },
+                                        onchange: move |evt| gender.set(evt.value() == "male"),
+                                        option { value: "male", "Male" }
+                                        option { value: "female", "Female" }
+                                    }
+                                }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Birthday" }
+                                    }
+                                    input {
+                                        r#type: "date",
+                                        class: "input input-bordered w-full",
+                                        value: "{birthday()}",
+                                        oninput: move |evt| birthday.set(evt.value()),
+                                    }
                                 }
                             }
-                        }
+                            div { class: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4",
+                                div { class: "form-control",
+                                    label { class: "label cursor-pointer justify-start gap-2",
+                                        input {
+                                            r#type: "checkbox",
+                                            class: "checkbox checkbox-primary",
+                                            checked: family_head(),
+                                            onchange: move |evt| family_head.set(evt.checked()),
+                                        }
+                                        span { class: "label-text", "Family Head" }
+                                    }
+                                }
+                                div { class: "form-control",
+                                    label { class: "label cursor-pointer justify-start gap-2",
+                                        input {
+                                            r#type: "checkbox",
+                                            class: "checkbox checkbox-primary",
+                                            checked: anointed(),
+                                            onchange: move |evt| anointed.set(evt.checked()),
+                                        }
+                                        span { class: "label-text", "Anointed" }
+                                    }
+                                }
+                            }
                         }
                     }
-                    
                     // Contact Information
                     div {
-                        div { class: "flex items-center justify-between mb-3 cursor-pointer",
+                        div {
+                            class: "flex items-center justify-between mb-3 cursor-pointer",
                             onclick: move |_| contact_info_collapsed.set(!contact_info_collapsed()),
                             h4 { class: "font-semibold text-lg", "Contact Information" }
                             span { class: "text-lg",
-                                if contact_info_collapsed() { "▼" } else { "▲" }
+                                if contact_info_collapsed() {
+                                    "▼"
+                                } else {
+                                    "▲"
+                                }
                             }
                         }
-                        
                         if !contact_info_collapsed() {
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Email" }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Email" }
+                                    }
+                                    input {
+                                        r#type: "email",
+                                        class: "input input-bordered w-full",
+                                        value: "{email()}",
+                                        oninput: move |evt| email.set(evt.value()),
+                                    }
                                 }
-                                input {
-                                    r#type: "email",
-                                    class: "input input-bordered w-full",
-                                    value: "{email()}",
-                                    oninput: move |evt| email.set(evt.value())
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Phone" }
+                                    }
+                                    input {
+                                        r#type: "tel",
+                                        class: "input input-bordered w-full",
+                                        value: "{phone()}",
+                                        oninput: move |evt| phone.set(evt.value()),
+                                    }
                                 }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Phone" }
+                                div { class: "form-control md:col-span-2",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Address" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{address()}",
+                                        oninput: move |evt| address.set(evt.value()),
+                                    }
                                 }
-                                input {
-                                    r#type: "tel",
-                                    class: "input input-bordered w-full",
-                                    value: "{phone()}",
-                                    oninput: move |evt| phone.set(evt.value())
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "City" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{city()}",
+                                        oninput: move |evt| city.set(evt.value()),
+                                    }
                                 }
-                            }
-                            
-                            div { class: "form-control md:col-span-2",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Address" }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Country" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{country()}",
+                                        oninput: move |evt| country.set(evt.value()),
+                                    }
                                 }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{address()}",
-                                    oninput: move |evt| address.set(evt.value())
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "City" }
-                                }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{city()}",
-                                    oninput: move |evt| city.set(evt.value())
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Country" }
-                                }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{country()}",
-                                    oninput: move |evt| country.set(evt.value())
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Zip Code" }
-                                }
-                                input {
-                                    r#type: "text",
-                                    class: "input input-bordered w-full",
-                                    value: "{zipcode()}",
-                                    oninput: move |evt| zipcode.set(evt.value())
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Zip Code" }
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "input input-bordered w-full",
+                                        value: "{zipcode()}",
+                                        oninput: move |evt| zipcode.set(evt.value()),
+                                    }
                                 }
                             }
-                        }
                         }
                     }
-                    
                     // Emergency Contacts
                     div {
-                        div { class: "flex items-center justify-between mb-3 cursor-pointer",
+                        div {
+                            class: "flex items-center justify-between mb-3 cursor-pointer",
                             onclick: move |_| emergency_contacts_collapsed.set(!emergency_contacts_collapsed()),
                             h4 { class: "font-semibold text-lg", "Emergency Contacts" }
                             span { class: "text-lg",
-                                if emergency_contacts_collapsed() { "▼" } else { "▲" }
+                                if emergency_contacts_collapsed() {
+                                    "▼"
+                                } else {
+                                    "▲"
+                                }
                             }
                         }
-                        
                         if !emergency_contacts_collapsed() {
                             div { class: "space-y-4",
                                 div { class: "flex justify-end mb-3",
@@ -1032,148 +1031,142 @@ fn UserModal(props: UserModalProps) -> Element {
                                         r#type: "button",
                                         onclick: move |_| {
                                             let mut contacts = emergency_contacts();
-                                            contacts.push(UserEmergencyContact {
-                                                firstname: String::new(),
-                                                lastname: None,
-                                                email: None,
-                                                phone: None,
-                                                address: None,
-                                                notes: None,
-                                            });
+                                            contacts
+                                                .push(UserEmergencyContact {
+                                                    firstname: String::new(),
+                                                    lastname: None,
+                                                    email: None,
+                                                    phone: None,
+                                                    address: None,
+                                                    notes: None,
+                                                });
                                             emergency_contacts.set(contacts);
                                         },
                                         "➕ Add Contact"
                                     }
                                 }
-                                
-                            for (idx, contact) in emergency_contacts().iter().enumerate() {
-                                {
-                                    let contact_clone = contact.clone();
-                                    let idx_for_remove = idx;
-                                    
-                                    rsx! {
-                                        div {
-                                            key: "{idx}",
-                                            class: "card bg-base-200 p-4",
-                                            div { class: "flex items-center justify-between mb-3",
-                                                h5 { class: "font-medium", "Contact #{idx + 1}" }
-                                                button {
-                                                    class: "btn btn-error btn-xs btn-circle",
-                                                    r#type: "button",
-                                                    onclick: move |_| {
-                                                        let mut contacts = emergency_contacts();
-                                                        contacts.remove(idx_for_remove);
-                                                        emergency_contacts.set(contacts);
-                                                    },
-                                                    "✕"
-                                                }
-                                            }
-                                            
-                                            div { class: "grid grid-cols-1 md:grid-cols-2 gap-3",
-                                                div { class: "form-control",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "First Name *" }
-                                                    }
-                                                    input {
-                                                        r#type: "text",
-                                                        class: "input input-bordered input-sm w-full",
-                                                        value: "{contact_clone.firstname}",
-                                                        oninput: move |evt| {
+                                for (idx , contact) in emergency_contacts().iter().enumerate() {
+                                    {
+                                        let contact_clone = contact.clone();
+                                        let idx_for_remove = idx;
+
+                                        rsx! {
+
+                                            div { key: "{idx}", class: "card bg-base-200 p-4",
+                                                div { class: "flex items-center justify-between mb-3",
+                                                    h5 { class: "font-medium", "Contact #{idx + 1}" }
+                                                    button {
+                                                        class: "btn btn-error btn-xs btn-circle",
+                                                        r#type: "button",
+                                                        onclick: move |_| {
                                                             let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.firstname = evt.value();
-                                                            }
+                                                            contacts.remove(idx_for_remove);
                                                             emergency_contacts.set(contacts);
+                                                        },
+                                                        "✕"
+                                                    }
+                                                }
+                                                div { class: "grid grid-cols-1 md:grid-cols-2 gap-3",
+                                                    div { class: "form-control",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "First Name *" }
+                                                        }
+                                                        input {
+                                                            r#type: "text",
+                                                            class: "input input-bordered input-sm w-full",
+                                                            value: "{contact_clone.firstname}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.firstname = evt.value();
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
-                                                }
-                                                
-                                                div { class: "form-control",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "Last Name" }
-                                                    }
-                                                    input {
-                                                        r#type: "text",
-                                                        class: "input input-bordered input-sm w-full",
-                                                        value: "{contact_clone.lastname.clone().unwrap_or_default()}",
-                                                        oninput: move |evt| {
-                                                            let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.lastname = if evt.value().is_empty() { None } else { Some(evt.value()) };
-                                                            }
-                                                            emergency_contacts.set(contacts);
+                                                    div { class: "form-control",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "Last Name" }
+                                                        }
+                                                        input {
+                                                            r#type: "text",
+                                                            class: "input input-bordered input-sm w-full",
+                                                            value: "{contact_clone.lastname.clone().unwrap_or_default()}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.lastname = if evt.value().is_empty() { None } else { Some(evt.value()) };
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
-                                                }
-                                                
-                                                div { class: "form-control",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "Phone" }
-                                                    }
-                                                    input {
-                                                        r#type: "tel",
-                                                        class: "input input-bordered input-sm w-full",
-                                                        value: "{contact_clone.phone.clone().unwrap_or_default()}",
-                                                        oninput: move |evt| {
-                                                            let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.phone = if evt.value().is_empty() { None } else { Some(evt.value()) };
-                                                            }
-                                                            emergency_contacts.set(contacts);
+                                                    div { class: "form-control",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "Phone" }
+                                                        }
+                                                        input {
+                                                            r#type: "tel",
+                                                            class: "input input-bordered input-sm w-full",
+                                                            value: "{contact_clone.phone.clone().unwrap_or_default()}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.phone = if evt.value().is_empty() { None } else { Some(evt.value()) };
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
-                                                }
-                                                
-                                                div { class: "form-control",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "Email" }
-                                                    }
-                                                    input {
-                                                        r#type: "email",
-                                                        class: "input input-bordered input-sm w-full",
-                                                        value: "{contact_clone.email.clone().unwrap_or_default()}",
-                                                        oninput: move |evt| {
-                                                            let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.email = if evt.value().is_empty() { None } else { Some(evt.value()) };
-                                                            }
-                                                            emergency_contacts.set(contacts);
+                                                    div { class: "form-control",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "Email" }
+                                                        }
+                                                        input {
+                                                            r#type: "email",
+                                                            class: "input input-bordered input-sm w-full",
+                                                            value: "{contact_clone.email.clone().unwrap_or_default()}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.email = if evt.value().is_empty() { None } else { Some(evt.value()) };
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
-                                                }
-                                                
-                                                div { class: "form-control md:col-span-2",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "Address" }
-                                                    }
-                                                    input {
-                                                        r#type: "text",
-                                                        class: "input input-bordered input-sm w-full",
-                                                        value: "{contact_clone.address.clone().unwrap_or_default()}",
-                                                        oninput: move |evt| {
-                                                            let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.address = if evt.value().is_empty() { None } else { Some(evt.value()) };
-                                                            }
-                                                            emergency_contacts.set(contacts);
+                                                    div { class: "form-control md:col-span-2",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "Address" }
+                                                        }
+                                                        input {
+                                                            r#type: "text",
+                                                            class: "input input-bordered input-sm w-full",
+                                                            value: "{contact_clone.address.clone().unwrap_or_default()}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.address = if evt.value().is_empty() { None } else { Some(evt.value()) };
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
-                                                }
-                                                
-                                                div { class: "form-control md:col-span-2",
-                                                    label { class: "label",
-                                                        span { class: "label-text", "Notes" }
-                                                    }
-                                                    textarea {
-                                                        class: "textarea textarea-bordered w-full",
-                                                        rows: 2,
-                                                        value: "{contact_clone.notes.clone().unwrap_or_default()}",
-                                                        oninput: move |evt| {
-                                                            let mut contacts = emergency_contacts();
-                                                            if let Some(c) = contacts.get_mut(idx) {
-                                                                c.notes = if evt.value().is_empty() { None } else { Some(evt.value()) };
-                                                            }
-                                                            emergency_contacts.set(contacts);
+                                                    div { class: "form-control md:col-span-2",
+                                                        label { class: "label",
+                                                            span { class: "label-text", "Notes" }
+                                                        }
+                                                        textarea {
+                                                            class: "textarea textarea-bordered w-full",
+                                                            rows: 2,
+                                                            value: "{contact_clone.notes.clone().unwrap_or_default()}",
+                                                            oninput: move |evt| {
+                                                                let mut contacts = emergency_contacts();
+                                                                if let Some(c) = contacts.get_mut(idx) {
+                                                                    c.notes = if evt.value().is_empty() { None } else { Some(evt.value()) };
+                                                                }
+                                                                emergency_contacts.set(contacts);
+                                                            },
                                                         }
                                                     }
                                                 }
@@ -1181,124 +1174,163 @@ fn UserModal(props: UserModalProps) -> Element {
                                         }
                                     }
                                 }
-                            }
-                            
-                            if emergency_contacts().is_empty() {
-                                div { class: "text-center text-base-content/50 py-4",
-                                    "No emergency contacts added. Click the 'Add Contact' button to add one."
+                                if emergency_contacts().is_empty() {
+                                    div { class: "text-center text-base-content/50 py-4",
+                                        "No emergency contacts added. Click the 'Add Contact' button to add one."
+                                    }
                                 }
-                            }
                             }
                         }
                     }
-                    
                     // Spiritual Information
                     div {
-                        div { class: "flex items-center justify-between mb-3 cursor-pointer",
+                        div {
+                            class: "flex items-center justify-between mb-3 cursor-pointer",
                             onclick: move |_| spiritual_info_collapsed.set(!spiritual_info_collapsed()),
                             h4 { class: "font-semibold text-lg", "Spiritual Information" }
                             span { class: "text-lg",
-                                if spiritual_info_collapsed() { "▼" } else { "▲" }
+                                if spiritual_info_collapsed() {
+                                    "▼"
+                                } else {
+                                    "▲"
+                                }
                             }
                         }
-                        
                         if !spiritual_info_collapsed() {
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Publisher Type" }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Publisher Type" }
+                                    }
+                                    select {
+                                        class: "select select-bordered w-full",
+                                        onchange: move |evt| {
+                                            publisher_type
+                                                .set(
+                                                    match evt.value().as_str() {
+                                                        "student" => Some(UserType::Student),
+                                                        "unbaptized" => Some(UserType::UnbaptizedPublisher),
+                                                        "baptized" => Some(UserType::BaptizedPublisher),
+                                                        "regular_pioneer" => Some(UserType::RegularPioneer),
+                                                        "special_pioneer" => Some(UserType::SpecialPioneer),
+                                                        "aux_pioneer" => Some(UserType::ContiniousAuxiliaryPioneer),
+                                                        _ => None,
+                                                    },
+                                                );
+                                        },
+                                        option { value: "", "Select type" }
+                                        option {
+                                            value: "student",
+                                            selected: matches!(publisher_type(), Some(UserType::Student)),
+                                            "Student"
+                                        }
+                                        option {
+                                            value: "unbaptized",
+                                            selected: matches!(publisher_type(), Some(UserType::UnbaptizedPublisher)),
+                                            "Unbaptized Publisher"
+                                        }
+                                        option {
+                                            value: "baptized",
+                                            selected: matches!(publisher_type(), Some(UserType::BaptizedPublisher)),
+                                            "Baptized Publisher"
+                                        }
+                                        option {
+                                            value: "regular_pioneer",
+                                            selected: matches!(publisher_type(), Some(UserType::RegularPioneer)),
+                                            "Regular Pioneer"
+                                        }
+                                        option {
+                                            value: "special_pioneer",
+                                            selected: matches!(publisher_type(), Some(UserType::SpecialPioneer)),
+                                            "Special Pioneer"
+                                        }
+                                        option {
+                                            value: "aux_pioneer",
+                                            selected: matches!(publisher_type(), Some(UserType::ContiniousAuxiliaryPioneer)),
+                                            "Auxiliary Pioneer"
+                                        }
+                                    }
                                 }
-                                select {
-                                    class: "select select-bordered w-full",
-                                    onchange: move |evt| {
-                                        publisher_type.set(match evt.value().as_str() {
-                                            "student" => Some(UserType::Student),
-                                            "unbaptized" => Some(UserType::UnbaptizedPublisher),
-                                            "baptized" => Some(UserType::BaptizedPublisher),
-                                            "regular_pioneer" => Some(UserType::RegularPioneer),
-                                            "special_pioneer" => Some(UserType::SpecialPioneer),
-                                            "aux_pioneer" => Some(UserType::ContiniousAuxiliaryPioneer),
-                                            _ => None,
-                                        });
-                                    },
-                                    option { value: "", "Select type" }
-                                    option { value: "student", selected: matches!(publisher_type(), Some(UserType::Student)), "Student" }
-                                    option { value: "unbaptized", selected: matches!(publisher_type(), Some(UserType::UnbaptizedPublisher)), "Unbaptized Publisher" }
-                                    option { value: "baptized", selected: matches!(publisher_type(), Some(UserType::BaptizedPublisher)), "Baptized Publisher" }
-                                    option { value: "regular_pioneer", selected: matches!(publisher_type(), Some(UserType::RegularPioneer)), "Regular Pioneer" }
-                                    option { value: "special_pioneer", selected: matches!(publisher_type(), Some(UserType::SpecialPioneer)), "Special Pioneer" }
-                                    option { value: "aux_pioneer", selected: matches!(publisher_type(), Some(UserType::ContiniousAuxiliaryPioneer)), "Auxiliary Pioneer" }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Appointment" }
+                                    }
+                                    select {
+                                        class: "select select-bordered w-full",
+                                        onchange: move |evt| {
+                                            appointment
+                                                .set(
+                                                    match evt.value().as_str() {
+                                                        "elder" => Some(UserAppointment::Elder),
+                                                        "ms" => Some(UserAppointment::MinisterialServant),
+                                                        _ => None,
+                                                    },
+                                                );
+                                        },
+                                        option { value: "", "No appointment" }
+                                        option {
+                                            value: "elder",
+                                            selected: matches!(appointment(), Some(UserAppointment::Elder)),
+                                            "Elder"
+                                        }
+                                        option {
+                                            value: "ms",
+                                            selected: matches!(appointment(), Some(UserAppointment::MinisterialServant)),
+                                            "Ministerial Servant"
+                                        }
+                                    }
+                                }
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Baptism Date" }
+                                    }
+                                    input {
+                                        r#type: "date",
+                                        class: "input input-bordered w-full",
+                                        value: "{baptism_date()}",
+                                        oninput: move |evt| baptism_date.set(evt.value()),
+                                    }
                                 }
                             }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Appointment" }
-                                }
-                                select {
-                                    class: "select select-bordered w-full",
-                                    onchange: move |evt| {
-                                        appointment.set(match evt.value().as_str() {
-                                            "elder" => Some(UserAppointment::Elder),
-                                            "ms" => Some(UserAppointment::MinisterialServant),
-                                            _ => None,
-                                        });
-                                    },
-                                    option { value: "", "No appointment" }
-                                    option { value: "elder", selected: matches!(appointment(), Some(UserAppointment::Elder)), "Elder" }
-                                    option { value: "ms", selected: matches!(appointment(), Some(UserAppointment::MinisterialServant)), "Ministerial Servant" }
-                                }
-                            }
-                            
-                            div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Baptism Date" }
-                                }
-                                input {
-                                    r#type: "date",
-                                    class: "input input-bordered w-full",
-                                    value: "{baptism_date()}",
-                                    oninput: move |evt| baptism_date.set(evt.value())
-                                }
-                            }
-                        }
                         }
                     }
-                    
                     // Password (only for create mode)
                     if mode_for_password == ModalMode::Create {
                         div {
-                            div { class: "flex items-center justify-between mb-3 cursor-pointer",
+                            div {
+                                class: "flex items-center justify-between mb-3 cursor-pointer",
                                 onclick: move |_| credentials_collapsed.set(!credentials_collapsed()),
                                 h4 { class: "font-semibold text-lg", "Login Credentials" }
                                 span { class: "text-lg",
-                                    if credentials_collapsed() { "▼" } else { "▲" }
-                                }
-                            }
-                            
-                            if !credentials_collapsed() {
-                                div { class: "form-control",
-                                label { class: "label",
-                                    span { class: "label-text font-semibold", "Password (optional)" }
-                                }
-                                input {
-                                    r#type: "password",
-                                    class: "input input-bordered w-full",
-                                    placeholder: "Leave empty if not needed",
-                                    value: "{password()}",
-                                    oninput: move |evt| password.set(evt.value())
-                                }
-                                label { class: "label",
-                                    span { class: "label-text-alt text-base-content/60",
-                                        "Password will be hashed securely"
+                                    if credentials_collapsed() {
+                                        "▼"
+                                    } else {
+                                        "▲"
                                     }
                                 }
+                            }
+                            if !credentials_collapsed() {
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text font-semibold", "Password (optional)" }
+                                    }
+                                    input {
+                                        r#type: "password",
+                                        class: "input input-bordered w-full",
+                                        placeholder: "Leave empty if not needed",
+                                        value: "{password()}",
+                                        oninput: move |evt| password.set(evt.value()),
+                                    }
+                                    label { class: "label",
+                                        span { class: "label-text-alt text-base-content/60",
+                                            "Password will be hashed securely"
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                
                 // Action buttons
                 div { class: "modal-action",
                     button {
@@ -1315,7 +1347,11 @@ fn UserModal(props: UserModalProps) -> Element {
                             span { class: "loading loading-spinner" }
                             " Saving..."
                         } else {
-                            if mode_for_button == ModalMode::Create { "Create User" } else { "Update User" }
+                            if mode_for_button == ModalMode::Create {
+                                "Create User"
+                            } else {
+                                "Update User"
+                            }
                         }
                     }
                 }

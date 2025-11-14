@@ -19,20 +19,24 @@ pub fn Meetings(props: MeetingsProps) -> Element {
             // Breadcrumbs
             div { class: "text-sm breadcrumbs",
                 ul {
-                    li { a { class: "text-primary", onclick: move |_| props.on_navigate.call("dashboard".to_string()), "Home" } }
+                    li {
+                        a {
+                            class: "text-primary",
+                            onclick: move |_| props.on_navigate.call("dashboard".to_string()),
+                            "Home"
+                        }
+                    }
                     li { "Meetings" }
                 }
             }
-            
             // Header
             div { class: "mb-8",
                 h2 { class: "text-3xl font-bold text-base-content mb-2", "Meetings" }
                 p { class: "text-base-content/70", "Organize and track congregation meetings" }
             }
-            
             // Submenu Grid
             div { class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4",
-                for (id, name, icon, description) in submenu_items.iter() {
+                for (id , name , icon , description) in submenu_items.iter() {
                     button {
                         key: "{id}",
                         class: "card bg-base-100 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95",
@@ -57,7 +61,7 @@ pub fn Meetings(props: MeetingsProps) -> Element {
                                         stroke_linecap: "round",
                                         stroke_linejoin: "round",
                                         stroke_width: "2",
-                                        d: "M9 5l7 7-7 7"
+                                        d: "M9 5l7 7-7 7",
                                     }
                                 }
                             }

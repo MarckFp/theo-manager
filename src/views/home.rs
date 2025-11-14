@@ -54,9 +54,8 @@ pub fn Home() -> Element {
                 current_section: current_section(),
                 on_section_change: move |section| {
                     current_section.set(section);
-                }
+                },
             }
-            
             // Main Content Area
             main { class: "flex-1 lg:ml-64 p-4 lg:p-8 pb-20 lg:pb-8 overflow-x-hidden",
                 // Header - only show on dashboard
@@ -64,64 +63,45 @@ pub fn Home() -> Element {
                     div { class: "mb-8 mt-0 lg:mt-0",
                         match (congregation(), current_user()) {
                             (Some(Some(_)), Some(Some(_))) => rsx! {
-                                h1 { class: "text-3xl lg:text-4xl font-bold text-base-content",
-                                    "Welcome, {format_name()}!"
-                                }
-                                p { class: "text-base-content/70 mt-2",
-                                    "Manage your congregation efficiently"
-                                }
+                                h1 { class: "text-3xl lg:text-4xl font-bold text-base-content", "Welcome, {format_name()}!" }
+                                p { class: "text-base-content/70 mt-2", "Manage your congregation efficiently" }
                             },
                             _ => rsx! {
                                 div { class: "flex items-center gap-2",
                                     span { class: "loading loading-spinner loading-md" }
                                     span { "Loading..." }
                                 }
-                            }
+                            },
                         }
                     }
                 }
-                
                 // Content based on current section
                 match current_section().as_str() {
                     // Category views (no wrapper needed)
                     "publishers-category" => rsx! {
-                        Publishers {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        Publishers { on_navigate: move |section| current_section.set(section) }
                     },
                     "meetings-category" => rsx! {
-                        Meetings {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        Meetings { on_navigate: move |section| current_section.set(section) }
                     },
                     "congregation-category" => rsx! {
-                        CongregationCategory {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        CongregationCategory { on_navigate: move |section| current_section.set(section) }
                     },
                     "settings-category" => rsx! {
-                        SettingsCategory {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        SettingsCategory { on_navigate: move |section| current_section.set(section) }
                     },
                     "congregation-settings" => rsx! {
-                        CongregationSettings {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        CongregationSettings { on_navigate: move |section| current_section.set(section) }
                     },
                     "user-settings" => rsx! {
-                        UserSettings {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        UserSettings { on_navigate: move |section| current_section.set(section) }
                     },
                     "users" => rsx! {
-                        Users {
-                            on_navigate: move |section| current_section.set(section)
-                        }
+                        Users { on_navigate: move |section| current_section.set(section) }
                     },
                     _ => rsx! {
                         {render_section_content(current_section(), current_section)}
-                    }
+                    },
                 }
             }
         }
@@ -213,7 +193,6 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
                             }
                         }
                     }
-                    
                     // Content card
                     div { class: "bg-base-100 rounded-lg shadow-lg p-6",
                         h2 { class: "text-2xl font-bold mb-4", "{section_name}" }

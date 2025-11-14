@@ -210,14 +210,14 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
             // Breadcrumbs
             div { class: "text-sm breadcrumbs mb-4",
                 ul {
-                    li { 
+                    li {
                         a {
                             class: "text-primary",
                             onclick: move |_| props.on_navigate.call("dashboard".to_string()),
                             "Home"
                         }
                     }
-                    li { 
+                    li {
                         a {
                             class: "text-primary",
                             onclick: move |_| props.on_navigate.call("settings-category".to_string()),
@@ -227,20 +227,18 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                     li { "Congregation Settings" }
                 }
             }
-            
             // Header
             div { class: "mb-6",
                 h2 { class: "text-3xl font-bold text-base-content mb-2", "Congregation Settings" }
                 p { class: "text-base-content/70", "Manage your congregation configuration" }
             }
-            
             match congregation() {
                 Some(Some(_)) => rsx! {
                     // Settings Form
                     div { class: "card bg-base-100 shadow-lg",
                         div { class: "card-body",
                             h3 { class: "card-title text-lg mb-4", "General Information" }
-                            
+
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
                                 // Name
                                 div { class: "form-control",
@@ -252,10 +250,10 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         r#type: "text",
                                         value: "{name()}",
                                         oninput: move |evt| name.set(evt.value()),
-                                        placeholder: "Enter congregation name"
+                                        placeholder: "Enter congregation name",
                                     }
                                 }
-                                
+
                                 // JW Code
                                 div { class: "form-control",
                                     label { class: "label",
@@ -266,10 +264,10 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         r#type: "text",
                                         value: "{jw_code()}",
                                         oninput: move |evt| jw_code.set(evt.value()),
-                                        placeholder: "Enter JW code"
+                                        placeholder: "Enter JW code",
                                     }
                                 }
-                                
+
                                 // Name Order
                                 div { class: "form-control",
                                     label { class: "label",
@@ -282,17 +280,37 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             NameOrder::LastnameFirstname => "LastnameFirstname",
                                         },
                                         onchange: move |evt| {
-                                            name_order.set(match evt.value().as_str() {
-                                                "LastnameFirstname" => NameOrder::LastnameFirstname,
-                                                _ => NameOrder::FirstnameLastname,
-                                            });
+                                            name_order
+
+                                                // First Weekday
+                                                .set(
+
+                                                    // Meeting Times
+
+                                                    // Weekday Meeting
+                                                    match evt.value().as_str() {
+
+                                                        // Weekend Meeting
+
+                                                        // Save Button & Messages
+
+                                                        // Danger Zone
+
+                                                        // Export Button
+
+                                                        // Import Button
+
+                                                        // Delete Button
+
+                                                        "LastnameFirstname" => NameOrder::LastnameFirstname,
+                                                        _ => NameOrder::FirstnameLastname,
+                                                    },
+                                                );
                                         },
                                         option { value: "FirstnameLastname", "Firstname Lastname" }
                                         option { value: "LastnameFirstname", "Lastname, Firstname" }
                                     }
                                 }
-                                
-                                // First Weekday
                                 div { class: "form-control",
                                     label { class: "label",
                                         span { class: "label-text font-semibold", "First Day of Week *" }
@@ -304,10 +322,13 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             FirstWeekday::Monday => "Monday",
                                         },
                                         onchange: move |evt| {
-                                            first_weekday.set(match evt.value().as_str() {
-                                                "Monday" => FirstWeekday::Monday,
-                                                _ => FirstWeekday::Sunday,
-                                            });
+                                            first_weekday
+                                                .set(
+                                                    match evt.value().as_str() {
+                                                        "Monday" => FirstWeekday::Monday,
+                                                        _ => FirstWeekday::Sunday,
+                                                    },
+                                                );
                                         },
                                         option { value: "Sunday", "Sunday" }
                                         option { value: "Monday", "Monday" }
@@ -316,14 +337,10 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                             }
                         }
                     }
-                    
-                    // Meeting Times
                     div { class: "card bg-base-100 shadow-lg",
                         div { class: "card-body",
                             h3 { class: "card-title text-lg mb-4", "Meeting Times" }
-                            
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-6",
-                                // Weekday Meeting
                                 div { class: "space-y-4",
                                     h4 { class: "font-semibold text-base", "Weekday Meeting" }
                                     div { class: "form-control",
@@ -334,16 +351,19 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             class: "select select-bordered w-full",
                                             value: format!("{:?}", weekday_day()),
                                             onchange: move |evt| {
-                                                weekday_day.set(match evt.value().as_str() {
-                                                    "Mon" => Weekday::Mon,
-                                                    "Tue" => Weekday::Tue,
-                                                    "Wed" => Weekday::Wed,
-                                                    "Thu" => Weekday::Thu,
-                                                    "Fri" => Weekday::Fri,
-                                                    "Sat" => Weekday::Sat,
-                                                    "Sun" => Weekday::Sun,
-                                                    _ => Weekday::Thu,
-                                                });
+                                                weekday_day
+                                                    .set(
+                                                        match evt.value().as_str() {
+                                                            "Mon" => Weekday::Mon,
+                                                            "Tue" => Weekday::Tue,
+                                                            "Wed" => Weekday::Wed,
+                                                            "Thu" => Weekday::Thu,
+                                                            "Fri" => Weekday::Fri,
+                                                            "Sat" => Weekday::Sat,
+                                                            "Sun" => Weekday::Sun,
+                                                            _ => Weekday::Thu,
+                                                        },
+                                                    );
                                             },
                                             option { value: "Mon", "Monday" }
                                             option { value: "Tue", "Tuesday" }
@@ -362,12 +382,10 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             class: "input input-bordered w-full",
                                             r#type: "time",
                                             value: "{weekday_time()}",
-                                            oninput: move |evt| weekday_time.set(evt.value())
+                                            oninput: move |evt| weekday_time.set(evt.value()),
                                         }
                                     }
                                 }
-                                
-                                // Weekend Meeting
                                 div { class: "space-y-4",
                                     h4 { class: "font-semibold text-base", "Weekend Meeting" }
                                     div { class: "form-control",
@@ -378,16 +396,19 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             class: "select select-bordered w-full",
                                             value: format!("{:?}", weekend_day()),
                                             onchange: move |evt| {
-                                                weekend_day.set(match evt.value().as_str() {
-                                                    "Mon" => Weekday::Mon,
-                                                    "Tue" => Weekday::Tue,
-                                                    "Wed" => Weekday::Wed,
-                                                    "Thu" => Weekday::Thu,
-                                                    "Fri" => Weekday::Fri,
-                                                    "Sat" => Weekday::Sat,
-                                                    "Sun" => Weekday::Sun,
-                                                    _ => Weekday::Sun,
-                                                });
+                                                weekend_day
+                                                    .set(
+                                                        match evt.value().as_str() {
+                                                            "Mon" => Weekday::Mon,
+                                                            "Tue" => Weekday::Tue,
+                                                            "Wed" => Weekday::Wed,
+                                                            "Thu" => Weekday::Thu,
+                                                            "Fri" => Weekday::Fri,
+                                                            "Sat" => Weekday::Sat,
+                                                            "Sun" => Weekday::Sun,
+                                                            _ => Weekday::Sun,
+                                                        },
+                                                    );
                                             },
                                             option { value: "Mon", "Monday" }
                                             option { value: "Tue", "Tuesday" }
@@ -406,21 +427,18 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                             class: "input input-bordered w-full",
                                             r#type: "time",
                                             value: "{weekend_time()}",
-                                            oninput: move |evt| weekend_time.set(evt.value())
+                                            oninput: move |evt| weekend_time.set(evt.value()),
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    
-                    // Save Button & Messages
                     if let Some(msg) = save_message() {
                         div { class: if msg.contains("success") { "alert alert-success" } else { "alert alert-error" },
                             span { "{msg}" }
                         }
                     }
-                    
                     button {
                         class: "btn btn-primary btn-lg w-full sm:w-auto",
                         disabled: is_saving(),
@@ -432,16 +450,11 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                             "💾 Save Changes"
                         }
                     }
-                    
-                    // Danger Zone
                     div { class: "divider mt-8", "Danger Zone" }
-                    
                     div { class: "card bg-error/10 border border-error/30",
                         div { class: "card-body",
                             h3 { class: "card-title text-error text-lg mb-4", "⚠️ Database Management" }
-                            
                             div { class: "grid grid-cols-1 sm:grid-cols-3 gap-4",
-                                // Export Button
                                 button {
                                     class: "btn btn-info btn-lg",
                                     disabled: is_exporting(),
@@ -453,8 +466,6 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         "📥 Export Database"
                                     }
                                 }
-                                
-                                // Import Button
                                 div {
                                     if !show_import_confirm() {
                                         button {
@@ -489,13 +500,11 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                                 class: "hidden",
                                                 r#type: "file",
                                                 accept: ".json",
-                                                onchange: handle_import
+                                                onchange: handle_import,
                                             }
                                         }
                                     }
                                 }
-                                
-                                // Delete Button
                                 div {
                                     if !show_delete_confirm() {
                                         button {
@@ -530,7 +539,6 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                     }
                                 }
                             }
-                            
                             p { class: "text-sm text-base-content/70 mt-4",
                                 "Export: Download a complete backup • Import: Restore from backup file • Delete: Remove all data and start fresh"
                             }
@@ -547,7 +555,7 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                         span { class: "loading loading-spinner loading-md" }
                         span { "Loading congregation settings..." }
                     }
-                }
+                },
             }
         }
     }

@@ -1,4 +1,5 @@
 pub mod user;
+pub mod user_settings;
 pub mod field_service_group;
 pub mod field_service_meeting;
 pub mod field_service_report;

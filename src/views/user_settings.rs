@@ -135,20 +135,17 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
                     li { "User Settings" }
                 }
             }
-            
             // Header
             div { class: "mb-6",
                 h2 { class: "text-3xl font-bold text-base-content", "User Settings" }
                 p { class: "text-base-content/70 mt-1", "Customize your experience" }
             }
-            
             // Success message
             if let Some(msg) = save_message() {
                 div { class: "alert alert-success shadow-lg mb-4",
                     span { "{msg}" }
                 }
             }
-            
             // Settings Card
             div { class: "card bg-base-100 shadow-lg w-full",
                 div { class: "card-body p-4 sm:p-8",
@@ -161,7 +158,7 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
                             class: "select select-bordered w-full",
                             value: "{selected_language()}",
                             onchange: move |evt| selected_language.set(evt.value()),
-                            for (lang_id, lang_name) in LANGUAGES.iter() {
+                            for (lang_id , lang_name) in LANGUAGES.iter() {
                                 option {
                                     value: "{lang_id}",
                                     selected: selected_language() == *lang_id,
@@ -185,7 +182,7 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
                             class: "select select-bordered w-full",
                             value: "{selected_theme()}",
                             onchange: move |evt| selected_theme.set(evt.value()),
-                            for (theme_id, theme_name) in THEMES.iter() {
+                            for (theme_id , theme_name) in THEMES.iter() {
                                 option {
                                     value: "{theme_id}",
                                     selected: selected_theme() == *theme_id,
@@ -223,13 +220,12 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
                             }
                         }
                     }
-                    
                     // Save Button
                     div { class: "flex justify-center mt-6",
                         button {
                             class: format!(
                                 "btn btn-primary btn-wide {}",
-                                if !has_changes { "btn-disabled" } else { "" }
+                                if !has_changes { "btn-disabled" } else { "" },
                             ),
                             disabled: !has_changes,
                             onclick: handle_save,

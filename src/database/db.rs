@@ -32,7 +32,9 @@ pub async fn init(namespace: &str, remote_db: bool) -> Result<Surreal<Any>> {
 pub async fn get_db() -> Result<&'static Surreal<Any>> {
     if DB.get().is_none() {
         let db = init("parla_norte", false).await?;
-        DB.set(db).unwrap();
+        let _ = DB.set(db); // Ignore error if already set
     }
-    Ok(DB.get().unwrap())
+    Ok(DB.get().ok_or_else(|| {
+        surrealdb::Error::Db(surrealdb::error::Db::DbEmpty)
+    })?)
 }

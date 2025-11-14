@@ -89,32 +89,28 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
         div { class: "space-y-6",
             // Header
             div { class: "text-center space-y-2",
-                h2 { class: "text-2xl sm:text-3xl font-bold text-base-content",
-                    "Congregation Setup"
-                }
+                h2 { class: "text-2xl sm:text-3xl font-bold text-base-content", "Congregation Setup" }
                 p { class: "text-base-content/70 text-sm sm:text-base",
                     "Enter your congregation's basic information"
                 }
             }
-            
             // Error message
             if !error_message().is_empty() {
                 div { class: "alert alert-error",
-                    svg { 
+                    svg {
                         class: "stroke-current shrink-0 h-6 w-6",
                         fill: "none",
                         view_box: "0 0 24 24",
-                        path { 
+                        path {
                             stroke_linecap: "round",
                             stroke_linejoin: "round",
                             stroke_width: "2",
-                            d: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z",
                         }
                     }
                     span { "{error_message}" }
                 }
             }
-            
             // Form
             div { class: "space-y-4",
                 // Congregation Name
@@ -127,10 +123,9 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                         class: "input input-bordered w-full",
                         placeholder: "Enter congregation name",
                         value: "{name}",
-                        oninput: move |e| name.set(e.value().clone())
+                        oninput: move |e| name.set(e.value().clone()),
                     }
                 }
-                
                 // JW Code (optional)
                 div { class: "form-control",
                     label { class: "label",
@@ -141,10 +136,9 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                         class: "input input-bordered w-full",
                         placeholder: "e.g., 12345",
                         value: "{jw_code}",
-                        oninput: move |e| jw_code.set(e.value().clone())
+                        oninput: move |e| jw_code.set(e.value().clone()),
                     }
                 }
-                
                 // Name Order
                 div { class: "form-control",
                     label { class: "label",
@@ -153,16 +147,18 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                     select {
                         class: "select select-bordered w-full",
                         onchange: move |e| {
-                            name_order.set(match e.value().as_str() {
-                                "lastname" => NameOrder::LastnameFirstname,
-                                _ => NameOrder::FirstnameLastname,
-                            });
+                            name_order
+                                .set(
+                                    match e.value().as_str() {
+                                        "lastname" => NameOrder::LastnameFirstname,
+                                        _ => NameOrder::FirstnameLastname,
+                                    },
+                                );
                         },
                         option { value: "firstname", selected: true, "Firstname Lastname" }
                         option { value: "lastname", "Lastname, Firstname" }
                     }
                 }
-                
                 // First Weekday
                 div { class: "form-control",
                     label { class: "label",
@@ -171,22 +167,23 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                     select {
                         class: "select select-bordered w-full",
                         onchange: move |e| {
-                            first_weekday.set(match e.value().as_str() {
-                                "monday" => FirstWeekday::Monday,
-                                _ => FirstWeekday::Sunday,
-                            });
+                            first_weekday
+                                .set(
+                                    match e.value().as_str() {
+                                        "monday" => FirstWeekday::Monday,
+                                        _ => FirstWeekday::Sunday,
+                                    },
+                                );
                         },
                         option { value: "sunday", selected: true, "Sunday" }
                         option { value: "monday", "Monday" }
                     }
                 }
-                
                 // Weekday Meeting
                 div { class: "form-control border border-base-300 rounded-lg p-4 space-y-3",
                     label { class: "label",
                         span { class: "label-text font-semibold", "Weekday Meeting *" }
                     }
-                    
                     div { class: "grid grid-cols-1 sm:grid-cols-3 gap-3",
                         div { class: "form-control",
                             label { class: "label",
@@ -195,14 +192,17 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                             select {
                                 class: "select select-bordered select-sm w-full",
                                 onchange: move |e| {
-                                    weekday_day.set(match e.value().as_str() {
-                                        "Mon" => chrono::Weekday::Mon,
-                                        "Tue" => chrono::Weekday::Tue,
-                                        "Wed" => chrono::Weekday::Wed,
-                                        "Thu" => chrono::Weekday::Thu,
-                                        "Fri" => chrono::Weekday::Fri,
-                                        _ => chrono::Weekday::Mon,
-                                    });
+                                    weekday_day
+                                        .set(
+                                            match e.value().as_str() {
+                                                "Mon" => chrono::Weekday::Mon,
+                                                "Tue" => chrono::Weekday::Tue,
+                                                "Wed" => chrono::Weekday::Wed,
+                                                "Thu" => chrono::Weekday::Thu,
+                                                "Fri" => chrono::Weekday::Fri,
+                                                _ => chrono::Weekday::Mon,
+                                            },
+                                        );
                                 },
                                 option { value: "Mon", selected: true, "Monday" }
                                 option { value: "Tue", "Tuesday" }
@@ -221,7 +221,7 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                                 min: "0",
                                 max: "23",
                                 value: "{weekday_hour}",
-                                oninput: move |e| weekday_hour.set(e.value().clone())
+                                oninput: move |e| weekday_hour.set(e.value().clone()),
                             }
                         }
                         div { class: "form-control",
@@ -234,18 +234,16 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                                 min: "0",
                                 max: "59",
                                 value: "{weekday_minute}",
-                                oninput: move |e| weekday_minute.set(e.value().clone())
+                                oninput: move |e| weekday_minute.set(e.value().clone()),
                             }
                         }
                     }
                 }
-                
                 // Weekend Meeting
                 div { class: "form-control border border-base-300 rounded-lg p-4 space-y-3",
                     label { class: "label",
                         span { class: "label-text font-semibold", "Weekend Meeting *" }
                     }
-                    
                     div { class: "grid grid-cols-1 sm:grid-cols-3 gap-3",
                         div { class: "form-control",
                             label { class: "label",
@@ -254,11 +252,14 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                             select {
                                 class: "select select-bordered select-sm w-full",
                                 onchange: move |e| {
-                                    weekend_day.set(match e.value().as_str() {
-                                        "Sat" => chrono::Weekday::Sat,
-                                        "Sun" => chrono::Weekday::Sun,
-                                        _ => chrono::Weekday::Sat,
-                                    });
+                                    weekend_day
+                                        .set(
+                                            match e.value().as_str() {
+                                                "Sat" => chrono::Weekday::Sat,
+                                                "Sun" => chrono::Weekday::Sun,
+                                                _ => chrono::Weekday::Sat,
+                                            },
+                                        );
                                 },
                                 option { value: "Sat", selected: true, "Saturday" }
                                 option { value: "Sun", "Sunday" }
@@ -274,7 +275,7 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                                 min: "0",
                                 max: "23",
                                 value: "{weekend_hour}",
-                                oninput: move |e| weekend_hour.set(e.value().clone())
+                                oninput: move |e| weekend_hour.set(e.value().clone()),
                             }
                         }
                         div { class: "form-control",
@@ -287,47 +288,45 @@ pub fn CongregationStep(props: CongregationStepProps) -> Element {
                                 min: "0",
                                 max: "59",
                                 value: "{weekend_minute}",
-                                oninput: move |e| weekend_minute.set(e.value().clone())
+                                oninput: move |e| weekend_minute.set(e.value().clone()),
                             }
                         }
                     }
                 }
             }
-            
             // Action buttons
             div { class: "flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-base-300",
-                button { 
+                button {
                     class: "btn btn-outline btn-lg flex-1",
                     onclick: move |_| props.on_back.call(()),
-                    svg { 
+                    svg {
                         class: "w-5 h-5 mr-2",
                         fill: "none",
                         stroke: "currentColor",
                         view_box: "0 0 24 24",
-                        path { 
+                        path {
                             stroke_linecap: "round",
                             stroke_linejoin: "round",
                             stroke_width: "2",
-                            d: "M11 17l-5-5m0 0l5-5m-5 5h12"
+                            d: "M11 17l-5-5m0 0l5-5m-5 5h12",
                         }
                     }
                     "Back"
                 }
-                
-                button { 
+                button {
                     class: "btn btn-primary btn-lg flex-1",
                     onclick: handle_submit,
                     "Next"
-                    svg { 
+                    svg {
                         class: "w-5 h-5 ml-2",
                         fill: "none",
                         stroke: "currentColor",
                         view_box: "0 0 24 24",
-                        path { 
+                        path {
                             stroke_linecap: "round",
                             stroke_linejoin: "round",
                             stroke_width: "2",
-                            d: "M13 7l5 5m0 0l-5 5m5-5H6"
+                            d: "M13 7l5 5m0 0l-5 5m5-5H6",
                         }
                     }
                 }
