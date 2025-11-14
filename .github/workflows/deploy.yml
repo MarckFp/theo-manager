@@ -123,6 +123,12 @@ jobs:
               ;;
           esac
 
+          case "${{ matrix.name }}" in
+            "Windows x86 🪟"|"Windows x64 🪟"|"Windows ARM64 🪟")
+              sudo apt-get install mingw-w64 -y
+              ;;
+          esac
+
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
       - name: Build & Deploy ${{ matrix.name }} 🚀
