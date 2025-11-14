@@ -34,10 +34,10 @@ pub fn Menu(props: MenuProps) -> Element {
     
     // Mobile bottom bar - 4 main categories
     let mobile_menu_items = vec![
-        ("dashboard", "Home", "🏠"),
         ("publishers-category", "Publishers", "👥"),
         ("meetings-category", "Meetings", "📖"),
         ("congregation-category", "More", "🎉"),
+        ("settings-category", "Settings", "⚙️"),
     ];
     
     let handle_menu_click = move |section: String| {

@@ -1,5 +1,6 @@
 {
     "name": "TheoManager",
+    "description": "An amazing application that let you manage, handle and configure everything related to your congregation in an easy, fast and secure way.",
     "short_name": "tm",
     "id": "/theo-manager/",
     "start_url": "/theo-manager/",
@@ -16,7 +17,11 @@
             "type": "image/png"
         }
     ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
-    "display": "standalone"
+    "theme_color": "#605dff",
+    "background_color": "#191e24",
+    "display": "standalone",
+    "display_override": ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay", "browser"],
+    "categories": ["utilities", "productivity"],
+    "handle_links": "preferred",
+    "orientation": "natural"
 }

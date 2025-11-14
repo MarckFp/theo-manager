@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use web_sys::window;
 
 mod database;
 mod views;
@@ -20,6 +21,12 @@ fn App() -> Element {
             Err(_) => false,
         }
     });
+
+    let document = window().unwrap().document().unwrap();
+    let html = document.document_element().unwrap();
+
+    html.set_attribute("lang", "en").unwrap();
+    html.set_attribute("data-theme", "aqua").unwrap();
 
     rsx! {
         // Icons

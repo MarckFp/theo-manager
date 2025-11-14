@@ -6,8 +6,13 @@
 [web.app]
 title = "Theo Manager"
 [web.resource]
-style = []
-script = []
+style = [
+    "https://cdn.jsdelivr.net/npm/daisyui@5",
+    "https://cdn.jsdelivr.net/npm/daisyui@5/themes.css"
+]
+script = [
+    "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"
+]
 [web.resource.dev]
 script = []
 [web.watcher]
