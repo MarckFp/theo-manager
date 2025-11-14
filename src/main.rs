@@ -25,14 +25,14 @@ fn App() -> Element {
     // Load theme and language from localStorage
     let (theme, language) = if let Some(window) = window() {
         if let Ok(Some(storage)) = window.local_storage() {
-            let theme = storage.get_item("theo_manager_theme").ok().flatten().unwrap_or_else(|| "black".to_string());
+            let theme = storage.get_item("theo_manager_theme").ok().flatten().unwrap_or_else(|| "dark".to_string());
             let lang = storage.get_item("theo_manager_language").ok().flatten().unwrap_or_else(|| "en".to_string());
             (theme, lang)
         } else {
-            ("black".to_string(), "en".to_string())
+            ("dark".to_string(), "en".to_string())
         }
     } else {
-        ("black".to_string(), "en".to_string())
+        ("dark".to_string(), "en".to_string())
     };
 
     let document = window().unwrap().document().unwrap();

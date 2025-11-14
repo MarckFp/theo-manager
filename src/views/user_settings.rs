@@ -152,30 +152,6 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
             // Settings Card
             div { class: "card bg-base-100 shadow-lg w-full",
                 div { class: "card-body p-4 sm:p-8",
-                    // Theme Selection
-                    div { class: "form-control mb-6",
-                        label { class: "label",
-                            span { class: "label-text font-semibold text-lg", "Theme" }
-                        }
-                        select {
-                            class: "select select-bordered w-full",
-                            value: "{selected_theme()}",
-                            onchange: move |evt| selected_theme.set(evt.value()),
-                            for (theme_id, theme_name) in THEMES.iter() {
-                                option {
-                                    value: "{theme_id}",
-                                    selected: selected_theme() == *theme_id,
-                                    "{theme_name}"
-                                }
-                            }
-                        }
-                        label { class: "label",
-                            span { class: "label-text-alt text-base-content/60",
-                                "Choose your preferred color theme"
-                            }
-                        }
-                    }
-                    
                     // Language Selection
                     div { class: "form-control mb-6",
                         label { class: "label",
@@ -199,7 +175,31 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
                             }
                         }
                     }
-                    
+
+                    // Theme Selection
+                    div { class: "form-control mb-6",
+                        label { class: "label",
+                            span { class: "label-text font-semibold text-lg", "Theme" }
+                        }
+                        select {
+                            class: "select select-bordered w-full",
+                            value: "{selected_theme()}",
+                            onchange: move |evt| selected_theme.set(evt.value()),
+                            for (theme_id, theme_name) in THEMES.iter() {
+                                option {
+                                    value: "{theme_id}",
+                                    selected: selected_theme() == *theme_id,
+                                    "{theme_name}"
+                                }
+                            }
+                        }
+                        label { class: "label",
+                            span { class: "label-text-alt text-base-content/60",
+                                "Choose your preferred color theme"
+                            }
+                        }
+                    }
+
                     // Theme Preview
                     div { class: "mb-6 overflow-x-hidden",
                         label { class: "label",

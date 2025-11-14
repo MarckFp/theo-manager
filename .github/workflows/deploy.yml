@@ -29,15 +29,15 @@ jobs:
         include:
         # Windows
           - name: 'Windows x86 🪟'
-            os: 'windows-2025'
+            os: 'ubuntu-24.04'
             target: 'i686-pc-windows-msvc'
             platform: desktop
           - name: 'Windows x64 🪟'
-            os: 'windows-2025'
+            os: 'ubuntu-24.04'
             target: 'x86_64-pc-windows-msvc'
             platform: desktop
           - name: 'Windows ARM64 🪟'
-            os: 'windows-2025'
+            os: 'ubuntu-24.04-arm'
             target: 'aarch64-pc-windows-msvc'
             platform: desktop
           # MacOS
@@ -249,6 +249,11 @@ jobs:
       - name: Create Release Notes 📝
         run: |
           echo "## Release ${{ github.ref_name }}" >> release_notes.md
+          echo "### Changelog:" >> release_notes.md
+          PREV_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName')
+          if [ -n "$PREV_TAG" ]; then
+            echo "[Full Changelog](https://github.com/MarckFp/${{ github.event.repository.name }}/compare/${PREV_TAG}...${{ github.ref_name }})" >> release_notes.md
+          fi
           echo "" >> release_notes.md
           echo "### Desktop Apps:" >> release_notes.md
           echo "- [Windows x86 🪟](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x86-setup.exe)" >> release_notes.md
