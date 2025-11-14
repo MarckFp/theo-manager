@@ -7,6 +7,7 @@ use crate::views::categories::meetings::Meetings;
 use crate::views::categories::congregation::Congregation as CongregationCategory;
 use crate::views::categories::settings::Settings as SettingsCategory;
 use crate::views::congregation_settings::CongregationSettings;
+use crate::views::user_settings::UserSettings;
 use crate::views::users::Users;
 
 #[component]
@@ -47,7 +48,7 @@ pub fn Home() -> Element {
     };
     
     rsx! {
-        div { class: "flex min-h-screen bg-base-200",
+        div { class: "flex min-h-screen bg-base-200 overflow-x-hidden",
             // Menu Sidebar
             Menu {
                 current_section: current_section(),
@@ -57,7 +58,7 @@ pub fn Home() -> Element {
             }
             
             // Main Content Area
-            main { class: "flex-1 lg:ml-64 p-4 lg:p-8 pb-20 lg:pb-8",
+            main { class: "flex-1 lg:ml-64 p-4 lg:p-8 pb-20 lg:pb-8 overflow-x-hidden",
                 // Header - only show on dashboard
                 if current_section() == "dashboard" {
                     div { class: "mb-8 mt-0 lg:mt-0",
@@ -105,6 +106,11 @@ pub fn Home() -> Element {
                     },
                     "congregation-settings" => rsx! {
                         CongregationSettings {
+                            on_navigate: move |section| current_section.set(section)
+                        }
+                    },
+                    "user-settings" => rsx! {
+                        UserSettings {
                             on_navigate: move |section| current_section.set(section)
                         }
                     },
@@ -174,7 +180,7 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
                     div { class: "stat bg-accent text-accent-content rounded-lg shadow",
                         div { class: "stat-title text-accent-content/80", "Reports" }
                         div { class: "stat-value", "0" }
-                        div { class: "stat-desc text-accent-content/70", "This month" }
+                        div { class: "stat-desc text-accent-content/70", "Missing reports this month" }
                     }
                 }
             }

@@ -2,9 +2,11 @@ pub mod home;
 pub mod landing;
 pub mod categories;
 pub mod congregation_settings;
+pub mod user_settings;
 pub mod users;
 
 pub use home::*;
 pub use landing::Landing;
 pub use congregation_settings::CongregationSettings;
+pub use user_settings::UserSettings;
 pub use users::Users;
