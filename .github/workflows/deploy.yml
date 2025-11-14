@@ -129,6 +129,17 @@ jobs:
 
           cargo binstall dioxus-cli --version $DX_VERSION -y
 
+      - name: Cache Cargo Dependencies 📥
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
         run: |
@@ -253,9 +264,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: deploy
     permissions:
-      id-token: write
       contents: write
-      discussions: write
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v5
