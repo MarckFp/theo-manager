@@ -160,13 +160,12 @@ jobs:
               ;;
 
             "android")
-              NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" dx build --release --platform ${{ matrix.platform }}
-              NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" dx bundle --release --platform ${{ matrix.platform }} --features bundle
+              dx build --release --platform ${{ matrix.platform }}
+              dx bundle --release --platform ${{ matrix.platform }} --features bundle
               ;;
 
             "ios")
-              dx build --release --platform ${{ matrix.platform }}
-              dx bundle --release --platform ${{ matrix.platform }} --features bundle --target ${{ matrix.target }}
+              dx bundle --release --platform ${{ matrix.platform }} --features bundle
               ;;
 
             *)

@@ -20,7 +20,7 @@ debug = false
 # Bundler
 #------------------------------------------
 [bundle]
-identifier = "io.github.theo-manager"
+identifier = "io.github.theomanager"
 publisher = "MarckFp"
 icon = [
     "icons/32x32.png",
