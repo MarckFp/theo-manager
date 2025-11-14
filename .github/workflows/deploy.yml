@@ -60,7 +60,7 @@ jobs:
             platform: desktop
           # Android
           - name: 'Android 🤖'
-            os: 'ubuntu-24.04'
+            os: 'macos-26'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           # iOS
@@ -102,12 +102,6 @@ jobs:
       - name: Install Cargo Binstall 🛠️
         uses: cargo-bins/cargo-binstall@main
 
-      - name: Setup cmake
-        if: ${{ matrix.platform == 'android'}}
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: 'latest'
-
       - name: Setup Dependencies & Configs 🛠️
         shell: bash
         run: |
@@ -139,10 +133,6 @@ jobs:
           chmod +x $TAILWIND_NAME
 
           case "${{ matrix.platform }}" in
-            "web")
-              sed -i '/^\[web\.app\]$/a base_path = "theo-manager"' Dioxus.toml
-              ;;
-
             "android")
               sdkmanager "ndk;$NDK_VERSION"
               ;;
@@ -168,20 +158,20 @@ jobs:
               dx bundle --release --platform ${{ matrix.platform }} --features bundle
               ;;
 
-            *)
-              dx bundle --release --platform ${{ matrix.platform }} --features bundle
+            "web")
+              dx bundle --release --platform ${{ matrix.platform }} --features bundle --base-path ${{ github.event.repository.name }}
               ;;
           esac
 
           if [[ "${{ matrix.platform }}" == "web" ]]; then
-            cp target/dx/theo-manager/release/web/public/index.html target/dx/theo-manager/release/web/public/404.html
+            cp target/dx/${{ github.event.repository.name }}/release/web/public/index.html target/dx/${{ github.event.repository.name }}/release/web/public/404.html
           fi
 
       - name: Optimize Wasm ⚡
         if: ${{ matrix.platform == 'web'}}
         uses: NiklasEi/wasm-opt-action@v2
         with:
-          file: target/dx/theo-manager/release/web/public/wasm/*.wasm
+          file: target/dx/${{ github.event.repository.name }}/release/web/public/wasm/*.wasm
           optimize_all: true
           options: -Oz
 
@@ -189,7 +179,7 @@ jobs:
         if: ${{ matrix.platform == 'web'}}
         uses: actions/upload-pages-artifact@v4
         with:
-          path: target/dx/theo-manager/release/web/public/
+          path: target/dx/${{ github.event.repository.name }}/release/web/public/
 
       - name: Deploy Github Pages 🌐
         if: ${{ matrix.platform == 'web' }}
@@ -208,56 +198,56 @@ jobs:
         run: |
           case "${{ matrix.name }}" in
             "Windows x86 🪟")
-              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x86_en-US.msi \
-                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
+              upx --best target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x86_en-US.msi \
+                target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x86-setup.exe
               ;;
             "Windows x64 🪟")
-              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x64_en-US.msi \
-                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
+              upx --best target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_x64_en-US.msi \
+                target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
               ;;
 
             "Windows ARM64 🪟")
-              upx --best target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_arm64_en-US.msi \
-                target/dx/theo-manager/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
+              upx --best target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/msi/TheoManager_${{ github.ref_name }}_arm64_en-US.msi \
+                target/dx/${{ github.event.repository.name }}/bundle/windows/bundle/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
               ;;
 
             "Linux x64 🐧")
-              upx --best target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_amd64.deb \
-                target/dx/theo-manager/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.x86_64.rpm \
-                target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
+              upx --best target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_amd64.deb \
+                target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.x86_64.rpm \
+                target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_amd64.AppImage
               ;;
 
             "Linux ARM64 🐧")
-              upx --best target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_arm64.deb \
-                target/dx/theo-manager/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.aarch64.rpm \
-                target/dx/theo-manager/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
+              upx --best target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/deb/TheoManager_${{ github.ref_name }}_arm64.deb \
+                target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/rpm/TheoManager-${{ github.ref_name }}-.aarch64.rpm \
+                target/dx/${{ github.event.repository.name }}/bundle/linux/bundle/appimage/TheoManager_${{ github.ref_name }}_aarch64.AppImage
               ;;
 
             "MacOS x64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_x64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_x64.dmg
               ;;
 
             "MacOS ARM64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_aarch64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/bundle/macos/bundle/dmg/TheoManager_${{ github.ref_name }}_aarch64.dmg
               ;;
 
             "iOS 📱")
               mkdir Payload
-              mv target/dx/theo-manager/release/ios/DxApp.app Payload/
+              mv target/dx/${{ github.event.repository.name }}/release/ios/TheoManager.app Payload/
               zip -r TheoManager_${{ github.ref_name }}.ipa Payload
               gh release upload ${{ github.ref_name }} TheoManager_${{ github.ref_name }}.ipa
               ;;
 
             "Android 🤖")
-              mv target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk
-              mv target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager-aarch64-linux-android.aab target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
-              gh release upload ${{ github.ref_name }} target/dx/theo-manager/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk \
-                target/dx/theo-manager/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
+              mv target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk
+              mv target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager-aarch64-linux-android.aab target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
+              gh release upload ${{ github.ref_name }} target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/apk/debug/TheoManager_${{ github.ref_name }}.apk \
+                target/dx/${{ github.event.repository.name }}/release/android/app/app/build/outputs/bundle/release/TheoManager_${{ github.ref_name }}.aab
               ;;
           esac
   release:
@@ -270,17 +260,17 @@ jobs:
           echo "## Release ${{ github.ref_name }}" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Desktop Apps:" >> release_notes.md
-          echo "- [Windows x86 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x86-setup.exe)" >> release_notes.md
-          echo "- [Windows x64 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64-setup.exe)" >> release_notes.md
-          echo "- [Windows ARM64 🪟](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64-setup.exe)" >> release_notes.md
-          echo "- [MacOS x64 🍏](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.dmg)" >> release_notes.md
-          echo "- [MacOS ARM64 🍏](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.dmg)" >> release_notes.md
-          echo "- [Linux x64 🐧](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.AppImage)" >> release_notes.md
-          echo "- [Linux ARM64 🐧](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.AppImage)" >> release_notes.md
+          echo "- [Windows x86 🪟](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x86-setup.exe)" >> release_notes.md
+          echo "- [Windows x64 🪟](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64-setup.exe)" >> release_notes.md
+          echo "- [Windows ARM64 🪟](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64-setup.exe)" >> release_notes.md
+          echo "- [MacOS x64 🍏](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.dmg)" >> release_notes.md
+          echo "- [MacOS ARM64 🍏](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.dmg)" >> release_notes.md
+          echo "- [Linux x64 🐧](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_x64.AppImage)" >> release_notes.md
+          echo "- [Linux ARM64 🐧](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}_arm64.AppImage)" >> release_notes.md
           echo "### Mobile Apps:" >> release_notes.md
-          echo "- [iOS 📱](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.ipa)" >> release_notes.md
-          echo "- [Android APK 🤖](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.apk)" >> release_notes.md
-          echo "- [Android AAB 🤖](https://github.com/MarckFp/theo-manager/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.aab)" >> release_notes.md
+          echo "- [iOS 📱](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.ipa)" >> release_notes.md
+          echo "- [Android APK 🤖](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.apk)" >> release_notes.md
+          echo "- [Android AAB 🤖](https://github.com/MarckFp/${{ github.event.repository.name }}/releases/download/${{ github.ref_name }}/TheoManager_${{ github.ref_name }}.aab)" >> release_notes.md
           echo "### Web App:" >> release_notes.md
-          echo "- [Web 🌐](https://marckfp.github.io/theo-manager/)" >> release_notes.md
+          echo "- [Web 🌐](https://marckfp.github.io/${{ github.event.repository.name }}/)" >> release_notes.md
           gh release edit ${{ github.ref_name }} --notes-file release_notes.md
