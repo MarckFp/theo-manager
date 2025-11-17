@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet permission for potential future remote database connection -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Storage permissions for RocksDB (local database) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+                     android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="32" />
+    
+    <application
+        android:name="dev.dioxus.main.WryApplication"
+        android:hasCode="true"
+        android:supportsRtl="true"
+        android:icon="@mipmap/ic_launcher"
+        android:extractNativeLibs="true"
+        android:allowNativeHeapPointerTagging="false"
+        android:label="Theo Manager"
+        android:theme="@style/AppTheme"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+    >
+        <activity
+            android:name="dev.dioxus.main.MainActivity"
+            android:configChanges="orientation|screenLayout|screenSize|keyboardHidden"
+            android:exported="true"
+            android:label="Theo Manager"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+        >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

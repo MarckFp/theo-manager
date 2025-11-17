@@ -1,6 +1,7 @@
 [application]
 
 asset_dir = "assets"
+android_manifest = "./AndroidManifest.xml"
 #------------------------------------------
 # Web
 #------------------------------------------

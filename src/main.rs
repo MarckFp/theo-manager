@@ -16,10 +16,14 @@ fn main() {
 fn App() -> Element {
     // Initialize database first - this must complete before anything else
     let db_init = use_resource(move || async move {
+        println!("=== Starting Database Initialization ===");
         match database::db::get_db().await {
-            Ok(_) => Some(true),
+            Ok(_) => {
+                println!("=== Database Initialized Successfully ===");
+                Some(true)
+            },
             Err(e) => {
-                eprintln!("Database initialization error: {:?}", e);
+                eprintln!("=== Database initialization error: {:?} ===", e);
                 Some(false)
             }
         }
@@ -27,40 +31,84 @@ fn App() -> Element {
 
     // Check if we have any congregation data
     let has_data = use_resource(move || async move {
+        println!("=== Checking for congregation data ===");
         // Wait for DB to be initialized successfully
         match db_init.read().as_ref() {
             Some(Some(true)) => {
+                println!("DB initialized, querying congregations...");
                 match database::models::congregation::Congregation::all().await {
-                    Ok(congregations) => Some(!congregations.is_empty()),
-                    Err(_) => Some(false),
+                    Ok(congregations) => {
+                        let has_data = !congregations.is_empty();
+                        println!("Congregations found: {}", congregations.len());
+                        Some(has_data)
+                    },
+                    Err(e) => {
+                        eprintln!("Error querying congregations: {:?}", e);
+                        Some(false)
+                    },
                 }
             }
-            _ => None
+            Some(Some(false)) => {
+                eprintln!("DB initialization failed, skipping congregation check");
+                Some(false)
+            }
+            _ => {
+                println!("DB still initializing...");
+                None
+            }
         }
     });
 
     // Load theme and language from database
     let settings = use_resource(move || async move {
+        println!("=== Loading user settings ===");
         // Wait for DB to be initialized successfully
         match db_init.read().as_ref() {
-            Some(Some(true)) => UserSettings::get_or_create().await.ok(),
-            _ => None
+            Some(Some(true)) => {
+                match UserSettings::get_or_create().await {
+                    Ok(settings) => {
+                        println!("Settings loaded: theme={}, lang={}", settings.theme, settings.language);
+                        Some(settings)
+                    }
+                    Err(e) => {
+                        eprintln!("Error loading settings: {:?}", e);
+                        None
+                    }
+                }
+            }
+            Some(Some(false)) => {
+                eprintln!("DB initialization failed, cannot load settings");
+                None
+            }
+            _ => {
+                println!("DB still initializing, waiting for settings...");
+                None
+            }
         }
     });
 
     // Set theme and language attributes when settings are loaded
     use_effect(move || {
+        println!("=== Theme effect triggered ===");
         if let Some(Some(user_settings)) = settings.read().as_ref() {
             let lang = user_settings.language.clone();
             let theme = user_settings.theme.clone();
 
-            // Set language attribute
-            let lang_script = format!("document.documentElement.setAttribute('lang', '{}');", lang);
-            document::eval(&lang_script);
+            println!("Applying theme: {} and language: {}", theme, lang);
+
+            // Set language attribute - skip on mobile as document::eval might not work
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let lang_script = format!("document.documentElement.setAttribute('lang', '{}');", lang);
+                document::eval(&lang_script);
+                
+                let theme_script = format!("document.documentElement.setAttribute('data-theme', '{}');", theme);
+                document::eval(&theme_script);
+            }
             
-            // Set theme attribute
-            let theme_script = format!("document.documentElement.setAttribute('data-theme', '{}');", theme);
-            document::eval(&theme_script);
+            println!("Theme and language applied successfully");
+        } else {
+            println!("Settings not available yet");
         }
     });
 
@@ -140,6 +188,13 @@ fn App() -> Element {
         }
 
         body {
+            {
+                let db_state = db_init.read().as_ref().map(|s| s.as_ref().map(|b| *b));
+                let has_data_state = has_data();
+                println!("=== Render State ===");
+                println!("DB Init: {:?}", db_state);
+                println!("Has Data: {:?}", has_data_state);
+            }
             match has_data() {
                 Some(Some(true)) => rsx! {
                     // Show main app when data exists
@@ -153,6 +208,7 @@ fn App() -> Element {
                     // Loading state
                     div { class: "min-h-screen flex items-center justify-center",
                         span { class: "loading loading-spinner loading-lg text-primary" }
+                        p { class: "mt-4 text-base-content", "Initializing database..." }
                     }
                 },
             }

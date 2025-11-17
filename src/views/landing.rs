@@ -90,10 +90,7 @@ pub fn Landing() -> Element {
 
                                 // On desktop, the app will automatically re-render and check congregation data
                                 // No need for delay or manual reload
-        
-        
-        
-        
+
         
 
                                         h2 { class: "text-3xl font-bold text-base-content", "Setup Complete!" }
