@@ -435,6 +435,10 @@ pub fn FieldServiceGroups(props: FieldServiceGroupsProps) -> Element {
                                         div { class: "card-body",
                                             h3 { class: "card-title text-lg", "{group.name}" }
 
+            
+
+                                            // Members dropdown
+
                                             div { class: "space-y-2 mt-2",
                                                 div { class: "flex items-center gap-2 text-sm",
                                                     span { class: "font-semibold", "👤 Supervisor:" }
@@ -444,8 +448,7 @@ pub fn FieldServiceGroups(props: FieldServiceGroupsProps) -> Element {
                                                     span { class: "font-semibold", "🤝 Auxiliary:" }
                                                     span { class: "text-base-content/70", "{get_user_name(&group.auxiliar)}" }
                                                 }
-
-                                                // Members dropdown
+            
                                                 {
                                                     let member_names = get_sorted_member_names(&group.members);
                                                     let member_count = member_names.len();
@@ -471,7 +474,7 @@ pub fn FieldServiceGroups(props: FieldServiceGroupsProps) -> Element {
                                                     }
                                                 }
                                             }
-
+            
                                             div { class: "card-actions justify-end mt-4",
                                                 button {
                                                     class: "btn btn-sm btn-ghost",

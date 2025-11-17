@@ -601,29 +601,21 @@ pub fn Users(props: UsersProps) -> Element {
                                             // Gender icon
                                             div {
 
-                                // Name
+                                                // Name
 
-                                // Labels/Tags
-                                // Appointment badge
+                                                // Labels/Tags
+                                                // Appointment badge
 
-                                // Publisher type badge
+                                                // Publisher type badge
 
-                                // Anointed badge
+                                                // Anointed badge
 
-                                // Family head badge
+                                                // Family head badge
 
-                                // Contact info preview
+                                                // Contact info preview
 
-                                // Action buttons
+                                                // Action buttons
 
-            
-            
-            
-            
-            
-            
-            
-            
                                                 // Skip users without ID (shouldn't happen but handle gracefully)
                                                 class: format!(
                                                     "badge badge-sm {}",
@@ -1222,7 +1214,6 @@ fn UserModal(props: UserModalProps) -> Element {
 
                                         rsx! {
 
-        
                                             div { key: "{idx}", class: "card bg-base-200 p-4",
                                                 div { class: "flex items-center justify-between mb-3",
                                                     h5 { class: "font-medium", "Contact #{idx + 1}" }

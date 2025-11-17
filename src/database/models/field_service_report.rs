@@ -5,12 +5,6 @@ use surrealdb::engine::any::Any;
 use crate::database::db::get_db;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum FieldServiceReportStatus {
-    Draft,
-    Sent,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum FieldServiceReportCommitment {
     Fifteen,
     Thirty,
@@ -18,11 +12,11 @@ pub enum FieldServiceReportCommitment {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FieldServiceReport {
-    pub id: surrealdb::RecordId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<surrealdb::RecordId>,
     pub date: chrono::NaiveDate,
     pub publisher: Option<Thing>, // Reference to a User
     pub preached: bool,
-    pub status: FieldServiceReportStatus,
     pub hours: Option<i16>,
     pub credits: Option<i16>,
     pub commitment: Option<FieldServiceReportCommitment>,

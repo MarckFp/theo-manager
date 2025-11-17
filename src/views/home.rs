@@ -11,6 +11,8 @@ use crate::views::congregation_settings::CongregationSettings;
 use crate::views::user_settings::UserSettings;
 use crate::views::users::Users;
 use crate::views::field_service_groups::FieldServiceGroups;
+use crate::views::field_service_reports::FieldServiceReports;
+use crate::views::publisher_reports::PublisherReports;
 
 // Helper function to get parent section
 fn get_parent_section(section: &str) -> Option<&'static str> {
@@ -24,6 +26,8 @@ fn get_parent_section(section: &str) -> Option<&'static str> {
         "publishers-category" | "meetings-category" | "congregation-category" | "settings-category" => Some("dashboard"),
         // Dashboard has no parent
         "dashboard" => None,
+        // Publisher reports go back to field-service-reports
+        s if s.starts_with("field_service_reports/") => Some("field-service-reports"),
         _ => Some("dashboard"),
     }
 }
@@ -179,6 +183,27 @@ pub fn Home() -> Element {
                                 },
                             }
                         },
+                        "field-service-reports" => rsx! {
+                            FieldServiceReports {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
+                        },
+                        s if s.starts_with("field_service_reports/") => {
+                            let publisher_id = s
+                                .strip_prefix("field_service_reports/")
+                                .unwrap_or("")
+                                .to_string();
+                            rsx! {
+                                PublisherReports {
+                                    publisher_id,
+                                    on_navigate: move |section: String| {
+                                        current_section.set(section);
+                                    },
+                                }
+                            }
+                        }
                         _ => rsx! {
                             {render_section_content(current_section())}
                         },
