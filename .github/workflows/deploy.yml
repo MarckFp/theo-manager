@@ -92,6 +92,17 @@ jobs:
       - name: Setup Rust Targets 🦀
         run: rustup target add ${{ matrix.target }}
 
+      - name: Cache Rust Toolchain 🦀
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+            ~/.rustup/settings.toml
+          key: ${{ runner.os }}-rustup-${{ matrix.target }}
+          restore-keys: |
+            ${{ runner.os }}-rustup-
+
       - name: Setup Java ☕
         if: ${{ matrix.platform == 'android'}}
         uses: actions/setup-java@v5
@@ -103,8 +114,22 @@ jobs:
         if: ${{ matrix.platform == 'android'}}
         uses: android-actions/setup-android@v3
 
+      - name: Cache Android NDK 📥
+        if: ${{ matrix.platform == 'android'}}
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}-${{ runner.os }}
+
       - name: Install Cargo Binstall 🛠️
         uses: cargo-bins/cargo-binstall@main
+
+      - name: Cache Dioxus CLI 🛠️
+        id: cache-dx
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/dx
+          key: dx-cli-${{ env.DX_VERSION }}-${{ runner.os }}
 
       - name: Setup Dependencies & Configs 🛠️
         shell: bash
@@ -127,18 +152,19 @@ jobs:
               ;;
           esac
 
-          cargo binstall dioxus-cli --version $DX_VERSION -y
+          # Only install dx if not cached
+          if [[ ! -f ~/.cargo/bin/dx ]]; then
+            cargo binstall dioxus-cli --version $DX_VERSION -y
+          fi
 
-      - name: Cache Cargo Dependencies 📥
-        uses: actions/cache@v4
+      - name: Cache Cargo Build 📥
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.platform }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.platform }}-cargo-
+          prefix-key: "v1-rust"
+          shared-key: ${{ matrix.platform }}-${{ matrix.target }}
+          key: ${{ hashFiles('**/Cargo.lock') }}
+          cache-targets: true
+          cache-on-failure: true
 
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash

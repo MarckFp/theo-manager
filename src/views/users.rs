@@ -1,7 +1,25 @@
 use dioxus::prelude::*;
 use crate::database::models::user::{User, UserType, UserAppointment, UserEmergencyContact};
 use crate::database::models::congregation::{Congregation, NameOrder};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Utc};
+
+/// Calculate years between two dates with decimal precision
+fn calculate_years_between(from_date: NaiveDate, to_date: NaiveDate) -> f32 {
+    let days_diff = (to_date - from_date).num_days();
+    days_diff as f32 / 365.25
+}
+
+/// Calculate age from birthday to today
+fn calculate_age(birthday: NaiveDate) -> f32 {
+    let today = Utc::now().naive_utc().date();
+    calculate_years_between(birthday, today)
+}
+
+/// Calculate years since a past date
+fn calculate_years_ago(past_date: NaiveDate) -> f32 {
+    let today = Utc::now().naive_utc().date();
+    calculate_years_between(past_date, today)
+}
 
 #[derive(Props, Clone, PartialEq)]
 pub struct UsersProps {
@@ -877,6 +895,16 @@ fn UserModal(props: UserModalProps) -> Element {
                                         value: "{birthday()}",
                                         oninput: move |evt| birthday.set(evt.value()),
                                     }
+                                    // Show age if birthday is set
+                                    if !birthday().is_empty() {
+                                        if let Ok(birth_date) = NaiveDate::parse_from_str(&birthday(), "%Y-%m-%d") {
+                                            label { class: "label",
+                                                span { class: "label-text-alt text-xs text-base-content/60",
+                                                    {format!("{:.1} years old", calculate_age(birth_date))}
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4",
@@ -1271,6 +1299,16 @@ fn UserModal(props: UserModalProps) -> Element {
                                         value: "{baptism_date()}",
                                         oninput: move |evt| baptism_date.set(evt.value()),
                                     }
+                                    // Show years ago if baptism date is set
+                                    if !baptism_date().is_empty() {
+                                        if let Ok(bapt_date) = NaiveDate::parse_from_str(&baptism_date(), "%Y-%m-%d") {
+                                            label { class: "label",
+                                                span { class: "label-text-alt text-xs text-base-content/60",
+                                                    {format!("{:.1} years ago", calculate_years_ago(bapt_date))}
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1313,15 +1351,15 @@ fn UserModal(props: UserModalProps) -> Element {
                     }
                 }
                 // Action buttons
-                div { class: "modal-action",
+                div { class: "modal-action w-full flex gap-2 mt-6",
                     button {
-                        class: "btn btn-ghost",
+                        class: "btn btn-ghost flex-1",
                         onclick: move |_| on_close_for_cancel.call(()),
                         disabled: is_saving(),
                         "Cancel"
                     }
                     button {
-                        class: "btn btn-primary",
+                        class: "btn btn-primary flex-1",
                         onclick: handle_save,
                         disabled: is_saving(),
                         if is_saving() {

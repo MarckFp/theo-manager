@@ -10,14 +10,13 @@
                      android:maxSdkVersion="32" />
     
     <application
-        android:name="dev.dioxus.main.WryApplication"
         android:hasCode="true"
         android:supportsRtl="true"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:extractNativeLibs="true"
         android:allowNativeHeapPointerTagging="false"
         android:label="Theo Manager"
-        android:theme="@style/AppTheme"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"
