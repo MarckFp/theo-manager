@@ -97,11 +97,10 @@ pub fn Home() -> Element {
                     NavigationHeader {
                         show_back: get_parent_section(&current_section()).is_some(),
                         show_home: true,
-                        on_back: on_back,
-                        on_home: on_home,
+                        on_back,
+                        on_home,
                     }
                 }
-                
                 // Header - only show on dashboard
                 if current_section() == "dashboard" {
                     div { class: "mb-8 mt-0 lg:mt-0",
@@ -120,45 +119,57 @@ pub fn Home() -> Element {
                     }
                 }
                 // Content based on current section
-                div {
-                    key: "{current_section()}",
-                    class: "page-transition",
+                div { key: "{current_section()}", class: "page-transition",
                     match current_section().as_str() {
                         // Category views (no wrapper needed)
                         "publishers-category" => rsx! {
-                            Publishers { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            Publishers {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "meetings-category" => rsx! {
-                            Meetings { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            Meetings {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "congregation-category" => rsx! {
-                            CongregationCategory { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            CongregationCategory {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "settings-category" => rsx! {
-                            SettingsCategory { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            SettingsCategory {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "congregation-settings" => rsx! {
-                            CongregationSettings { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            CongregationSettings {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "user-settings" => rsx! {
-                            UserSettings { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            UserSettings {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         "users" => rsx! {
-                            Users { on_navigate: move |section: String| {
-                                current_section.set(section);
-                            } }
+                            Users {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
                         },
                         _ => rsx! {
                             {render_section_content(current_section())}

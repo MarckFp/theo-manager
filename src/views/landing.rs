@@ -75,21 +75,27 @@ pub fn Landing() -> Element {
                                             }
                                         }
 
-                                        // Spawn async task to save data
+                                // Spawn async task to save data
 
-                                        // Database is already initialized from main.rs
-                                        // Just save the data
+                                // Database is already initialized from main.rs
+                                // Just save the data
 
-                                        // Save congregation
-                                        // Save user
-                                        // Create Owner role for the user
-                                        // Extract table and id from RecordId
+                                // Save congregation
+                                // Save user
+                                // Create Owner role for the user
+                                // Extract table and id from RecordId
 
-                                        // Wait 2 seconds to show success message, then reload
-                                        // Force a full page reload to re-check database
+                                // Wait 2 seconds to show success message, then reload
+                                // Force a full page reload to re-check database
 
-                                        // On desktop, the app will automatically re-render and check congregation data
-                                        // No need for delay or manual reload
+                                // On desktop, the app will automatically re-render and check congregation data
+                                // No need for delay or manual reload
+        
+        
+        
+        
+        
+
                                         h2 { class: "text-3xl font-bold text-base-content", "Setup Complete!" }
                                         p { class: "text-base-content/70", "Your congregation has been successfully configured." }
                                         p { class: "text-sm text-base-content/60", "Refreshing application..." }
@@ -145,7 +151,6 @@ pub fn Landing() -> Element {
                                                             Ok(created_user) => {
                                                                 let user_record_string = created_user.id.to_string();
                                                                 let user_thing = surrealdb::sql::Thing::from((
-        
         
                                                                     "user".to_string(),
                                                                     user_record_string.clone(),

@@ -106,8 +106,7 @@ pub fn WelcomeStep(props: WelcomeStepProps) -> Element {
             div { class: "flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-base-300",
                 button {
                     class: "btn btn-outline btn-lg flex-1 order-2 sm:order-1",
-                    onclick: // Open documentation (implementation depends on platform)
-                    move |_| {},
+                    onclick: move |_| {},
                     svg {
                         class: "w-5 h-5 mr-2",
                         fill: "none",

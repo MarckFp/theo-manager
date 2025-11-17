@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
-use web_sys::{window, Storage};
+use dioxus::document;
+use crate::database::models::user_settings::UserSettings;
 
 #[derive(Props, Clone, PartialEq)]
 pub struct UserSettingsProps {
@@ -48,70 +49,75 @@ const LANGUAGES: &[(&str, &str)] = &[
     ("es", "Español"),
 ];
 
-// LocalStorage keys
-const THEME_KEY: &str = "theo_manager_theme";
-const LANGUAGE_KEY: &str = "theo_manager_language";
-
 #[component]
 pub fn UserSettings(props: UserSettingsProps) -> Element {
-    // Load current settings from localStorage
-    let current_theme = use_signal(|| {
-        if let Some(window) = window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                storage.get_item(THEME_KEY).ok().flatten().unwrap_or_else(|| "black".to_string())
-            } else {
-                "black".to_string()
-            }
-        } else {
-            "black".to_string()
-        }
+    // Load settings from database
+    let mut settings = use_resource(|| async move {
+        UserSettings::get_or_create().await.ok()
     });
     
-    let current_language = use_signal(|| {
-        if let Some(window) = window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                storage.get_item(LANGUAGE_KEY).ok().flatten().unwrap_or_else(|| "en".to_string())
-            } else {
-                "en".to_string()
-            }
-        } else {
-            "en".to_string()
-        }
-    });
-    
-    let mut selected_theme = use_signal(|| current_theme());
-    let mut selected_language = use_signal(|| current_language());
+    let mut selected_theme = use_signal(|| String::from("dark"));
+    let mut selected_language = use_signal(|| String::from("en"));
     let mut save_message = use_signal(|| None::<String>);
+    let mut is_loading = use_signal(|| false);
+    
+    // Initialize selections when settings load
+    use_effect(move || {
+        if let Some(Some(user_settings)) = settings.read().as_ref() {
+            selected_theme.set(user_settings.theme.clone());
+            selected_language.set(user_settings.language.clone());
+        }
+    });
     
     // Handle save
     let handle_save = move |_| {
-        if let Some(window) = window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                // Save to localStorage
-                let _ = storage.set_item(THEME_KEY, &selected_theme());
-                let _ = storage.set_item(LANGUAGE_KEY, &selected_language());
-                
-                // Apply theme immediately
-                if let Some(document) = window.document() {
-                    if let Some(html) = document.document_element() {
-                        let _ = html.set_attribute("data-theme", &selected_theme());
-                        let _ = html.set_attribute("lang", &selected_language());
-                    }
+        spawn(async move {
+            is_loading.set(true);
+            
+            // Update database
+            match UserSettings::update(selected_theme(), selected_language()).await {
+                Ok(_) => {
+                    // Apply theme immediately via DOM
+                    let theme_script = format!(
+                        "document.documentElement.setAttribute('data-theme', '{}');",
+                        selected_theme()
+                    );
+                    document::eval(&theme_script);
+                    
+                    let lang_script = format!(
+                        "document.documentElement.setAttribute('lang', '{}');",
+                        selected_language()
+                    );
+                    document::eval(&lang_script);
+                    
+                    println!("Settings saved: theme={}, lang={}", selected_theme(), selected_language());
+                    
+                    save_message.set(Some("Settings saved successfully!".to_string()));
+                    
+                    // Reload settings resource to reflect changes
+                    settings.restart();
+                    
+                    // Clear message after 3 seconds
+                    spawn(async move {
+                        gloo_timers::future::TimeoutFuture::new(3000).await;
+                        save_message.set(None);
+                    });
+                },
+                Err(e) => {
+                    save_message.set(Some(format!("Error saving settings: {}", e)));
                 }
-                
-                save_message.set(Some("Settings saved successfully!".to_string()));
-                
-                // Clear message after 3 seconds
-                spawn(async move {
-                    gloo_timers::future::TimeoutFuture::new(3000).await;
-                    save_message.set(None);
-                });
             }
-        }
+            
+            is_loading.set(false);
+        });
     };
     
     // Check if settings have changed
-    let has_changes = selected_theme() != current_theme() || selected_language() != current_language();
+    let has_changes = if let Some(Some(user_settings)) = settings.read().as_ref() {
+        selected_theme() != user_settings.theme || selected_language() != user_settings.language
+    } else {
+        false
+    };
     
     rsx! {
         div { class: "space-y-6 max-w-4xl mx-auto w-full px-2 sm:px-0 overflow-x-hidden",

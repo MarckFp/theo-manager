@@ -219,8 +219,32 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                         div { class: "card-body",
                             h3 { class: "card-title text-lg mb-4", "General Information" }
 
+        
+                            // Name
+
+                            // JW Code
+
+                            // Name Order
+
+                            // First Weekday
+
+                            // Meeting Times
+
+                            // Weekday Meeting
+
+                            // Weekend Meeting
+
+                            // Save Button & Messages
+
+                            // Danger Zone
+
+                            // Export Button
+
+                            // Import Button
+
+                            // Delete Button
+
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                                // Name
                                 div { class: "form-control",
                                     label { class: "label",
                                         span { class: "label-text font-semibold", "Congregation Name *" }
@@ -233,8 +257,7 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         placeholder: "Enter congregation name",
                                     }
                                 }
-
-                                // JW Code
+        
                                 div { class: "form-control",
                                     label { class: "label",
                                         span { class: "label-text font-semibold", "JW Code (Optional)" }
@@ -247,8 +270,7 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         placeholder: "Enter JW code",
                                     }
                                 }
-
-                                // Name Order
+        
                                 div { class: "form-control",
                                     label { class: "label",
                                         span { class: "label-text font-semibold", "Name Display Order *" }
@@ -261,27 +283,18 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                                         },
                                         onchange: move |evt| {
                                             name_order
-
-                                                // First Weekday
+        
                                                 .set(
-
-                                                    // Meeting Times
-
-                                                    // Weekday Meeting
+        
+        
                                                     match evt.value().as_str() {
-
-                                                        // Weekend Meeting
-
-                                                        // Save Button & Messages
-
-                                                        // Danger Zone
-
-                                                        // Export Button
-
-                                                        // Import Button
-
-                                                        // Delete Button
-
+        
+        
+        
+        
+        
+        
+        
                                                         "LastnameFirstname" => NameOrder::LastnameFirstname,
                                                         _ => NameOrder::FirstnameLastname,
                                                     },

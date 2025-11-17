@@ -53,7 +53,7 @@ fn App() -> Element {
         if let Some(Some(user_settings)) = settings.read().as_ref() {
             let lang = user_settings.language.clone();
             let theme = user_settings.theme.clone();
-            
+
             // Set language attribute
             let lang_script = format!("document.documentElement.setAttribute('lang', '{}');", lang);
             document::eval(&lang_script);
@@ -65,15 +65,19 @@ fn App() -> Element {
     });
 
     rsx! {
-        // Set default theme in head
+        // Set default theme in head - this will be overridden by the effect above
         document::Script {
-            r#"
-            // Set default theme immediately to avoid flicker
-            document.documentElement.setAttribute('data-theme', 'dark');
-            document.documentElement.setAttribute('lang', 'en');
-            "#
+            "
+            // Set default theme immediately to avoid flicker (will be updated from DB)
+            if (!document.documentElement.hasAttribute('data-theme')) {{
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }}
+            if (!document.documentElement.hasAttribute('lang')) {{
+                document.documentElement.setAttribute('lang', 'en');
+            }}
+            "
         }
-        
+
         // Icons
         document::Link {
             rel: "icon",
@@ -92,21 +96,32 @@ fn App() -> Element {
             sizes: "16x16",
             href: asset!("/assets/favicon-16x16.png", AssetOptions::builder().with_hash_suffix(false)),
         }
-        document::Link { rel: "icon", href: asset!("/assets/favicon.ico", AssetOptions::builder().with_hash_suffix(false)) }
+        document::Link {
+            rel: "icon",
+            href: asset!("/assets/favicon.ico", AssetOptions::builder().with_hash_suffix(false)),
+        }
         document::Link {
             rel: "apple-touch-icon",
             sizes: "180x180",
-            href: asset!("/assets/apple-touch-icon.png", AssetOptions::builder().with_hash_suffix(false)),
+            href: asset!(
+                "/assets/apple-touch-icon.png", AssetOptions::builder().with_hash_suffix(false)
+            ),
         }
         document::Link {
             rel: "image/png",
             sizes: "192x192",
-            href: asset!("/assets/android-chrome-192x192.png", AssetOptions::builder().with_hash_suffix(false)),
+            href: asset!(
+                "/assets/android-chrome-192x192.png", AssetOptions::builder()
+                .with_hash_suffix(false)
+            ),
         }
         document::Link {
             rel: "image/png",
             sizes: "512x512",
-            href: asset!("/assets/android-chrome-512x512.png", AssetOptions::builder().with_hash_suffix(false)),
+            href: asset!(
+                "/assets/android-chrome-512x512.png", AssetOptions::builder()
+                .with_hash_suffix(false)
+            ),
         }
 
         // Stylesheets
@@ -119,7 +134,10 @@ fn App() -> Element {
         }
 
         // Manifest
-        document::Link { rel: "manifest", href: asset!("/assets/site.webmanifest", AssetOptions::builder().with_hash_suffix(false)) }
+        document::Link {
+            rel: "manifest",
+            href: asset!("/assets/site.webmanifest", AssetOptions::builder().with_hash_suffix(false)),
+        }
 
         body {
             match has_data() {

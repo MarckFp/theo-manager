@@ -42,7 +42,6 @@ pub fn NavigationHeader(props: NavigationHeaderProps) -> Element {
                     div { class: "w-12" }
                 }
             }
-            
             // Right side - Home button
             div { class: "flex-none",
                 if props.show_home {
