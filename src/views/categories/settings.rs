@@ -14,19 +14,6 @@ pub fn Settings(props: SettingsProps) -> Element {
     
     rsx! {
         div { class: "space-y-6",
-            // Breadcrumbs
-            div { class: "text-sm breadcrumbs",
-                ul {
-                    li {
-                        a {
-                            class: "text-primary",
-                            onclick: move |_| props.on_navigate.call("dashboard".to_string()),
-                            "Home"
-                        }
-                    }
-                    li { "Settings" }
-                }
-            }
             // Header
             div { class: "mb-8",
                 h2 { class: "text-3xl font-bold text-base-content mb-2", "Settings" }

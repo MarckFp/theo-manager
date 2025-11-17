@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::menu::Menu;
+use crate::components::navigation_header::NavigationHeader;
 use crate::database::models::congregation::{Congregation, NameOrder};
 use crate::database::models::user::User;
 use crate::views::categories::publishers::Publishers;
@@ -10,9 +11,42 @@ use crate::views::congregation_settings::CongregationSettings;
 use crate::views::user_settings::UserSettings;
 use crate::views::users::Users;
 
+// Helper function to get parent section
+fn get_parent_section(section: &str) -> Option<&'static str> {
+    match section {
+        // Subcategories go back to their category
+        "users" | "field-service-reports" | "roles" | "field-service-groups" => Some("publishers-category"),
+        "weekday-meeting" | "weekend-meeting" | "field-service-meetings" | "meeting-attendance" => Some("meetings-category"),
+        "special-events" | "absences" | "cleaning" | "maintenance" | "attendant" | "audio-video" | "territory" => Some("congregation-category"),
+        "user-settings" | "congregation-settings" => Some("settings-category"),
+        // Categories go back to dashboard
+        "publishers-category" | "meetings-category" | "congregation-category" | "settings-category" => Some("dashboard"),
+        // Dashboard has no parent
+        "dashboard" => None,
+        _ => Some("dashboard"),
+    }
+}
+
 #[component]
 pub fn Home() -> Element {
     let mut current_section = use_signal(|| "dashboard".to_string());
+    
+    // Handle navigation
+    let on_navigate = move |section: String| {
+        current_section.set(section);
+    };
+    
+    // Handle back navigation - go to parent section
+    let on_back = move |_| {
+        if let Some(parent) = get_parent_section(&current_section()) {
+            current_section.set(parent.to_string());
+        }
+    };
+    
+    // Handle home navigation
+    let on_home = move |_| {
+        current_section.set("dashboard".to_string());
+    };
     
     // Fetch congregation data
     let congregation = use_resource(move || async move {
@@ -52,12 +86,22 @@ pub fn Home() -> Element {
             // Menu Sidebar
             Menu {
                 current_section: current_section(),
-                on_section_change: move |section| {
+                on_section_change: move |section: String| {
                     current_section.set(section);
                 },
             }
             // Main Content Area
             main { class: "flex-1 lg:ml-64 p-4 lg:p-8 pb-20 lg:pb-8 overflow-x-hidden",
+                // Navigation Header (Back + Home buttons) - hide on dashboard
+                if current_section() != "dashboard" {
+                    NavigationHeader {
+                        show_back: get_parent_section(&current_section()).is_some(),
+                        show_home: true,
+                        on_back: on_back,
+                        on_home: on_home,
+                    }
+                }
+                
                 // Header - only show on dashboard
                 if current_section() == "dashboard" {
                     div { class: "mb-8 mt-0 lg:mt-0",
@@ -82,28 +126,42 @@ pub fn Home() -> Element {
                     match current_section().as_str() {
                         // Category views (no wrapper needed)
                         "publishers-category" => rsx! {
-                            Publishers { on_navigate: move |section| current_section.set(section) }
+                            Publishers { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "meetings-category" => rsx! {
-                            Meetings { on_navigate: move |section| current_section.set(section) }
+                            Meetings { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "congregation-category" => rsx! {
-                            CongregationCategory { on_navigate: move |section| current_section.set(section) }
+                            CongregationCategory { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "settings-category" => rsx! {
-                            SettingsCategory { on_navigate: move |section| current_section.set(section) }
+                            SettingsCategory { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "congregation-settings" => rsx! {
-                            CongregationSettings { on_navigate: move |section| current_section.set(section) }
+                            CongregationSettings { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "user-settings" => rsx! {
-                            UserSettings { on_navigate: move |section| current_section.set(section) }
+                            UserSettings { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         "users" => rsx! {
-                            Users { on_navigate: move |section| current_section.set(section) }
+                            Users { on_navigate: move |section: String| {
+                                current_section.set(section);
+                            } }
                         },
                         _ => rsx! {
-                            {render_section_content(current_section(), current_section)}
+                            {render_section_content(current_section())}
                         },
                     }
                 }
@@ -112,37 +170,37 @@ pub fn Home() -> Element {
     }
 }
 
-fn render_section_content(section: String, mut current_section: Signal<String>) -> Element {
+fn render_section_content(section: String) -> Element {
     // Map sections to their parent categories
-    let (parent_category, parent_name, section_name) = match section.as_str() {
+    let section_name = match section.as_str() {
         // Publishers subcategories
-        "users" => ("publishers-category", "Publishers", "Users"),
-        "field-service-reports" => ("publishers-category", "Publishers", "Field Service Reports"),
-        "roles" => ("publishers-category", "Publishers", "Privileges"),
-        "field-service-groups" => ("publishers-category", "Publishers", "Field Service Groups"),
+        "users" => "Users",
+        "field-service-reports" => "Field Service Reports",
+        "roles" => "Privileges",
+        "field-service-groups" => "Field Service Groups",
         
         // Meetings subcategories
-        "weekday-meeting" => ("meetings-category", "Meetings", "Weekday Meeting"),
-        "weekend-meeting" => ("meetings-category", "Meetings", "Weekend Meeting"),
-        "field-service-meetings" => ("meetings-category", "Meetings", "Field Service Meetings"),
-        "meeting-attendance" => ("meetings-category", "Meetings", "Meeting Attendance"),
+        "weekday-meeting" => "Weekday Meeting",
+        "weekend-meeting" => "Weekend Meeting",
+        "field-service-meetings" => "Field Service Meetings",
+        "meeting-attendance" => "Meeting Attendance",
         
         // Congregation subcategories
-        "special-events" => ("congregation-category", "Congregation", "Special Events"),
-        "absences" => ("congregation-category", "Congregation", "Absences"),
-        "cleaning" => ("congregation-category", "Congregation", "Cleaning Schedule"),
-        "maintenance" => ("congregation-category", "Congregation", "Maintenance"),
-        "attendant" => ("congregation-category", "Congregation", "Attendant Schedule"),
-        "audio-video" => ("congregation-category", "Congregation", "Audio & Video"),
-        "territory" => ("congregation-category", "Congregation", "Territory"),
+        "special-events" => "Special Events",
+        "absences" => "Absences",
+        "cleaning" => "Cleaning Schedule",
+        "maintenance" => "Maintenance",
+        "attendant" => "Attendant Schedule",
+        "audio-video" => "Audio & Video",
+        "territory" => "Territory",
         
         // Settings subcategories
-        "user-settings" => ("settings-category", "Settings", "User Settings"),
+        "user-settings" => "User Settings",
         
         // Dashboard has no parent
-        "dashboard" => ("", "", "Dashboard"),
+        "dashboard" => "Dashboard",
         
-        _ => ("", "", "Unknown"),
+        _ => "Unknown",
     };
     
     match section.as_str() {
@@ -170,40 +228,13 @@ fn render_section_content(section: String, mut current_section: Signal<String>) 
             }
         },
         _ => {
-            // For all other sections, show breadcrumbs if they have a parent
-            let has_parent = !parent_category.is_empty();
-            
+            // For all other sections, show content card
             rsx! {
-                div {
-                    // Breadcrumbs (outside card)
-                    if has_parent {
-                        div { class: "text-sm breadcrumbs mb-4",
-                            ul {
-                                li {
-                                    a {
-                                        class: "text-primary",
-                                        onclick: move |_| current_section.set("dashboard".to_string()),
-                                        "Home"
-                                    }
-                                }
-                                li {
-                                    a {
-                                        class: "text-primary",
-                                        onclick: move |_| current_section.set(parent_category.to_string()),
-                                        "{parent_name}"
-                                    }
-                                }
-                                li { "{section_name}" }
-                            }
-                        }
-                    }
-                    // Content card
-                    div { class: "bg-base-100 rounded-lg shadow-lg p-6",
-                        h2 { class: "text-2xl font-bold mb-4", "{section_name}" }
-                        p { class: "text-base-content/70", "This feature is currently in development" }
-                        div { class: "alert alert-info mt-4",
-                            span { "👷 This section is under construction" }
-                        }
+                div { class: "bg-base-100 rounded-lg shadow-lg p-6",
+                    h2 { class: "text-2xl font-bold mb-4", "{section_name}" }
+                    p { class: "text-base-content/70", "This feature is currently in development" }
+                    div { class: "alert alert-info mt-4",
+                        span { "👷 This section is under construction" }
                     }
                 }
             }

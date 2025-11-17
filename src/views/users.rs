@@ -236,26 +236,6 @@ pub fn Users(props: UsersProps) -> Element {
     
     rsx! {
         div { class: "space-y-6",
-            // Breadcrumbs
-            div { class: "text-sm breadcrumbs mb-4",
-                ul {
-                    li {
-                        a {
-                            class: "text-primary",
-                            onclick: move |_| props.on_navigate.call("dashboard".to_string()),
-                            "Home"
-                        }
-                    }
-                    li {
-                        a {
-                            class: "text-primary",
-                            onclick: move |_| props.on_navigate.call("publishers-category".to_string()),
-                            "Publishers"
-                        }
-                    }
-                    li { "Users" }
-                }
-            }
             // Header with title and action buttons
             div { class: "flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6",
                 div {

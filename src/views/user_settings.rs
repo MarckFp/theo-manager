@@ -115,26 +115,6 @@ pub fn UserSettings(props: UserSettingsProps) -> Element {
     
     rsx! {
         div { class: "space-y-6 max-w-4xl mx-auto w-full px-2 sm:px-0 overflow-x-hidden",
-            // Breadcrumbs
-            div { class: "text-sm breadcrumbs mb-4",
-                ul {
-                    li {
-                        a {
-                            class: "text-primary",
-                            onclick: move |_| props.on_navigate.call("dashboard".to_string()),
-                            "Home"
-                        }
-                    }
-                    li {
-                        a {
-                            class: "text-primary",
-                            onclick: move |_| props.on_navigate.call("settings-category".to_string()),
-                            "Settings"
-                        }
-                    }
-                    li { "User Settings" }
-                }
-            }
             // Header
             div { class: "mb-6",
                 h2 { class: "text-3xl font-bold text-base-content", "User Settings" }
