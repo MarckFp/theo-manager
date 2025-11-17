@@ -10,6 +10,7 @@ use crate::views::categories::settings::Settings as SettingsCategory;
 use crate::views::congregation_settings::CongregationSettings;
 use crate::views::user_settings::UserSettings;
 use crate::views::users::Users;
+use crate::views::field_service_groups::FieldServiceGroups;
 
 // Helper function to get parent section
 fn get_parent_section(section: &str) -> Option<&'static str> {
@@ -166,6 +167,13 @@ pub fn Home() -> Element {
                         },
                         "users" => rsx! {
                             Users {
+                                on_navigate: move |section: String| {
+                                    current_section.set(section);
+                                },
+                            }
+                        },
+                        "field-service-groups" => rsx! {
+                            FieldServiceGroups {
                                 on_navigate: move |section: String| {
                                     current_section.set(section);
                                 },

@@ -146,50 +146,56 @@ pub fn Landing() -> Element {
                                                     Ok(_) => {
                                                         match User::create(user.clone()).await {
                                                             Ok(created_user) => {
-                                                                let user_record_string = created_user.id.to_string();
-                                                                let user_thing = surrealdb::sql::Thing::from((
+                                                                if let Some(user_id) = &created_user.id {
+                                                                    let user_record_string = user_id.to_string();
+                                                                    let user_thing = surrealdb::sql::Thing::from((
         
-                                                                    "user".to_string(),
-                                                                    user_record_string.clone(),
-                                                                ));
-                                                                let owner_role = Role {
-                                                                    id: surrealdb::RecordId::from((
-                                                                        "role",
-                                                                        format!("owner_{}", user_record_string),
-                                                                    )),
-                                                                    publisher: Some(user_thing),
-                                                                    r#type: RoleType::Owner,
-                                                                    start_date: None,
-                                                                    end_date: None,
-                                                                    notes: None,
-                                                                };
-                                                                match Role::create(owner_role).await {
-                                                                    Ok(_) => {
-                                                                        is_submitting.set(false);
-                                                                        setup_complete.set(true);
-                                                                        #[cfg(target_arch = "wasm32")]
-                                                                        {
-                                                                            spawn(async move {
-                                                                                gloo_timers::future::TimeoutFuture::new(2_000).await;
-                                                                                if let Some(window) = web_sys::window() {
-                                                                                    let _ = window.location().reload();
-                                                                                }
-                                                                            });
+                                                                        "user".to_string(),
+                                                                        user_record_string.clone(),
+                                                                    ));
+                                                                    let owner_role = Role {
+                                                                        id: surrealdb::RecordId::from((
+                                                                            "role",
+                                                                            format!("owner_{}", user_record_string),
+                                                                        )),
+                                                                        publisher: Some(user_thing),
+                                                                        r#type: RoleType::Owner,
+                                                                        start_date: None,
+                                                                        end_date: None,
+                                                                        notes: None,
+                                                                    };
+                                                                    match Role::create(owner_role).await {
+                                                                        Ok(_) => {
+                                                                            is_submitting.set(false);
+                                                                            setup_complete.set(true);
+                                                                            #[cfg(target_arch = "wasm32")]
+                                                                            {
+                                                                                spawn(async move {
+                                                                                    gloo_timers::future::TimeoutFuture::new(2_000).await;
+                                                                                    if let Some(window) = web_sys::window() {
+                                                                                        let _ = window.location().reload();
+                                                                                    }
+                                                                                });
+                                                                            }
+                                                                            #[cfg(not(target_arch = "wasm32"))] {}
                                                                         }
-                                                                        #[cfg(not(target_arch = "wasm32"))] {}
-                                                                    }
-                                                                    Err(e) => {
-                                                                        is_submitting.set(false);
-                                                                        submission_error
-                                                                            .set(
-                                                                                Some(
-                                                                                    format!(
-                                                                                        "User created but failed to assign Owner role: {}",
-                                                                                        e,
+                                                                        Err(e) => {
+                                                                            is_submitting.set(false);
+                                                                            submission_error
+                                                                                .set(
+                                                                                    Some(
+                                                                                        format!(
+                                                                                            "User created but failed to assign Owner role: {}",
+                                                                                            e,
+                                                                                        ),
                                                                                     ),
-                                                                                ),
-                                                                            );
+                                                                                );
+                                                                        }
                                                                     }
+                                                                } else {
+                                                                    is_submitting.set(false);
+                                                                    submission_error
+                                                                        .set(Some("User created without ID".to_string()));
                                                                 }
                                                             }
                                                             Err(e) => {

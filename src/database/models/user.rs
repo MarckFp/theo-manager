@@ -33,7 +33,8 @@ pub enum UserAppointment {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct User {
-    pub id: surrealdb::RecordId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<surrealdb::RecordId>,
     pub firstname: String,
     pub lastname: String,
     pub gender: bool,
@@ -85,7 +86,11 @@ impl User {
     /// FIND by ID
     pub async fn find(id: surrealdb::RecordId) -> surrealdb::Result<Option<User>> {
         let db: &Surreal<Any> = get_db().await?;
-        let user: Option<User> = db.select(id).await?;
+        let mut user: Option<User> = db.select(id.clone()).await?;
+        // Ensure the ID is set in the returned user
+        if let Some(ref mut u) = user {
+            u.id = Some(id);
+        }
         Ok(user)
     }
 
@@ -93,6 +98,7 @@ impl User {
     pub async fn all() -> surrealdb::Result<Vec<User>> {
         let db: &Surreal<Any> = get_db().await?;
         let users: Vec<User> = db.select("user").await?;
+        // Note: SurrealDB should populate the ID field automatically when querying
         Ok(users)
     }
 

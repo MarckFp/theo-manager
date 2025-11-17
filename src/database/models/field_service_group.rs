@@ -4,12 +4,14 @@ use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
 use crate::database::db::get_db;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FieldServiceGroup {
-    pub id: surrealdb::RecordId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<surrealdb::RecordId>,
     pub name: String,
     pub supervisor: Option<Thing>, // Reference to a User
     pub auxiliar: Option<Thing>,   // Reference to a User
+    pub members: Vec<Thing>,       // List of User references
 }
 
 impl FieldServiceGroup {

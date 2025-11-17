@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::database::models::user::{User, UserType, UserAppointment, UserEmergencyContact};
 use crate::database::models::congregation::{Congregation, NameOrder};
+use crate::database::models::field_service_group::FieldServiceGroup;
 use chrono::{NaiveDate, Utc};
 
 /// Calculate years between two dates with decimal precision
@@ -42,7 +43,11 @@ pub fn Users(props: UsersProps) -> Element {
     let mut gender_filter = use_signal(|| None::<bool>);
     let mut appointment_filter = use_signal(|| None::<UserAppointment>);
     let mut type_filter = use_signal(|| None::<UserType>);
+    let mut field_service_group_filter = use_signal(|| None::<String>);
     let mut filters_collapsed = use_signal(|| true);
+    
+    // Field service groups list
+    let mut field_service_groups = use_signal(|| Vec::<FieldServiceGroup>::new());
     
     // Modal state
     let mut show_modal = use_signal(|| false);
@@ -71,7 +76,6 @@ pub fn Users(props: UsersProps) -> Element {
             match User::all().await {
                 Ok(all_users) => {
                     users.set(all_users.clone());
-                    filtered_users.set(all_users);
                 },
                 Err(_) => {
                     message.set(Some("Failed to load users".to_string()));
@@ -80,14 +84,27 @@ pub fn Users(props: UsersProps) -> Element {
         });
     };
     
+    // Load field service groups
+    let load_field_service_groups = move || {
+        spawn(async move {
+            match FieldServiceGroup::all().await {
+                Ok(groups) => {
+                    field_service_groups.set(groups);
+                },
+                Err(_) => {}
+            }
+        });
+    };
+    
     use_effect(move || {
         load_users();
+        load_field_service_groups();
     });
     
     // Apply filters
     let mut apply_filters = move || {
         let query = search_query().to_lowercase();
-        let filtered: Vec<User> = users().into_iter().filter(|user| {
+        let mut filtered: Vec<User> = users().into_iter().filter(|user| {
             // Search filter
             let name_match = if query.is_empty() {
                 true
@@ -132,12 +149,93 @@ pub fn Users(props: UsersProps) -> Element {
                 None => true,
             };
             
-            name_match && gender_match && appointment_match && type_match
+            // Field service group filter
+            let group_match = match field_service_group_filter() {
+                Some(group_id) => {
+                    // Check if user is in the selected field service group
+                    if let Some(user_id_val) = &user.id {
+                        let user_id_str = user_id_val.to_string();
+                        let user_id_only = user_id_str.split(':').last().unwrap_or(&user_id_str);
+                        
+                        // Find the group and check if user is a member, supervisor, or auxiliary
+                        field_service_groups().iter().any(|g| {
+                            if let Some(ref g_id) = g.id {
+                                let g_id_str = g_id.to_string();
+                                let g_id_only = g_id_str.split(':').last().unwrap_or(&g_id_str);
+                                
+                                if g_id_only == group_id {
+                                    // Check if user is supervisor
+                                    let is_supervisor = g.supervisor.as_ref().map_or(false, |sup| {
+                                        let sup_str = sup.to_string();
+                                        let sup_id = sup_str.split(':').last().unwrap_or(&sup_str);
+                                        sup_id == user_id_only
+                                    });
+                                    
+                                    // Check if user is auxiliary
+                                    let is_auxiliary = g.auxiliar.as_ref().map_or(false, |aux| {
+                                        let aux_str = aux.to_string();
+                                        let aux_id = aux_str.split(':').last().unwrap_or(&aux_str);
+                                        aux_id == user_id_only
+                                    });
+                                    
+                                    // Check if user is a member
+                                    let is_member = g.members.iter().any(|member| {
+                                        let member_str = member.to_string();
+                                        let member_id = member_str.split(':').last().unwrap_or(&member_str);
+                                        member_id == user_id_only
+                                    });
+                                    
+                                    return is_supervisor || is_auxiliary || is_member;
+                                }
+                            }
+                            false
+                        })
+                    } else {
+                        false
+                    }
+                },
+                None => true,
+            };
+            
+            name_match && gender_match && appointment_match && type_match && group_match
         }).collect();
+        
+        // Sort filtered users based on congregation name order settings
+        if let Some(Some(cong)) = congregation() {
+            filtered.sort_by(|a, b| {
+                match cong.name_order {
+                    NameOrder::FirstnameLastname => {
+                        let name_a = format!("{} {}", a.firstname.to_lowercase(), a.lastname.to_lowercase());
+                        let name_b = format!("{} {}", b.firstname.to_lowercase(), b.lastname.to_lowercase());
+                        name_a.cmp(&name_b)
+                    },
+                    NameOrder::LastnameFirstname => {
+                        let name_a = format!("{} {}", a.lastname.to_lowercase(), a.firstname.to_lowercase());
+                        let name_b = format!("{} {}", b.lastname.to_lowercase(), b.firstname.to_lowercase());
+                        name_a.cmp(&name_b)
+                    }
+                }
+            });
+        } else {
+            // Default: sort by firstname lastname
+            filtered.sort_by(|a, b| {
+                let name_a = format!("{} {}", a.firstname.to_lowercase(), a.lastname.to_lowercase());
+                let name_b = format!("{} {}", b.firstname.to_lowercase(), b.lastname.to_lowercase());
+                name_a.cmp(&name_b)
+            });
+        }
         
         filtered_users.set(filtered);
         current_page.set(0);
     };
+    
+    // Apply filters when users data changes (only if users is not empty)
+    use_effect(move || {
+        let user_list = users();
+        if !user_list.is_empty() {
+            apply_filters();
+        }
+    });
     
     // Format user name based on congregation settings
     let format_name = move |user: &User| -> String {
@@ -173,7 +271,7 @@ pub fn Users(props: UsersProps) -> Element {
     let toggle_select_all = move |_| {
         let all_user_ids: Vec<String> = filtered_users()
             .iter()
-            .map(|u| u.id.to_string())
+            .filter_map(|u| u.id.as_ref().map(|id| id.to_string()))
             .collect();
         
         if selected_users().len() == all_user_ids.len() {
@@ -319,7 +417,7 @@ pub fn Users(props: UsersProps) -> Element {
                         }
                         // Collapsible content
                         if !filters_collapsed() {
-                            div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
+                            div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4",
                                 // Search by name
                                 div { class: "form-control",
                                     label { class: "label",
@@ -407,6 +505,49 @@ pub fn Users(props: UsersProps) -> Element {
                                         option { value: "aux_pioneer", "Auxiliary Pioneer" }
                                     }
                                 }
+                                // Field Service Group filter
+                                div { class: "form-control",
+                                    label { class: "label",
+                                        span { class: "label-text", "Field Service Group" }
+                                    }
+                                    select {
+                                        class: "select select-bordered",
+                                        onchange: move |evt| {
+                                            let value = evt.value();
+                                            if value == "all" {
+                                                field_service_group_filter.set(None);
+                                            } else {
+                                                field_service_group_filter.set(Some(value));
+                                            }
+                                            apply_filters();
+                                        },
+                                        option { value: "all", "All" }
+                                        {
+                                            // Sort groups alphabetically by name
+                                            let mut sorted_groups = field_service_groups();
+                                            sorted_groups.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+                                            sorted_groups
+                                                .into_iter()
+                                                .filter_map(|group| {
+                                                    if let Some(ref group_id) = group.id {
+                                                        let id_str = group_id.to_string();
+                                                        let id_only = id_str
+                                                            .split(':')
+                                                            .last()
+                                                            .unwrap_or(&id_str)
+                                                            .to_string();
+                                                        let name = group.name.clone();
+                                                        Some(rsx! {
+                                                            option { value: "{id_only}", "{name}" }
+                                                        })
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                        }
+                                    }
+                                }
                             }
                             // Clear filters button
                             div { class: "mt-4",
@@ -417,6 +558,7 @@ pub fn Users(props: UsersProps) -> Element {
                                         gender_filter.set(None);
                                         appointment_filter.set(None);
                                         type_filter.set(None);
+                                        field_service_group_filter.set(None);
                                         apply_filters();
                                     },
                                     "Clear Filters"
@@ -430,115 +572,130 @@ pub fn Users(props: UsersProps) -> Element {
             div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
                 for user in paginated_users.iter() {
                     {
-                        let user_clone = user.clone();
-                        let user_id = user.id.to_string();
-                        let user_id_for_checkbox = user_id.clone();
-                        let user_id_for_delete = user_id.clone();
-                        let is_selected = selected_users().contains(&user_id);
+                        if let Some(user_id_val) = &user.id {
+                            let user_clone = user.clone();
+                            let user_id = user_id_val.to_string();
+                            let user_id_for_checkbox = user_id.clone();
+                            let user_id_for_delete = user_id.clone();
+                            let is_selected = selected_users().contains(&user_id);
 
-                        rsx! {
-                            div {
-                                key: "{user.id}",
-                                class: format!(
-                                    "card bg-base-100 shadow-lg hover:shadow-xl transition-all cursor-pointer {}",
-                                    if is_selected { "ring-2 ring-primary" } else { "" },
-                                ),
-                                div { class: "card-body p-4",
-                                    // Selection checkbox
-                                    div { class: "flex items-start justify-between mb-2",
-                                        input {
-                                            r#type: "checkbox",
-                                            class: "checkbox checkbox-primary checkbox-sm",
-                                            checked: is_selected,
-                                            onclick: move |evt| {
-                                                evt.stop_propagation();
-                                                toggle_selection(user_id_for_checkbox.clone());
-                                            },
-                                        }
-                                        // Gender icon
-                                        div {
-
-                                            // Name
-
-                                            // Labels/Tags
-                                            // Appointment badge
-
-                                            // Publisher type badge
-
-                                            // Anointed badge
-
-                                            // Family head badge
-
-                                            // Contact info preview
-
-                                            // Action buttons
-
-                                            class: format!(
-                                                "badge badge-sm {}",
-                                                if user.gender { "badge-info" } else { "badge-secondary" },
-                                            ),
-                                            if user.gender {
-                                                "♂ Male"
-                                            } else {
-                                                "♀ Female"
-                                            }
-                                        }
-                                    }
-                                    h3 {
-                                        class: "font-bold text-lg mb-2",
-                                        onclick: {
-                                            let u = user_clone.clone();
-                                            move |_| handle_edit(u.clone())
-                                        },
-                                        "{format_name(&user)}"
-                                    }
-                                    div { class: "flex flex-wrap gap-1 mb-3",
-                                        if let Some(ref appointment) = user.appointment {
-                                            div { class: "badge badge-primary badge-sm",
-                                                match appointment {
-                                                    UserAppointment::Elder => "Elder",
-                                                    UserAppointment::MinisterialServant => "MS",
-                                                }
-                                            }
-                                        }
-                                        if let Some(ref pub_type) = user.publisher_type {
-                                            div { class: "badge badge-secondary badge-sm",
-                                                match pub_type {
-                                                    UserType::Student => "Student",
-                                                    UserType::UnbaptizedPublisher => "Unbaptized",
-                                                    UserType::BaptizedPublisher => "Publisher",
-                                                    UserType::RegularPioneer => "Pioneer",
-                                                    UserType::SpecialPioneer => "Special Pioneer",
-                                                    UserType::ContiniousAuxiliaryPioneer => "Aux Pioneer",
-                                                }
-                                            }
-                                        }
-                                        if user.anointed == Some(true) {
-                                            div { class: "badge badge-accent badge-sm", "Anointed" }
-                                        }
-                                        if user.family_head {
-                                            div { class: "badge badge-info badge-sm", "Family Head" }
-                                        }
-                                    }
-                                    div { class: "text-xs text-base-content/70 space-y-1",
-                                        if let Some(ref phone) = user.phone {
-                                            div { "📞 {phone}" }
-                                        }
-                                    }
-                                    div { class: "card-actions justify-end mt-3",
-                                        button {
-                                            class: "btn btn-error btn-sm btn-circle",
-                                            onclick: {
-                                                let uid = user_id_for_delete.clone();
-                                                move |evt| {
+                            rsx! {
+                                div {
+                                    key: "{user_id}",
+                                    class: format!(
+                                        "card bg-base-100 shadow-lg hover:shadow-xl transition-all cursor-pointer {}",
+                                        if is_selected { "ring-2 ring-primary" } else { "" },
+                                    ),
+                                    div { class: "card-body p-4",
+                                        // Selection checkbox
+                                        div { class: "flex items-start justify-between mb-2",
+                                            input {
+                                                r#type: "checkbox",
+                                                class: "checkbox checkbox-primary checkbox-sm",
+                                                checked: is_selected,
+                                                onclick: move |evt| {
                                                     evt.stop_propagation();
-                                                    handle_delete(uid.clone())
+                                                    toggle_selection(user_id_for_checkbox.clone());
+                                                },
+                                            }
+                                            // Gender icon
+                                            div {
+
+                                // Name
+
+                                // Labels/Tags
+                                // Appointment badge
+
+                                // Publisher type badge
+
+                                // Anointed badge
+
+                                // Family head badge
+
+                                // Contact info preview
+
+                                // Action buttons
+
+            
+            
+            
+            
+            
+            
+            
+            
+                                                // Skip users without ID (shouldn't happen but handle gracefully)
+                                                class: format!(
+                                                    "badge badge-sm {}",
+                                                    if user.gender { "badge-info" } else { "badge-secondary" },
+                                                ),
+                                                if user.gender {
+                                                    "♂ Male"
+                                                } else {
+                                                    "♀ Female"
                                                 }
+                                            }
+                                        }
+                                        h3 {
+                                            class: "font-bold text-lg mb-2",
+                                            onclick: {
+                                                let u = user_clone.clone();
+                                                move |_| handle_edit(u.clone())
                                             },
-                                            "🗑️"
+                                            "{format_name(&user)}"
+                                        }
+                                        div { class: "flex flex-wrap gap-1 mb-3",
+                                            if let Some(ref appointment) = user.appointment {
+                                                div { class: "badge badge-primary badge-sm",
+                                                    match appointment {
+                                                        UserAppointment::Elder => "Elder",
+                                                        UserAppointment::MinisterialServant => "MS",
+                                                    }
+                                                }
+                                            }
+                                            if let Some(ref pub_type) = user.publisher_type {
+                                                div { class: "badge badge-secondary badge-sm",
+                                                    match pub_type {
+                                                        UserType::Student => "Student",
+                                                        UserType::UnbaptizedPublisher => "Unbaptized",
+                                                        UserType::BaptizedPublisher => "Publisher",
+                                                        UserType::RegularPioneer => "Pioneer",
+                                                        UserType::SpecialPioneer => "Special Pioneer",
+                                                        UserType::ContiniousAuxiliaryPioneer => "Aux Pioneer",
+                                                    }
+                                                }
+                                            }
+                                            if user.anointed == Some(true) {
+                                                div { class: "badge badge-accent badge-sm", "Anointed" }
+                                            }
+                                            if user.family_head {
+                                                div { class: "badge badge-info badge-sm", "Family Head" }
+                                            }
+                                        }
+                                        div { class: "text-xs text-base-content/70 space-y-1",
+                                            if let Some(ref phone) = user.phone {
+                                                div { "📞 {phone}" }
+                                            }
+                                        }
+                                        div { class: "card-actions justify-end mt-3",
+                                            button {
+                                                class: "btn btn-error btn-sm btn-circle",
+                                                onclick: {
+                                                    let uid = user_id_for_delete.clone();
+                                                    move |evt| {
+                                                        evt.stop_propagation();
+                                                        handle_delete(uid.clone())
+                                                    }
+                                                },
+                                                "🗑️"
+                                            }
                                         }
                                     }
                                 }
+                            }
+                        } else {
+                            rsx! {
+                                div {}
                             }
                         }
                     }
@@ -750,8 +907,8 @@ fn UserModal(props: UserModalProps) -> Element {
             id: if let Some(ref user) = existing_user {
                 user.id.clone()
             } else {
-                // Generate a temporary ID for creation
-                "user:temp".parse().unwrap()
+                // For new users, set id to None - SurrealDB will auto-generate
+                None
             },
             firstname: firstname(),
             lastname: lastname(),
@@ -788,7 +945,11 @@ fn UserModal(props: UserModalProps) -> Element {
                 ModalMode::Create => User::create(user_data).await,
                 ModalMode::Edit => {
                     if let Some(user) = &existing_user {
-                        User::update(user.id.clone(), user_data).await
+                        if let Some(id) = &user.id {
+                            User::update(id.clone(), user_data).await
+                        } else {
+                            Err(surrealdb::Error::Api(surrealdb::error::Api::Query("User has no ID".to_string())))
+                        }
                     } else {
                         Err(surrealdb::Error::Api(surrealdb::error::Api::Query("No user to update".to_string())))
                     }
@@ -1061,6 +1222,7 @@ fn UserModal(props: UserModalProps) -> Element {
 
                                         rsx! {
 
+        
                                             div { key: "{idx}", class: "card bg-base-200 p-4",
                                                 div { class: "flex items-center justify-between mb-3",
                                                     h5 { class: "font-medium", "Contact #{idx + 1}" }
@@ -1260,32 +1422,37 @@ fn UserModal(props: UserModalProps) -> Element {
                                         }
                                     }
                                 }
-                                div { class: "form-control",
-                                    label { class: "label",
-                                        span { class: "label-text font-semibold", "Appointment" }
-                                    }
-                                    select {
-                                        class: "select select-bordered w-full",
-                                        onchange: move |evt| {
-                                            appointment
-                                                .set(
-                                                    match evt.value().as_str() {
-                                                        "elder" => Some(UserAppointment::Elder),
-                                                        "ms" => Some(UserAppointment::MinisterialServant),
-                                                        _ => None,
-                                                    },
-                                                );
-                                        },
-                                        option { value: "", "No appointment" }
-                                        option {
-                                            value: "elder",
-                                            selected: matches!(appointment(), Some(UserAppointment::Elder)),
-                                            "Elder"
+                                // Appointment field - only shown for males
+                                if gender() {
+                                    div { class: "form-control",
+                                        label { class: "label",
+                                            span { class: "label-text font-semibold",
+                                                "Appointment"
+                                            }
                                         }
-                                        option {
-                                            value: "ms",
-                                            selected: matches!(appointment(), Some(UserAppointment::MinisterialServant)),
-                                            "Ministerial Servant"
+                                        select {
+                                            class: "select select-bordered w-full",
+                                            onchange: move |evt| {
+                                                appointment
+                                                    .set(
+                                                        match evt.value().as_str() {
+                                                            "elder" => Some(UserAppointment::Elder),
+                                                            "ms" => Some(UserAppointment::MinisterialServant),
+                                                            _ => None,
+                                                        },
+                                                    );
+                                            },
+                                            option { value: "", "No appointment" }
+                                            option {
+                                                value: "elder",
+                                                selected: matches!(appointment(), Some(UserAppointment::Elder)),
+                                                "Elder"
+                                            }
+                                            option {
+                                                value: "ms",
+                                                selected: matches!(appointment(), Some(UserAppointment::MinisterialServant)),
+                                                "Ministerial Servant"
+                                            }
                                         }
                                     }
                                 }

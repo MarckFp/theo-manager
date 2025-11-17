@@ -59,7 +59,7 @@ pub fn UserCreationStep(props: UserCreationStepProps) -> Element {
         
         // Create user object
         let user = User {
-            id: surrealdb::RecordId::from(("user", email().trim())),
+            id: None, // Let SurrealDB auto-generate the ID
             firstname: firstname().trim().to_string(),
             lastname: lastname().trim().to_string(),
             gender: gender(),

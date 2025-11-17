@@ -244,17 +244,6 @@ pub fn CongregationSettings(props: CongregationSettingsProps) -> Element {
                     // Delete Button
 
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 
                             div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
                                 div { class: "form-control",
