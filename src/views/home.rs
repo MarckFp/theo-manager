@@ -76,32 +76,36 @@ pub fn Home() -> Element {
                     }
                 }
                 // Content based on current section
-                match current_section().as_str() {
-                    // Category views (no wrapper needed)
-                    "publishers-category" => rsx! {
-                        Publishers { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "meetings-category" => rsx! {
-                        Meetings { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "congregation-category" => rsx! {
-                        CongregationCategory { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "settings-category" => rsx! {
-                        SettingsCategory { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "congregation-settings" => rsx! {
-                        CongregationSettings { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "user-settings" => rsx! {
-                        UserSettings { on_navigate: move |section| current_section.set(section) }
-                    },
-                    "users" => rsx! {
-                        Users { on_navigate: move |section| current_section.set(section) }
-                    },
-                    _ => rsx! {
-                        {render_section_content(current_section(), current_section)}
-                    },
+                div {
+                    key: "{current_section()}",
+                    class: "page-transition",
+                    match current_section().as_str() {
+                        // Category views (no wrapper needed)
+                        "publishers-category" => rsx! {
+                            Publishers { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "meetings-category" => rsx! {
+                            Meetings { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "congregation-category" => rsx! {
+                            CongregationCategory { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "settings-category" => rsx! {
+                            SettingsCategory { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "congregation-settings" => rsx! {
+                            CongregationSettings { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "user-settings" => rsx! {
+                            UserSettings { on_navigate: move |section| current_section.set(section) }
+                        },
+                        "users" => rsx! {
+                            Users { on_navigate: move |section| current_section.set(section) }
+                        },
+                        _ => rsx! {
+                            {render_section_content(current_section(), current_section)}
+                        },
+                    }
                 }
             }
         }

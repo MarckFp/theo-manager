@@ -50,9 +50,9 @@ fn App() -> Element {
 
     // Set theme and language attributes when settings are loaded
     use_effect(move || {
-        if let Some(Some(user_settings)) = settings() {
-            let lang = user_settings.language;
-            let theme = user_settings.theme;
+        if let Some(Some(user_settings)) = settings.read().as_ref() {
+            let lang = user_settings.language.clone();
+            let theme = user_settings.theme.clone();
             
             // Set language attribute
             let lang_script = format!("document.documentElement.setAttribute('lang', '{}');", lang);
@@ -65,6 +65,15 @@ fn App() -> Element {
     });
 
     rsx! {
+        // Set default theme in head
+        document::Script {
+            r#"
+            // Set default theme immediately to avoid flicker
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.setAttribute('lang', 'en');
+            "#
+        }
+        
         // Icons
         document::Link {
             rel: "icon",

@@ -1,7 +1,7 @@
 {
     "name": "TheoManager",
     "description": "An amazing application that let you manage, handle and configure everything related to your congregation in an easy, fast and secure way.",
-    "short_name": "tm",
+    "short_name": "TheoManager",
     "id": "/theo-manager/",
     "start_url": "/theo-manager/",
     "scope": "/theo-manager/",

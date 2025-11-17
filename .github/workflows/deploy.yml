@@ -42,11 +42,11 @@ jobs:
             platform: desktop
           # MacOS
           - name: 'MacOS x64 🍏'
-            os: 'macos-26'
+            os: 'macos-26-xlarge'
             target: 'x86_64-apple-darwin'
             platform: desktop
           - name: 'MacOS ARM64 🍏'
-            os: 'macos-26'
+            os: 'macos-26-xlarge'
             target: 'aarch64-apple-darwin'
             platform: desktop
           # Linux
@@ -60,16 +60,16 @@ jobs:
             platform: desktop
           # Android
           - name: 'Android APK🤖'
-            os: 'macos-26'
+            os: 'macos-26-xlarge'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           - name: 'Android AAB🤖'
-            os: 'macos-26'
+            os: 'macos-26-xlarge'
             target: 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android'
             platform: android
           # iOS
           - name: 'iOS 📱'
-            os: 'macos-26'
+            os: 'macos-26-xlarge'
             target: 'aarch64-apple-ios aarch64-apple-ios-sim'
             platform: ios
           # Web
@@ -136,9 +136,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.platform }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-
+            ${{ runner.os }}-${{ matrix.platform }}-cargo-
 
       - name: Build & Deploy ${{ matrix.name }} 🚀
         shell: bash
