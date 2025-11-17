@@ -50,11 +50,8 @@ pub fn Menu(props: MenuProps) -> Element {
             // Header
             div { class: "h-20 flex items-center justify-center border-b border-base-300/50 bg-base-100/50 backdrop-blur",
                 div { class: "text-center",
-                    h1 { class: "text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent",
-                        "Theo"
-                    }
                     p { class: "text-xs text-base-content/60 font-medium tracking-wide uppercase",
-                        "Manager"
+                        "Theo Manager"
                     }
                 }
             }
@@ -84,7 +81,7 @@ pub fn Menu(props: MenuProps) -> Element {
             }
             // Footer
             div { class: "h-16 border-t border-base-300/50 flex items-center justify-center bg-base-100/30",
-                p { class: "text-xs text-base-content/50", "v1.0.0" }
+                p { class: "text-xs text-base-content/50", "v{env!(\"CARGO_PKG_VERSION\")}" }
             }
         }
         // Mobile Bottom Navigation Bar

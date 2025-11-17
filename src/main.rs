@@ -78,25 +78,35 @@ fn App() -> Element {
         document::Link {
             rel: "icon",
             r#type: "image/x-icon",
-            href: asset!("/assets/favicon.ico"),
+            href: asset!("/assets/favicon.ico", AssetOptions::builder().with_hash_suffix(false)),
         }
         document::Link {
             rel: "icon",
             r#type: "image/png",
             sizes: "32x32",
-            href: asset!("/assets/favicon-32x32.png"),
+            href: asset!("/assets/favicon-32x32.png", AssetOptions::builder().with_hash_suffix(false)),
         }
         document::Link {
             rel: "icon",
             r#type: "image/png",
             sizes: "16x16",
-            href: asset!("/assets/favicon-16x16.png"),
+            href: asset!("/assets/favicon-16x16.png", AssetOptions::builder().with_hash_suffix(false)),
         }
-        document::Link { rel: "icon", href: asset!("/assets/favicon.ico") }
+        document::Link { rel: "icon", href: asset!("/assets/favicon.ico", AssetOptions::builder().with_hash_suffix(false)) }
         document::Link {
             rel: "apple-touch-icon",
             sizes: "180x180",
-            href: asset!("/assets/apple-touch-icon.png"),
+            href: asset!("/assets/apple-touch-icon.png", AssetOptions::builder().with_hash_suffix(false)),
+        }
+        document::Link {
+            rel: "image/png",
+            sizes: "192x192",
+            href: asset!("/assets/android-chrome-192x192.png", AssetOptions::builder().with_hash_suffix(false)),
+        }
+        document::Link {
+            rel: "image/png",
+            sizes: "512x512",
+            href: asset!("/assets/android-chrome-512x512.png", AssetOptions::builder().with_hash_suffix(false)),
         }
 
         // Stylesheets
@@ -109,7 +119,7 @@ fn App() -> Element {
         }
 
         // Manifest
-        document::Link { rel: "manifest", href: asset!("/assets/site.webmanifest") }
+        document::Link { rel: "manifest", href: asset!("/assets/site.webmanifest", AssetOptions::builder().with_hash_suffix(false)) }
 
         body {
             match has_data() {
