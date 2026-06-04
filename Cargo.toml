@@ -1,0 +1,49 @@
+[package]
+name = "theo-manager"
+version = "0.1.0"
+authors = ["MarckFp <33698618+MarckFp@users.noreply.github.com>"]
+edition = "2024"
+publish = false
+
+[dependencies]
+dioxus = { version = "0.7.9", features = ["router"] }
+dioxus-primitives = { git = "https://github.com/DioxusLabs/components" }
+dioxus-i18n = "0.5.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Cryptography (pure-Rust, wasm32-compatible)
+aes-gcm = "0.10"
+argon2 = "0.5"
+ml-kem = { version = "0.3", features = ["getrandom"] }
+rand = { version = "0.8", features = ["getrandom"] }
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+
+# WASM (browser): IndexedDB for embedded storage, no rustls (browser handles TLS natively)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+surrealdb = { version = "3.1.2", default-features = false, features = ["protocol-ws", "kv-indxdb"] }
+# getrandom wasm_js enables window.crypto.getRandomValues() for ml-kem/crypto-common
+getrandom = { version = "0.4", features = ["wasm_js"] }
+web-sys = { version = "0.3", features = ["Window", "Navigator"] }
+
+# Native (dev/desktop): WebSocket + in-memory embedded storage.
+# Requires nightly Rust (ferntree/diskann use std::hint::cold_path).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+surrealdb = { version = "3.1.2", default-features = false, features = ["protocol-ws", "kv-mem"] }
+sys-locale = "0.3"
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]
+bundle = []
+
+[profile.release]
+opt-level = "z"
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+incremental = false
