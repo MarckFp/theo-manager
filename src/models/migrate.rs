@@ -26,6 +26,8 @@ pub const TABLES: &[&str] = &[
     "_keystore", // encryption metadata — must migrate with data
     super::congregation::TABLE,
     super::user::TABLE,
+    super::emergency_contact::TABLE,
+    super::field_service_group::TABLE,
     super::absence::TABLE,
 ];
 

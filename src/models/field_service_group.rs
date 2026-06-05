@@ -58,6 +58,16 @@ impl FieldServiceGroup {
     }
 
     /// All groups for a congregation.
+    pub async fn all(
+        db: &Db,
+        crypto: &SessionCrypto,
+    ) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
+        let rows: Vec<Self> = db.select(TABLE).await?;
+        rows.into_iter()
+            .map(|r| r.decrypt(crypto).map_err(Into::into))
+            .collect()
+    }
+
     pub async fn by_congregation(
         db: &Db,
         crypto: &SessionCrypto,

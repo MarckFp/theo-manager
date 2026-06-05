@@ -5,7 +5,7 @@ use crate::crypto::KeyStore;
 use crate::database::{
     DatabaseMode, OnlineConfig, connect_offline, connect_online, signup_online, use_crypto, use_db,
 };
-use crate::models::congregation::{Congregation, CongregationData};
+use crate::models::congregation::{Congregation, CongregationData, DateFormat, NameFormat, Theme, TimeFormat};
 use crate::models::user::{User, UserData, UserType};
 
 // ---------------------------------------------------------------------------
@@ -84,9 +84,13 @@ struct OnboardingState {
     enc_password: String,
     enc_confirm_password: String,
     congregation_name: String,
-    congregation_city: String,
+    congregation_address: String,
     congregation_circuit: String,
     congregation_language: String,
+    time_format: TimeFormat,
+    date_format: DateFormat,
+    name_format: NameFormat,
+    theme: Theme,
 }
 
 // ---------------------------------------------------------------------------
@@ -569,9 +573,13 @@ fn OnboardingCongregationStep(
     let mut error: Signal<Option<String>> = use_signal(|| None);
 
     let mut cong_name = use_signal(|| onboarding.read().congregation_name.clone());
-    let mut cong_city = use_signal(|| onboarding.read().congregation_city.clone());
+    let mut cong_address = use_signal(|| onboarding.read().congregation_address.clone());
     let mut cong_circuit = use_signal(|| onboarding.read().congregation_circuit.clone());
     let mut cong_language = use_signal(|| onboarding.read().congregation_language.clone());
+    let mut time_format = use_signal(|| onboarding.read().time_format.clone());
+    let mut date_format = use_signal(|| onboarding.read().date_format.clone());
+    let mut name_format = use_signal(|| onboarding.read().name_format.clone());
+    let mut theme = use_signal(|| onboarding.read().theme.clone());
 
     // Detect browser locale and pre-select language if not already set
     use_effect(move || {
@@ -608,12 +616,12 @@ fn OnboardingCongregationStep(
                     oninput: move |e| cong_name.set(e.value()),
                 }
             }
-            FormField { label: t!("onboarding-congregation-city"),
+            FormField { label: t!("onboarding-congregation-address"),
                 input {
                     class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
                     r#type: "text",
-                    value: cong_city.read().clone(),
-                    oninput: move |e| cong_city.set(e.value()),
+                    value: cong_address.read().clone(),
+                    oninput: move |e| cong_address.set(e.value()),
                 }
             }
             FormField { label: t!("onboarding-congregation-circuit"),
@@ -633,6 +641,85 @@ fn OnboardingCongregationStep(
                     option { value: "es-ES", "\u{1f1ea}\u{1f1f8} Español" }
                 }
             }
+            div { class: "grid grid-cols-2 gap-3",
+                FormField { label: t!("onboarding-congregation-time-format"),
+                    select {
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        value: match *time_format.read() {
+                            TimeFormat::H12 => "12h",
+                            TimeFormat::H24 => "24h",
+                        },
+                        onchange: move |e| {
+                            let val = match e.value().as_str() {
+                                "12h" => TimeFormat::H12,
+                                _ => TimeFormat::H24,
+                            };
+                            time_format.set(val);
+                        },
+                        option { value: "12h", "12h (AM/PM)" }
+                        option { value: "24h", "24h" }
+                    }
+                }
+                FormField { label: t!("onboarding-congregation-date-format"),
+                    select {
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        value: match *date_format.read() {
+                            DateFormat::YMD => "YMD",
+                            DateFormat::DMY => "DMY",
+                            DateFormat::MDY => "MDY",
+                        },
+                        onchange: move |e| {
+                            let val = match e.value().as_str() {
+                                "DMY" => DateFormat::DMY,
+                                "MDY" => DateFormat::MDY,
+                                _ => DateFormat::YMD,
+                            };
+                            date_format.set(val);
+                        },
+                        option { value: "YMD", "YYYY-MM-DD" }
+                        option { value: "DMY", "DD-MM-YYYY" }
+                        option { value: "MDY", "MM-DD-YYYY" }
+                    }
+                }
+            }
+            div { class: "grid grid-cols-2 gap-3",
+                FormField { label: t!("onboarding-congregation-name-format"),
+                    select {
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        value: match *name_format.read() {
+                            NameFormat::FirstLast => "FirstLast",
+                            NameFormat::LastFirst => "LastFirst",
+                        },
+                        onchange: move |e| {
+                            let val = match e.value().as_str() {
+                                "LastFirst" => NameFormat::LastFirst,
+                                _ => NameFormat::FirstLast,
+                            };
+                            name_format.set(val);
+                        },
+                        option { value: "FirstLast", {t!("format-first-last")} }
+                        option { value: "LastFirst", {t!("format-last-first")} }
+                    }
+                }
+                FormField { label: t!("onboarding-congregation-theme"),
+                    select {
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        value: match *theme.read() {
+                            Theme::Light => "Light",
+                            Theme::Dark => "Dark",
+                        },
+                        onchange: move |e| {
+                            let val = match e.value().as_str() {
+                                "Dark" => Theme::Dark,
+                                _ => Theme::Light,
+                            };
+                            theme.set(val);
+                        },
+                        option { value: "Light", {t!("theme-light")} }
+                        option { value: "Dark", {t!("theme-dark")} }
+                    }
+                }
+            }
 
             div { class: "flex gap-3 pt-1",
                 button {
@@ -644,21 +731,27 @@ fn OnboardingCongregationStep(
                     class: "flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors",
                     onclick: move |_| {
                         let name = cong_name.read().clone();
-                        let city = cong_city.read().clone();
+                        let address = cong_address.read().clone();
                         let circuit = cong_circuit.read().clone();
                         let language = cong_language.read().clone();
+                        let t_fmt = time_format.read().clone();
+                        let d_fmt = date_format.read().clone();
+                        let n_fmt = name_format.read().clone();
+                        let thm = theme.read().clone();
 
-                        if name.is_empty() || city.is_empty() || circuit.is_empty()
-                            || language.is_empty()
-                        {
+                        if name.is_empty() || language.is_empty() {
                             error.set(Some(t!("error-fields-required")));
                             return;
                         }
                         let mut ob = onboarding.write();
                         ob.congregation_name = name;
-                        ob.congregation_city = city;
+                        ob.congregation_address = address;
                         ob.congregation_circuit = circuit;
                         ob.congregation_language = language;
+                        ob.time_format = t_fmt;
+                        ob.date_format = d_fmt;
+                        ob.name_format = n_fmt;
+                        ob.theme = thm;
                         drop(ob);
                         step.set(LandingStep::OnboardingEncryption);
                     },
@@ -870,9 +963,13 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
             let cong_data = CongregationData {
                 uid: uid.clone(),
                 name: ob.congregation_name.clone(),
-                city: ob.congregation_city.clone(),
-                circuit: ob.congregation_circuit.clone(),
+                address: (!ob.congregation_address.is_empty()).then(|| ob.congregation_address.clone()),
+                circuit: (!ob.congregation_circuit.is_empty()).then(|| ob.congregation_circuit.clone()),
                 language: ob.congregation_language.clone(),
+                time_format: ob.time_format.clone(),
+                date_format: ob.date_format.clone(),
+                name_format: ob.name_format.clone(),
+                theme: ob.theme.clone(),
             };
             let congregation = match Congregation::create(&db, &crypto, cong_data).await {
                 Ok(Some(c)) => c,

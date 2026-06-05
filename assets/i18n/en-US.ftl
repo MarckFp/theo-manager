@@ -43,7 +43,7 @@ onboarding-congregation-title = Your Congregation
 onboarding-congregation-desc = Tell us about your congregation.
 onboarding-congregation-name = Name
 onboarding-congregation-city = City
-onboarding-congregation-circuit = Circuit
+onboarding-congregation-circuit = Circuit (optional)
 onboarding-congregation-language = Language
 onboarding-congregation-code = Congregation Code
 
@@ -250,3 +250,40 @@ empty-cong-settings-desc = Congregation settings will appear here.
 page-permissions = Permissions
 empty-permissions-title = No permissions configured yet
 empty-permissions-desc = Role-based access rules will appear here.
+
+onboarding-congregation-address = Address (optional)
+onboarding-congregation-time-format = Time Format
+onboarding-congregation-date-format = Date Format
+onboarding-congregation-name-format = Name Format
+onboarding-congregation-theme = Theme
+format-first-last = First Last
+format-last-first = Last First
+theme-light = Light
+theme-dark = Dark
+
+page-congregation-settings = Congregation Settings
+empty-cong-settings-title = Congregation not found
+empty-cong-settings-desc = Setup a congregation first to access this page.
+congregation-details = Congregation Details
+
+danger-zone = Danger Zone
+danger-change-password-title = Change Encryption Password
+danger-change-password-desc = Changing your password will re-encrypt your entire database. Make sure you don't forget it!
+danger-old-password = Current Password
+danger-new-password = New Password
+danger-confirm-password = Confirm New Password
+danger-change-password-btn = Change Password
+
+danger-data-title = Data Management
+danger-data-desc = Export your data for backups, or wipe all records permanently.
+danger-export-btn = Export Data
+danger-import-btn = Import Data
+danger-wipe-btn = Delete All Data
+
+success-congregation-updated = Congregation details updated successfully.
+success-password-changed = Database re-encrypted successfully!
+error-incorrect-password = Incorrect current password.
+btn-edit = Edit
+btn-cancel = Cancel
+btn-save = Save
+btn-saving = Saving...

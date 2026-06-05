@@ -43,7 +43,7 @@ onboarding-congregation-title = Tu congregación
 onboarding-congregation-desc = Cuéntanos sobre tu congregación.
 onboarding-congregation-name = Nombre
 onboarding-congregation-city = Ciudad
-onboarding-congregation-circuit = Circuito
+onboarding-congregation-circuit = Circuito (opcional)
 onboarding-congregation-language = Idioma
 onboarding-congregation-code = Código de congregación
 
@@ -250,3 +250,40 @@ empty-cong-settings-desc = La configuración de la congregación aparecerá aqu�
 page-permissions = Permisos
 empty-permissions-title = Sin permisos configurados aún
 empty-permissions-desc = Las reglas de acceso basadas en roles aparecerán aquí.
+
+onboarding-congregation-address = Dirección (opcional)
+onboarding-congregation-time-format = Formato de hora
+onboarding-congregation-date-format = Formato de fecha
+onboarding-congregation-name-format = Formato de nombre
+onboarding-congregation-theme = Tema
+format-first-last = Nombre Apellidos
+format-last-first = Apellidos Nombre
+theme-light = Claro
+theme-dark = Oscuro
+
+page-congregation-settings = Configuración de Congregación
+empty-cong-settings-title = Congregación no encontrada
+empty-cong-settings-desc = Crea una congregación primero para ver esta página.
+congregation-details = Detalles de la Congregación
+
+danger-zone = Zona de Peligro
+danger-change-password-title = Cambiar contraseña de cifrado
+danger-change-password-desc = Cambiar tu contraseña re-cifrará toda tu base de datos. ¡Asegúrate de no olvidarla!
+danger-old-password = Contraseña actual
+danger-new-password = Nueva contraseña
+danger-confirm-password = Confirmar nueva contraseña
+danger-change-password-btn = Cambiar contraseña
+
+danger-data-title = Gestión de Datos
+danger-data-desc = Exporta tus datos para copias de seguridad, o bórralos permanentemente.
+danger-export-btn = Exportar datos
+danger-import-btn = Importar datos
+danger-wipe-btn = Borrar todos los datos
+
+success-congregation-updated = Detalles actualizados con éxito.
+success-password-changed = ¡Base de datos re-cifrada con éxito!
+error-incorrect-password = Contraseña actual incorrecta.
+btn-edit = Editar
+btn-cancel = Cancelar
+btn-save = Guardar
+btn-saving = Guardando...

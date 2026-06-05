@@ -61,6 +61,16 @@ impl EmergencyContact {
         })
     }
 
+    pub async fn all(
+        db: &Db,
+        crypto: &SessionCrypto,
+    ) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
+        let rows: Vec<Self> = db.select(TABLE).await?;
+        rows.into_iter()
+            .map(|r| r.decrypt(crypto).map_err(Into::into))
+            .collect()
+    }
+
     /// All emergency contacts for a given publisher.
     pub async fn by_publisher(
         db: &Db,
