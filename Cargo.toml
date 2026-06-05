@@ -48,3 +48,21 @@ codegen-units = 1
 panic = "abort"
 strip = true
 incremental = false
+
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.dev.package.ml-kem]
+opt-level = 3
+
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[profile.dev.package.kem]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
