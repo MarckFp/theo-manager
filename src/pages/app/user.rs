@@ -89,7 +89,22 @@ pub fn AppUsers() -> Element {
         let db_opt = db_signal.read().db.clone();
         let Some(db) = db_opt else { return vec![] };
         let crypto = crypto_signal.read().clone();
-        User::all(&db, &crypto).await.unwrap_or_default()
+        match User::all(&db, &crypto).await {
+            Ok(v) => v,
+            Err(e) => {
+                let err_str = e.to_string().replace("'", "\\'").replace("\n", " ");
+                let js = format!("console.error('User::all err:', '{}');", err_str);
+                let _ = document::eval(&js);
+                vec![]
+            }
+        }
+    });
+
+    let mut restarted = use_signal(|| false);
+    use_effect(move || {
+        if *restarted.peek() { return; }
+        restarted.set(true);
+        users.restart();
     });
 
     let mut filters = use_signal(Filters::default);
@@ -658,18 +673,10 @@ fn AddUserModal(open: Signal<bool>, on_close: Callback<()>, on_created: Callback
                 form.write().error = Some("No database connection.".to_string());
                 return;
             };
-            // Re-establish the namespace/database on the cloned connection.
-            // Cloning Surreal<Any> gives a new instance that may not carry the
-            // original session state, causing "Session not found" errors.
-            if let Err(e) = db
-                .use_ns(crate::database::NS)
-                .use_db(crate::database::DB_NAME)
-                .await
-            {
-                form.write().submitting = false;
-                form.write().error = Some(e.to_string());
-                return;
-            }
+            // Surreal<Any> is Arc-wrapped — clones share the same connection and
+            // session (ns/db already set by connect_offline). Do NOT call use_ns/
+            // use_db here: it would corrupt the shared session for all other
+            // concurrent queries (e.g. User::all) and write to the wrong namespace.
             let crypto = crypto_signal.read().clone();
             match User::create(&db, &crypto, data).await {
                 Ok(_) => on_created.call(()),

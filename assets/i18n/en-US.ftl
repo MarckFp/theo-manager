@@ -31,6 +31,13 @@ onboarding-mode-online-desc = Sync securely across devices.
 onboarding-user-title = Create Admin Account
 onboarding-user-desc = This will be the primary administrator account.
 
+# Onboarding encryption
+onboarding-encryption-title = End-to-End Encryption
+onboarding-encryption-desc = Set a password to protect your congregation data.
+onboarding-encryption-explanation = Theo Manager encrypts all sensitive data using AES-256-GCM, protected by a post-quantum ML-KEM-768 key. Your data is encrypted on this device before being stored — only someone with this password can read it. This password is never sent to any server. If you lose it, your encrypted data cannot be recovered.
+onboarding-encryption-password = Encryption Password
+onboarding-encryption-warning = Keep this password safe. It protects all congregation data and cannot be recovered if lost.
+
 # Onboarding congregation
 onboarding-congregation-title = Your Congregation
 onboarding-congregation-desc = Tell us about your congregation.

@@ -5,10 +5,13 @@ use surrealdb::engine::any::Any;
 
 use crate::crypto::SessionCrypto;
 
+use std::sync::Arc;
+
 /// Unified database handle. Works transparently with every backend:
-/// embedded (offline) and remote WebSocket (online). `Surreal<Any>` is
-/// internally `Arc`-wrapped, so cloning is cheap.
-pub type Db = Surreal<Any>;
+/// embedded (offline) and remote WebSocket (online).
+/// Wrapped in Arc to prevent SurrealDB from generating a new session ID
+/// on every clone (which causes intermittent "Session not found" race conditions).
+pub type Db = Arc<Surreal<Any>>;
 
 pub const NS: &str = "theo";
 pub const DB_NAME: &str = "manager";
@@ -96,26 +99,50 @@ impl Default for AppDatabase {
 pub async fn connect_offline(congregation_uid: &str) -> surrealdb::Result<Db> {
     use std::time::Duration;
     use surrealdb::opt::Config;
-    // surrealdb 3.1.2 bug: `update_node_with_timeout` calls
+    // surrealdb-core 3.1.2 bug: several background tasks call
     // `tokio::time::Instant::now()` without a `#[cfg(not(target_family="wasm"))]`
-    // guard, which panics on `wasm32-unknown-unknown`. The only caller is the
-    // node-membership-refresh background task. Setting the interval to just
-    // under `i32::MAX` ms (~24 days) prevents that task from ever firing during
-    // a real browser session. `wasmtimer` uses
-    // `i32::try_from(millis).unwrap_or(0)`, so values ≤ i32::MAX are safe.
-    let config =
-        Config::default().node_membership_refresh_interval(Duration::from_millis(i32::MAX as u64));
+    // guard, which panics on `wasm32-unknown-unknown`.
+    //
+    // Affected code paths:
+    //   • `update_node_with_timeout`  — fired by node_membership_refresh task
+    //   • `has_lease()` retry sleep   — fired by changefeed_gc / node_check /
+    //                                   node_cleanup tasks on DB errors
+    //
+    // Fix: set all four configurable intervals to i32::MAX ms (~24.8 days) so
+    // none of these background tasks ever fire during a normal browser session.
+    // `wasmtimer` converts Duration to ms via `i32::try_from(millis).unwrap_or(0)`,
+    // so values ≤ i32::MAX are safe.
+    //
+    // Note: `Datastore::shutdown()` → `delete_node_with_timeout()` still calls
+    // `Instant::now()` — this fires when the Db is dropped (hot reload, page
+    // refresh). That is an upstream bug with no config workaround; it is benign
+    // in dev (panic = "unwind") since the wasm instance is being torn down anyway.
+    const MAX_INTERVAL: Duration = Duration::from_millis(i32::MAX as u64);
+    let config = Config::default()
+        .query_timeout(None)
+        .transaction_timeout(None)
+        .node_membership_refresh_interval(MAX_INTERVAL)
+        .node_membership_check_interval(MAX_INTERVAL)
+        .node_membership_cleanup_interval(MAX_INTERVAL)
+        .changefeed_gc_interval(MAX_INTERVAL);
     let store_name = format!("indxdb://theo_{congregation_uid}");
     let db = surrealdb::engine::any::connect((store_name.as_str(), config)).await?;
+    
+    // WORKAROUND: Give SurrealDB's async channels time to process `SessionId::Initial`
+    // before we send the `USE NS` query. Under wasm, both channels are polled randomly,
+    // which can lead to a "Session not found" race-condition panic.
+    #[cfg(target_arch = "wasm32")]
+    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+
     db.use_ns(congregation_uid).use_db(DB_NAME).await?;
-    Ok(db)
+    Ok(Arc::new(db))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn connect_offline(congregation_uid: &str) -> surrealdb::Result<Db> {
     let db = surrealdb::engine::any::connect("mem://").await?;
     db.use_ns(congregation_uid).use_db(DB_NAME).await?;
-    Ok(db)
+    Ok(Arc::new(db))
 }
 
 /// Open an authenticated connection to the hardcoded SurrealDB Cloud endpoint.
@@ -133,8 +160,12 @@ pub async fn connect_online(config: &OnlineConfig, password: &str) -> surrealdb:
         }),
     })
     .await?;
+
+    #[cfg(target_arch = "wasm32")]
+    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+
     db.use_ns(&config.congregation_uid).use_db(DB_NAME).await?;
-    Ok(db)
+    Ok(Arc::new(db))
 }
 
 /// Register a new admin user via SurrealDB RECORD access signup.
@@ -157,8 +188,12 @@ pub async fn signup_online(
         }),
     })
     .await?;
+
+    #[cfg(target_arch = "wasm32")]
+    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+
     db.use_ns(congregation_uid).use_db(DB_NAME).await?;
-    Ok(db)
+    Ok(Arc::new(db))
 }
 
 // ---------------------------------------------------------------------------

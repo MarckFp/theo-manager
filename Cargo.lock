@@ -7779,6 +7779,7 @@ dependencies = [
  "dioxus-i18n",
  "dioxus-primitives",
  "getrandom 0.4.2",
+ "gloo-timers",
  "ml-kem",
  "rand 0.8.6",
  "serde",

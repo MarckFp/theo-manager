@@ -64,6 +64,7 @@ enum LandingStep {
     OnboardingMode,
     OnboardingUser,
     OnboardingCongregation,
+    OnboardingEncryption,
     Connecting,
     ResumeSession { uid: String },
 }
@@ -80,6 +81,8 @@ struct OnboardingState {
     email: String,
     password: String,
     confirm_password: String,
+    enc_password: String,
+    enc_confirm_password: String,
     congregation_name: String,
     congregation_city: String,
     congregation_circuit: String,
@@ -99,7 +102,11 @@ pub fn Landing() -> Element {
     let onboarding = use_signal(OnboardingState::default);
 
     // Check localStorage on mount to restore an offline session
+    let mut restore_checked = use_signal(|| false);
     use_effect(move || {
+        if *restore_checked.peek() { return; }
+        restore_checked.set(true);
+
         spawn(async move {
             if let Some(uid) = ls_get("theo_offline_uid").await {
                 step.set(LandingStep::ResumeSession { uid });
@@ -109,8 +116,12 @@ pub fn Landing() -> Element {
         });
     });
 
-    // Navigation guard (runs after hooks so hook count stays constant)
-    if db_state.read().db.is_some() {
+    // Navigation guard (runs after hooks so hook count stays constant).
+    // Require BOTH a db connection AND an unlocked crypto key: the resume flow
+    // stores the db before decrypting so the connection is never dropped on a
+    // wrong-password attempt (which would trigger a wasm32 panic via shutdown).
+    let crypto_state_nav = use_crypto();
+    if db_state.read().db.is_some() && crypto_state_nav.read().is_unlocked() {
         nav.push(crate::Route::AppDashboard {});
         return rsx! {};
     }
@@ -146,6 +157,9 @@ pub fn Landing() -> Element {
                         },
                         LandingStep::OnboardingCongregation => rsx! {
                             OnboardingCongregationStep { step, onboarding }
+                        },
+                        LandingStep::OnboardingEncryption => rsx! {
+                            OnboardingEncryptionStep { step, onboarding }
                         },
                         LandingStep::Connecting => rsx! {
                             ConnectingStep { step, onboarding }
@@ -203,7 +217,11 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
     let nav = use_navigator();
 
     // Pre-fill from localStorage if saved
+    let mut login_checked = use_signal(|| false);
     use_effect(move || {
+        if *login_checked.peek() { return; }
+        login_checked.set(true);
+
         spawn(async move {
             if let Some(uid) = ls_get("theo_online_uid").await {
                 congregation_code.set(uid);
@@ -273,12 +291,17 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
                 class: "w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50",
                 disabled: *loading.read(),
                 onclick: move |_| {
-                    let cid = congregation_code.read().clone();
-                    let user = username.read().clone();
-                    let pass = password.read().clone();
-                    let save = *remember_me.read();
+                    if *loading.peek() {
+                        return;
+                    }
+                    loading.set(true);
+                    let cid = congregation_code.peek().clone();
+                    let user = username.peek().clone();
+                    let pass = password.peek().clone();
+                    let save = *remember_me.peek();
                     if cid.is_empty() || user.is_empty() || pass.is_empty() {
                         error.set(Some(t!("error-fields-required")));
+                        loading.set(false);
                         return;
                     }
                     let config = OnlineConfig {
@@ -286,7 +309,6 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
                         username: user.clone(),
                     };
                     spawn(async move {
-                        loading.set(true);
                         error.set(None);
                         match connect_online(&config, &pass).await {
                             Ok(db) => {
@@ -551,6 +573,22 @@ fn OnboardingCongregationStep(
     let mut cong_circuit = use_signal(|| onboarding.read().congregation_circuit.clone());
     let mut cong_language = use_signal(|| onboarding.read().congregation_language.clone());
 
+    // Detect browser locale and pre-select language if not already set
+    use_effect(move || {
+        if cong_language.read().is_empty() {
+            spawn(async move {
+                let mut eval =
+                    document::eval("dioxus.send(navigator.language || 'en-US');");
+                let locale = eval
+                    .recv::<String>()
+                    .await
+                    .unwrap_or_else(|_| "en-US".to_string());
+                let lang = if locale.starts_with("es") { "es-ES" } else { "en-US" };
+                cong_language.set(lang.to_string());
+            });
+        }
+    });
+
     rsx! {
         div { class: "space-y-4",
             h2 { class: "text-xl font-semibold text-gray-800", {t!("onboarding-congregation-title")} }
@@ -587,11 +625,12 @@ fn OnboardingCongregationStep(
                 }
             }
             FormField { label: t!("onboarding-congregation-language"),
-                input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
-                    r#type: "text",
+                select {
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
                     value: cong_language.read().clone(),
-                    oninput: move |e| cong_language.set(e.value()),
+                    onchange: move |e| cong_language.set(e.value()),
+                    option { value: "en-US", "\u{1f1fa}\u{1f1f8} English" }
+                    option { value: "es-ES", "\u{1f1ea}\u{1f1f8} Español" }
                 }
             }
 
@@ -621,6 +660,135 @@ fn OnboardingCongregationStep(
                         ob.congregation_circuit = circuit;
                         ob.congregation_language = language;
                         drop(ob);
+                        step.set(LandingStep::OnboardingEncryption);
+                    },
+                    {t!("btn-next")}
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OnboardingEncryptionStep
+// ---------------------------------------------------------------------------
+
+#[component]
+fn OnboardingEncryptionStep(
+    mut step: Signal<LandingStep>,
+    mut onboarding: Signal<OnboardingState>,
+) -> Element {
+    let mut enc_password = use_signal(|| onboarding.read().enc_password.clone());
+    let mut enc_confirm = use_signal(|| onboarding.read().enc_confirm_password.clone());
+    let mut error: Signal<Option<String>> = use_signal(|| None);
+
+    let strength_pct = use_memo(move || password_strength(&enc_password.read()));
+
+    rsx! {
+        div { class: "space-y-4",
+            div { class: "flex items-center gap-3 mb-1",
+                div { class: "w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0",
+                    svg {
+                        class: "w-5 h-5 text-indigo-600",
+                        fill: "none",
+                        stroke: "currentColor",
+                        view_box: "0 0 24 24",
+                        path {
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            stroke_width: "2",
+                            d: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+                        }
+                    }
+                }
+                div {
+                    h2 { class: "text-xl font-semibold text-gray-800",
+                        {t!("onboarding-encryption-title")}
+                    }
+                    p { class: "text-gray-500 text-xs", {t!("onboarding-encryption-desc")} }
+                }
+            }
+
+            div { class: "bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800 leading-relaxed",
+                {t!("onboarding-encryption-explanation")}
+            }
+
+            div { class: "flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800",
+                span { class: "shrink-0 mt-0.5", "⚠️" }
+                span { {t!("onboarding-encryption-warning")} }
+            }
+
+            if let Some(err) = error.read().clone() {
+                div { class: "bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm",
+                    "{err}"
+                }
+            }
+
+            FormField { label: t!("onboarding-encryption-password"),
+                input {
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    r#type: "password",
+                    value: enc_password.read().clone(),
+                    oninput: move |e| enc_password.set(e.value()),
+                }
+                div { class: "mt-1.5",
+                    div { class: "w-full bg-gray-200 rounded-full h-1.5",
+                        div {
+                            class: match strength_pct() as u32 {
+                                1..=30 => "h-1.5 rounded-full transition-all duration-300 bg-red-500",
+                                31..=60 => "h-1.5 rounded-full transition-all duration-300 bg-yellow-500",
+                                61..=80 => "h-1.5 rounded-full transition-all duration-300 bg-blue-500",
+                                _ => "h-1.5 rounded-full transition-all duration-300 bg-green-500",
+                            },
+                            style: format!("width: {}%", strength_pct()),
+                        }
+                    }
+                    p { class: "text-xs text-gray-400 mt-0.5",
+                        {
+                            match strength_pct() as u32 {
+                                0 => String::new(),
+                                1..=30 => t!("password-weak"),
+                                31..=60 => t!("password-fair"),
+                                61..=80 => t!("password-strong"),
+                                _ => t!("password-very-strong"),
+                            }
+                        }
+                    }
+                }
+            }
+
+            FormField { label: t!("form-confirm-password"),
+                input {
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    r#type: "password",
+                    value: enc_confirm.read().clone(),
+                    oninput: move |e| enc_confirm.set(e.value()),
+                }
+            }
+
+            div { class: "flex gap-3 pt-1",
+                button {
+                    class: "flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors",
+                    onclick: move |_| step.set(LandingStep::OnboardingCongregation),
+                    {t!("btn-back")}
+                }
+                button {
+                    class: "flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors",
+                    onclick: move |_| {
+                        let pw = enc_password.read().clone();
+                        let cp = enc_confirm.read().clone();
+                        if pw.is_empty() {
+                            error.set(Some(t!("error-fields-required")));
+                            return;
+                        }
+                        if pw != cp {
+                            error.set(Some(t!("error-passwords-mismatch")));
+                            return;
+                        }
+                        let mut ob = onboarding.write();
+                        ob.enc_password = pw;
+                        ob.enc_confirm_password = cp;
+                        drop(ob);
                         step.set(LandingStep::Connecting);
                     },
                     {t!("btn-finish")}
@@ -641,8 +809,13 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
     let nav = use_navigator();
     let mut error: Signal<Option<String>> = use_signal(|| None);
 
+    let mut started = use_signal(|| false);
+
     use_effect(move || {
-        let ob = onboarding.read().clone();
+        if *started.peek() { return; }
+        started.set(true);
+
+        let ob = onboarding.peek().clone();
         spawn(async move {
             let uid = uuid::Uuid::new_v4().to_string();
 
@@ -667,7 +840,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
             // SurrealDB is schemaless — tables are created on first insert.
 
             // Initialise encryption
-            let (keystore, sym_key) = match crate::crypto::KeyStore::create(&ob.password) {
+            let (keystore, sym_key) = match crate::crypto::KeyStore::create(&ob.enc_password) {
                 Ok(v) => v,
                 Err(e) => {
                     error.set(Some(e.to_string()));
@@ -776,7 +949,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
                     class: "w-full py-2 text-gray-500 hover:text-gray-800 text-sm",
                     onclick: move |_| {
                         error.set(None);
-                        step.set(LandingStep::OnboardingCongregation);
+                        step.set(LandingStep::OnboardingEncryption);
                     },
                     {t!("btn-back")}
                 }
@@ -830,27 +1003,35 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                 class: "w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50",
                 disabled: *loading.read(),
                 onclick: move |_| {
-                    let pass = password.read().clone();
+                    if *loading.peek() {
+                        return;
+                    }
+                    loading.set(true);
+                    let pass = password.peek().clone();
                     let uid_clone = uid.clone();
                     if pass.is_empty() {
                         error.set(Some(t!("error-fields-required")));
+                        loading.set(false);
                         return;
                     }
                     spawn(async move {
-                        loading.set(true);
                         error.set(None);
-
-                        // Reconnect to IndexedDB
-                        let db = match connect_offline(&uid_clone).await {
-                            Ok(db) => db,
-                            Err(e) => {
-                                error.set(Some(e.to_string()));
-                                loading.set(false);
-                                return;
+                        if db_state.read().db.is_none() {
+                            match connect_offline(&uid_clone).await {
+                                Ok(db) => {
+                                    let mut state = db_state.write();
+                                    state.db = Some(db);
+                                    state.mode = DatabaseMode::Offline;
+                                    state.congregation_uid = Some(uid_clone.clone());
+                                }
+                                Err(e) => {
+                                    error.set(Some(e.to_string()));
+                                    loading.set(false);
+                                    return;
+                                }
                             }
-                        };
-
-                        // Load keystore from DB (stored as JSON since KeyStore isn't SurrealValue)
+                        }
+                        let db = db_state.read().db.clone().unwrap();
                         let keystore_vals: Vec<serde_json::Value> = match db
                             .select("_keystore")
                             .await
@@ -888,10 +1069,6 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                             }
                         };
                         crypto_state.write().set_key(sym_key);
-                        let mut state = db_state.write();
-                        state.db = Some(db);
-                        state.mode = DatabaseMode::Offline;
-                        state.congregation_uid = Some(uid_clone);
                         nav.push(crate::Route::AppDashboard {});
                     });
                 },
