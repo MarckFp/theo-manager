@@ -14,7 +14,7 @@ use pages::{
         AppAbsences, AppAttendants, AppAvPlatform, AppCleaning, AppCongregationPermissions,
         AppCongregationSettings, AppDashboard, AppFieldServiceGroups, AppFieldServiceMeetings,
         AppFieldServiceReports, AppLayout, AppPublicPreaching, AppTerritory, AppUsers,
-        AppWeekdayMeeting, AppWeekendMeeting, AppNewCongregation, AppUserSettings
+        AppWeekdayMeeting, AppWeekendMeeting, AppNewCongregation, AppUserSettings, AppUserDetail
     },
 };
 
@@ -39,6 +39,8 @@ pub enum Route {
         // Users section
         #[route("/app/users")]
         AppUsers {},
+        #[route("/app/user/:id")]
+        AppUserDetail { id: String },
         #[route("/app/field-service-reports")]
         AppFieldServiceReports {},
         #[route("/app/absences")]

@@ -3,7 +3,65 @@ use dioxus_i18n::t;
 
 use crate::components::ResponsiveModal;
 use crate::database::{use_crypto, use_db};
+use crate::models::congregation::{Congregation, DateFormat, NameFormat};
 use crate::models::user::{Appointment, Gender, User, UserData, UserType};
+use crate::Route;
+
+// ── Format helpers ────────────────────────────────────────────────────────────
+
+/// Returns `"FirstLast"` or `"LastFirst"`.
+pub fn effective_name_format(
+    cong: Option<&Congregation>,
+    user_prefs_name: &str,
+) -> NameFormat {
+    if !user_prefs_name.is_empty() {
+        return if user_prefs_name == "LastFirst" { NameFormat::LastFirst } else { NameFormat::FirstLast };
+    }
+    cong.map(|c| c.name_format.clone()).unwrap_or_default()
+}
+
+/// Returns `"YMD"`, `"DMY"`, or `"MDY"`.
+pub fn effective_date_format(
+    cong: Option<&Congregation>,
+    user_prefs_date: &str,
+) -> DateFormat {
+    match user_prefs_date {
+        "DMY" => return DateFormat::DMY,
+        "MDY" => return DateFormat::MDY,
+        "YMD" => return DateFormat::YMD,
+        _ => {}
+    }
+    cong.map(|c| c.date_format.clone()).unwrap_or_default()
+}
+
+pub fn format_name(first: &str, last: &str, fmt: &NameFormat) -> String {
+    match fmt {
+        NameFormat::LastFirst => format!("{last} {first}"),
+        NameFormat::FirstLast => format!("{first} {last}"),
+    }
+}
+
+/// Convert an ISO date string (`YYYY-MM-DD`) to the display format.
+pub fn format_date(iso: &str, fmt: &DateFormat) -> String {
+    if iso.len() != 10 { return iso.to_string(); }
+    let parts: Vec<&str> = iso.splitn(3, '-').collect();
+    if parts.len() != 3 { return iso.to_string(); }
+    let (y, m, d) = (parts[0], parts[1], parts[2]);
+    match fmt {
+        DateFormat::YMD => format!("{y}-{m}-{d}"),
+        DateFormat::DMY => format!("{d}/{m}/{y}"),
+        DateFormat::MDY => format!("{m}/{d}/{y}"),
+    }
+}
+
+/// Pattern hint shown in the date label.
+pub fn date_format_hint(fmt: &DateFormat) -> &'static str {
+    match fmt {
+        DateFormat::YMD => "YYYY-MM-DD",
+        DateFormat::DMY => "DD/MM/YYYY",
+        DateFormat::MDY => "MM/DD/YYYY",
+    }
+}
 
 const PAGE_SIZE: usize = 20;
 
@@ -47,26 +105,26 @@ struct Filters {
 // ── Form state ────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Default)]
-struct UserFormState {
-    first_name: String,
-    last_name: String,
-    gender: String,
-    user_type: String,
-    appointment: String,
-    birthday: String,
-    baptism_date: String,
-    phone: String,
-    address: String,
-    email: String,
-    password: String,
-    family_head: bool,
-    submitting: bool,
-    error: Option<String>,
+pub struct UserFormState {
+    pub first_name: String,
+    pub last_name: String,
+    pub gender: String,
+    pub user_type: String,
+    pub appointment: String,
+    pub birthday: String,
+    pub baptism_date: String,
+    pub phone: String,
+    pub address: String,
+    pub email: String,
+    pub password: String,
+    pub family_head: bool,
+    pub submitting: bool,
+    pub error: Option<String>,
 }
 
 // ── User type key helpers ─────────────────────────────────────────────────────
 
-fn key_to_user_type(s: &str) -> UserType {
+pub fn key_to_user_type(s: &str) -> UserType {
     match s {
         "publisher" => UserType::Publisher,
         "baptized" => UserType::BaptizedPublisher,
@@ -78,12 +136,80 @@ fn key_to_user_type(s: &str) -> UserType {
     }
 }
 
+pub fn user_type_to_key(t: &UserType) -> &'static str {
+    match t {
+        UserType::Student => "student",
+        UserType::Publisher => "publisher",
+        UserType::BaptizedPublisher => "baptized",
+        UserType::ContinuousAuxiliaryPioneer => "cont_aux",
+        UserType::RegularPioneer => "regular",
+        UserType::SpecialPioneer => "special",
+        UserType::Missionary => "missionary",
+    }
+}
+
+pub fn appointment_to_key(a: &Option<Appointment>) -> &'static str {
+    match a {
+        Some(Appointment::Elder) => "elder",
+        Some(Appointment::MinisterialServant) => "ms",
+        None => "",
+    }
+}
+
+pub fn user_form_state_from(user: &User) -> UserFormState {
+    UserFormState {
+        first_name: user.first_name.clone(),
+        last_name: user.last_name.clone(),
+        gender: match user.gender {
+            Gender::Male => "male",
+            Gender::Female => "female",
+        }
+        .to_string(),
+        user_type: user_type_to_key(&user.user_type).to_string(),
+        appointment: appointment_to_key(&user.appointment).to_string(),
+        birthday: user.birthday.clone().unwrap_or_default(),
+        baptism_date: user.baptism_date.clone().unwrap_or_default(),
+        phone: user.phone.clone().unwrap_or_default(),
+        address: user.address.clone().unwrap_or_default(),
+        email: user.email.clone().unwrap_or_default(),
+        password: String::new(),
+        family_head: user.family_head,
+        submitting: false,
+        error: None,
+    }
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn AppUsers() -> Element {
     let db_signal = use_db();
     let crypto_signal = use_crypto();
+
+    // Effective name/date formats (congregation default overridden by user prefs)
+    let congregation_res = use_context::<Resource<Option<Congregation>>>();
+    let db_state = use_db();
+    let uid = db_state.read().congregation_uid.clone().unwrap_or_default();
+
+    let name_fmt = use_signal(|| NameFormat::FirstLast);
+    let date_fmt = use_signal(|| DateFormat::YMD);
+
+    // Load user prefs and compute effective formats on mount / congregation change.
+    {
+        let uid = uid.clone();
+        let mut name_fmt = name_fmt.clone();
+        let mut date_fmt = date_fmt.clone();
+        use_effect(move || {
+            let uid = uid.clone();
+            let cong_snap = congregation_res.read().clone();
+            spawn(async move {
+                let prefs = crate::pages::app::user_settings::load_prefs(&uid).await;
+                let cong_ref = cong_snap.as_ref().and_then(|o| o.as_ref());
+                name_fmt.set(effective_name_format(cong_ref, prefs.name_format.as_deref().unwrap_or("")));
+                date_fmt.set(effective_date_format(cong_ref, prefs.date_format.as_deref().unwrap_or("")));
+            });
+        });
+    }
 
     let mut users = use_resource(move || async move {
         let db_opt = db_signal.read().db.clone();
@@ -197,7 +323,7 @@ pub fn AppUsers() -> Element {
             } else {
                 div { class: "space-y-2",
                     for p in shown {
-                        UserCard { user: p }
+                        UserCard { user: p, name_fmt: name_fmt.read().clone() }
                     }
                     if has_more {
                         div { class: "flex justify-center pt-2",
@@ -229,6 +355,7 @@ pub fn AppUsers() -> Element {
                     users.restart();
                     sheet_open.set(false);
                 },
+                date_fmt: date_fmt.read().clone(),
             }
         }
     }
@@ -353,19 +480,22 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
 // ── User card ────────────────────────────────────────────────────────────
 
 #[component]
-fn UserCard(user: User) -> Element {
+fn UserCard(user: User, name_fmt: NameFormat) -> Element {
+    let nav = use_navigator();
+    let id_str = user
+        .id
+        .as_ref()
+        .map(|id| match &id.key {
+            surrealdb::types::RecordIdKey::String(k) => k.clone(),
+            surrealdb::types::RecordIdKey::Number(n) => n.to_string(),
+            _ => String::new(),
+        })
+        .unwrap_or_default();
+    let display_name = format_name(&user.first_name, &user.last_name, &name_fmt);
     let initials = format!(
         "{}{}",
-        user.first_name
-            .chars()
-            .next()
-            .unwrap_or('?')
-            .to_ascii_uppercase(),
-        user.last_name
-            .chars()
-            .next()
-            .unwrap_or('?')
-            .to_ascii_uppercase(),
+        user.first_name.chars().next().unwrap_or('?').to_ascii_uppercase(),
+        user.last_name.chars().next().unwrap_or('?').to_ascii_uppercase(),
     );
 
     let gender_icon = match user.gender {
@@ -389,15 +519,20 @@ fn UserCard(user: User) -> Element {
     });
 
     rsx! {
-        div { class: "bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 hover:border-gray-300 transition-colors cursor-pointer",
+        div {
+            class: "bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 hover:border-primary-200 hover:shadow-sm transition-all cursor-pointer",
+            onclick: move |_| {
+                let _ = nav
+                    .push(Route::AppUserDetail {
+                        id: id_str.clone(),
+                    });
+            },
             div { class: "w-10 h-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm shrink-0",
                 "{initials}"
             }
             div { class: "flex-1 min-w-0",
                 div { class: "flex items-center gap-1.5",
-                    span { class: "text-sm font-medium text-gray-900 truncate",
-                        "{user.first_name} {user.last_name}"
-                    }
+                    span { class: "text-sm font-medium text-gray-900 truncate", "{display_name}" }
                     span { class: "text-gray-400 text-xs shrink-0", "{gender_icon}" }
                 }
                 div { class: "flex items-center gap-1.5 mt-0.5 flex-wrap",
@@ -437,7 +572,8 @@ fn EmptyUsers() -> Element {
 // ── User form body (shared between mobile sheet and desktop dialog) ──────
 
 #[component]
-fn UserFormBody(form: Signal<UserFormState>) -> Element {
+pub fn UserFormBody(form: Signal<UserFormState>, date_fmt: DateFormat) -> Element {
+    let date_hint = date_format_hint(&date_fmt);
     let f = form.read().clone();
     rsx! {
         // Error banner
@@ -508,13 +644,31 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
             select {
                 class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                 onchange: move |e| form.write().user_type = e.value(),
-                option { value: "student", {t!("user-type-student")} }
-                option { value: "publisher", {t!("user-type-publisher")} }
-                option { value: "baptized", {t!("user-type-baptized")} }
-                option { value: "cont_aux", {t!("user-type-cont-aux-pioneer")} }
-                option { value: "regular", {t!("user-type-regular-pioneer")} }
-                option { value: "special", {t!("user-type-special-pioneer")} }
-                option { value: "missionary", {t!("user-type-missionary")} }
+                option {
+                    value: "student",
+                    selected: f.user_type == "student" || f.user_type.is_empty(),
+                    {t!("user-type-student")}
+                }
+                option { value: "publisher", selected: f.user_type == "publisher",
+                    {t!("user-type-publisher")}
+                }
+                option { value: "baptized", selected: f.user_type == "baptized",
+                    {t!("user-type-baptized")}
+                }
+                option { value: "cont_aux", selected: f.user_type == "cont_aux",
+                    {t!("user-type-cont-aux-pioneer")}
+                }
+                option { value: "regular", selected: f.user_type == "regular",
+                    {t!("user-type-regular-pioneer")}
+                }
+                option { value: "special", selected: f.user_type == "special",
+                    {t!("user-type-special-pioneer")}
+                }
+                option {
+                    value: "missionary",
+                    selected: f.user_type == "missionary",
+                    {t!("user-type-missionary")}
+                }
             }
         }
         // Appointment (male only)
@@ -524,16 +678,23 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 select {
                     class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                     onchange: move |e| form.write().appointment = e.value(),
-                    option { value: "", {t!("user-appointment-none")} }
-                    option { value: "elder", {t!("user-appointment-elder")} }
-                    option { value: "ms", {t!("user-appointment-ms")} }
+                    option { value: "", selected: f.appointment.is_empty(),
+                        {t!("user-appointment-none")}
+                    }
+                    option { value: "elder", selected: f.appointment == "elder",
+                        {t!("user-appointment-elder")}
+                    }
+                    option { value: "ms", selected: f.appointment == "ms", {t!("user-appointment-ms")} }
                 }
             }
         }
         // Birthday + Baptism date
         div { class: "grid grid-cols-2 gap-3",
             div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("user-form-birthday")} }
+                label { class: "text-xs font-medium text-gray-700",
+                    {t!("user-form-birthday")}
+                    span { class: "text-xs text-gray-400 ml-1", "({date_hint})" }
+                }
                 input {
                     r#type: "date",
                     class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
@@ -542,7 +703,10 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 }
             }
             div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("user-form-baptism-date")} }
+                label { class: "text-xs font-medium text-gray-700",
+                    {t!("user-form-baptism-date")}
+                    span { class: "text-xs text-gray-400 ml-1", "({date_hint})" }
+                }
                 input {
                     r#type: "date",
                     class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
@@ -608,7 +772,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
 // ── Add user modal ───────────────────────────────────────────────────────
 
 #[component]
-fn AddUserModal(open: Signal<bool>, on_close: Callback<()>, on_created: Callback<()>) -> Element {
+fn AddUserModal(open: Signal<bool>, on_close: Callback<()>, on_created: Callback<()>, date_fmt: DateFormat) -> Element {
     let db_signal = use_db();
     let crypto_signal = use_crypto();
 
@@ -696,7 +860,7 @@ fn AddUserModal(open: Signal<bool>, on_close: Callback<()>, on_created: Callback
             description: t!("user-add-desc"),
             submitting: f.submitting,
             on_submit,
-            UserFormBody { form }
+            UserFormBody { form, date_fmt }
         }
     }
 }

@@ -26,6 +26,7 @@ surrealdb = { version = "3.1.2", default-features = false, features = ["protocol
 # getrandom wasm_js enables window.crypto.getRandomValues() for ml-kem/crypto-common
 getrandom = { version = "0.4", features = ["wasm_js"] }
 web-sys = { version = "0.3", features = ["Window", "Navigator"] }
+js-sys = "0.3"
 
 # Native (dev/desktop): WebSocket + in-memory embedded storage.
 # Requires nightly Rust (ferntree/diskann use std::hint::cold_path).

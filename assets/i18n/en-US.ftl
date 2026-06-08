@@ -311,3 +311,47 @@ format-dmy = DD-MM-YYYY
 format-mdy = MM-DD-YYYY
 lang-en = English
 lang-es = Spanish
+
+# User detail page
+user-back-to-list = Back to Users
+user-not-found = User not found
+user-badge-active = Active
+user-badge-inactive = Inactive
+user-edit-title = Edit User
+user-edit-desc = Update the user's details.
+user-delete-title = Delete User
+user-delete-confirm = This will permanently delete this user and all their data. This action cannot be undone.
+btn-delete = Delete
+btn-confirm = Confirm
+user-detail-personal = Personal Information
+user-detail-contact = Contact Information
+
+# Emergency contacts
+user-detail-emergency-contacts = Emergency Contacts
+user-detail-add-contact = Add Contact
+user-detail-no-contacts = No emergency contacts registered.
+contact-form-title-add = Add Emergency Contact
+contact-form-title-edit = Edit Emergency Contact
+contact-form-firstname = First Name
+contact-form-lastname = Last Name
+contact-form-relationship = Relationship
+contact-form-phone = Phone
+contact-form-email = Email
+contact-form-address = Address
+contact-delete-title = Delete Contact
+contact-delete-confirm = Are you sure you want to delete this emergency contact?
+
+# Field service reports
+user-detail-reports-title = Field Service Reports — Last 12 Months
+report-form-title = Service Report
+report-form-placements = Placements
+report-form-videos = Videos
+report-form-return-visits = Return Visits
+report-form-bible-studies = Bible Studies
+report-form-hours = Hours
+report-form-aux-pioneer = Auxiliary Pioneer
+report-form-notes = Notes
+report-not-submitted = Not submitted
+report-add-btn = Add
+report-delete-title = Delete Report
+report-delete-confirm = Are you sure you want to delete this service report?

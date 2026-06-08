@@ -311,3 +311,47 @@ format-dmy = DD-MM-AAAA
 format-mdy = MM-DD-AAAA
 lang-en = Inglés
 lang-es = Español
+
+# Página de detalle de usuario
+user-back-to-list = Volver a usuarios
+user-not-found = Usuario no encontrado
+user-badge-active = Activo
+user-badge-inactive = Inactivo
+user-edit-title = Editar usuario
+user-edit-desc = Actualiza los datos del usuario.
+user-delete-title = Eliminar usuario
+user-delete-confirm = Esto eliminará permanentemente este usuario y todos sus datos. Esta acción no se puede deshacer.
+btn-delete = Eliminar
+btn-confirm = Confirmar
+user-detail-personal = Información personal
+user-detail-contact = Información de contacto
+
+# Contactos de emergencia
+user-detail-emergency-contacts = Contactos de emergencia
+user-detail-add-contact = Añadir contacto
+user-detail-no-contacts = No hay contactos de emergencia registrados.
+contact-form-title-add = Añadir contacto de emergencia
+contact-form-title-edit = Editar contacto de emergencia
+contact-form-firstname = Nombre
+contact-form-lastname = Apellido
+contact-form-relationship = Relación
+contact-form-phone = Teléfono
+contact-form-email = Correo electrónico
+contact-form-address = Dirección
+contact-delete-title = Eliminar contacto
+contact-delete-confirm = ¿Estás seguro de que quieres eliminar este contacto de emergencia?
+
+# Informes de servicio de campo
+user-detail-reports-title = Informes de servicio — Últimos 12 meses
+report-form-title = Informe de servicio
+report-form-placements = Publicaciones
+report-form-videos = Videos
+report-form-return-visits = Revisitas
+report-form-bible-studies = Estudios bíblicos
+report-form-hours = Horas
+report-form-aux-pioneer = Precursor auxiliar
+report-form-notes = Notas
+report-not-submitted = No enviado
+report-add-btn = Añadir
+report-delete-title = Eliminar informe
+report-delete-confirm = ¿Estás seguro de que quieres eliminar este informe de servicio?
