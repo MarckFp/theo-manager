@@ -287,3 +287,27 @@ btn-edit = Editar
 btn-cancel = Cancelar
 btn-save = Guardar
 btn-saving = Guardando...
+
+sidebar-congregation-new = Nueva congregación
+onboarding-congregation-accent-color = Color de acento
+accent-blue = Azul
+accent-green = Verde
+accent-purple = Morado
+accent-rose = Rosa
+accent-amber = Ámbar
+
+# Configuración de usuario
+nav-user-settings = Mis Preferencias
+user-settings-title = Mis Preferencias
+user-settings-desc = Personaliza los ajustes de la congregación para este dispositivo. Los cambios solo afectan a tu dispositivo.
+user-settings-congregation-default = Por defecto de la congregación
+user-settings-reset = Restablecer valores de la congregación
+user-settings-saved = Preferencias guardadas
+default = predeterminado
+format-12h = 12h (AM/PM)
+format-24h = 24h
+format-ymd = AAAA-MM-DD
+format-dmy = DD-MM-AAAA
+format-mdy = MM-DD-AAAA
+lang-en = Inglés
+lang-es = Español

@@ -337,11 +337,9 @@ mod tests {
     }
 
     #[test]
-    fn keystore_wrong_passphrase_produces_different_key() {
-        let (ks, key1) = KeyStore::create("correct").unwrap();
-        let key_wrong = ks.unlock("wrong").unwrap();
-        let ct = encrypt_field(&key1, "data").unwrap();
-        // Decryption with wrong key should fail (AES-GCM authentication)
-        assert!(decrypt_field(&key_wrong, &ct).is_err());
+    fn keystore_wrong_passphrase_fails() {
+        let (ks, _key1) = KeyStore::create("correct").unwrap();
+        // Unlocking with wrong key should fail immediately since it tries to decrypt
+        assert!(ks.unlock("wrong").is_err());
     }
 }

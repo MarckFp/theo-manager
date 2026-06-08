@@ -33,7 +33,7 @@ fn DashCard(to: Route, icon: String, title: String, description: String) -> Elem
     rsx! {
         Link {
             to,
-            class: "block bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition-all",
+            class: "block bg-white rounded-xl border border-gray-200 p-5 hover:border-primary-300 hover:shadow-sm transition-all",
             div { class: "flex items-start gap-4",
                 span { class: "text-3xl", "{icon}" }
                 div {

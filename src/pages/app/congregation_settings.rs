@@ -1,9 +1,10 @@
 use dioxus::prelude::*;
 use dioxus_i18n::t;
 
+use crate::components::ThemePreview;
 use crate::crypto::{KeyStore, SessionCrypto};
 use crate::database::{use_crypto, use_db};
-use crate::models::congregation::{Congregation, CongregationData, DateFormat, NameFormat, Theme, TimeFormat};
+use crate::models::congregation::{AccentColor, Congregation, CongregationData, DateFormat, NameFormat, Theme, TimeFormat};
 use crate::models::user::{User, UserData};
 use crate::models::absence::{Absence, AbsenceData};
 use crate::models::emergency_contact::{EmergencyContact, EmergencyContactData};
@@ -24,6 +25,10 @@ fn FormField(label: String, children: Element) -> Element {
 pub fn AppCongregationSettings() -> Element {
     let db_signal = use_db();
     let crypto_signal = use_crypto();
+
+    // Shared congregation resource provided by AppLayout — restarting it
+    // triggers the theme/accent use_effect in AppLayout to re-run.
+    let mut layout_congregation = use_context::<Resource<Option<Congregation>>>();
 
     // ── Load Congregation ───────────────────────────────────────────
     let mut congregation_res = use_resource(move || async move {
@@ -57,21 +62,20 @@ pub fn AppCongregationSettings() -> Element {
     let mut date_format = use_signal(|| DateFormat::default());
     let mut name_format = use_signal(|| NameFormat::default());
     let mut theme = use_signal(|| Theme::default());
+    let mut accent_color = use_signal(|| crate::models::congregation::AccentColor::default());
 
-    use_effect({
-        let cong_opt = cong_opt.clone();
-        move || {
-            if let Some(c) = cong_opt.clone() {
-                if !*is_editing.peek() {
-                    cong_name.set(c.name);
-                    cong_address.set(c.address.unwrap_or_default());
-                    cong_circuit.set(c.circuit.unwrap_or_default());
-                    cong_language.set(c.language);
-                    time_format.set(c.time_format);
-                    date_format.set(c.date_format);
-                    name_format.set(c.name_format);
-                    theme.set(c.theme);
-                }
+    use_effect(move || {
+        if let Some(c) = congregation_res.read().as_ref().cloned().flatten() {
+            if !*is_editing.peek() {
+                cong_name.set(c.name);
+                cong_address.set(c.address.unwrap_or_default());
+                cong_circuit.set(c.circuit.unwrap_or_default());
+                cong_language.set(c.language);
+                time_format.set(c.time_format);
+                date_format.set(c.date_format);
+                name_format.set(c.name_format);
+                theme.set(c.theme);
+                accent_color.set(c.accent_color);
             }
         }
     });
@@ -111,7 +115,7 @@ pub fn AppCongregationSettings() -> Element {
                             {t!("congregation-details")}
                         }
                         button {
-                            class: "text-blue-600 hover:underline text-sm font-medium",
+                            class: "text-primary-600 hover:underline text-sm font-medium",
                             onclick: move |_| {
                                 error.set(None);
                                 success.set(None);
@@ -140,7 +144,7 @@ pub fn AppCongregationSettings() -> Element {
                         div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
                             FormField { label: t!("onboarding-congregation-name"),
                                 input {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                                     disabled: !*is_editing.read(),
                                     value: cong_name.read().clone(),
                                     oninput: move |e| cong_name.set(e.value()),
@@ -148,7 +152,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-address"),
                                 input {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                                     disabled: !*is_editing.read(),
                                     value: cong_address.read().clone(),
                                     oninput: move |e| cong_address.set(e.value()),
@@ -156,7 +160,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-circuit"),
                                 input {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                                     disabled: !*is_editing.read(),
                                     value: cong_circuit.read().clone(),
                                     oninput: move |e| cong_circuit.set(e.value()),
@@ -164,7 +168,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-language"),
                                 select {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                                     disabled: !*is_editing.read(),
                                     value: cong_language.read().clone(),
                                     onchange: move |e| cong_language.set(e.value()),
@@ -174,7 +178,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-time-format"),
                                 select {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                                     disabled: !*is_editing.read(),
                                     value: match *time_format.read() {
                                         TimeFormat::H12 => "12h",
@@ -195,7 +199,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-date-format"),
                                 select {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                                     disabled: !*is_editing.read(),
                                     value: match *date_format.read() {
                                         DateFormat::YMD => "YMD",
@@ -219,7 +223,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-name-format"),
                                 select {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                                     disabled: !*is_editing.read(),
                                     value: match *name_format.read() {
                                         NameFormat::FirstLast => "FirstLast",
@@ -240,7 +244,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                             FormField { label: t!("onboarding-congregation-theme"),
                                 select {
-                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                                     disabled: !*is_editing.read(),
                                     value: match *theme.read() {
                                         Theme::Light => "Light",
@@ -259,12 +263,58 @@ pub fn AppCongregationSettings() -> Element {
                                     option { value: "Dark", {t!("theme-dark")} }
                                 }
                             }
-                        }
+                            FormField { label: t!("onboarding-congregation-accent-color"),
+                                select {
+                                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
+                                    disabled: !*is_editing.read(),
+                                    value: match *accent_color.read() {
+                                        crate::models::congregation::AccentColor::Blue => "Blue",
+                                        crate::models::congregation::AccentColor::Green => "Green",
+                                        crate::models::congregation::AccentColor::Purple => "Purple",
+                                        crate::models::congregation::AccentColor::Rose => "Rose",
+                                        crate::models::congregation::AccentColor::Amber => "Amber",
+                                    },
+                                    onchange: move |e| {
+                                        accent_color
+                                            .set(
+                                                match e.value().as_str() {
+                                                    "Green" => crate::models::congregation::AccentColor::Green,
+                                                    "Purple" => crate::models::congregation::AccentColor::Purple,
+                                                    "Rose" => crate::models::congregation::AccentColor::Rose,
+                                                    "Amber" => crate::models::congregation::AccentColor::Amber,
+                                                    _ => crate::models::congregation::AccentColor::Blue,
+                                                },
+                                            );
+                                    },
+                                    option { value: "Blue", {t!("accent-blue")} }
+                                    option { value: "Green", {t!("accent-green")} }
+                                    option { value: "Purple", {t!("accent-purple")} }
+                                    option { value: "Rose", {t!("accent-rose")} }
+                                    option { value: "Amber", {t!("accent-amber")} }
+                                }
+                            }
+
+                            // ── Theme preview ──────────────────────────
+                            ThemePreview {
+                                theme: match *theme.read() {
+                                    Theme::Dark => "dark".to_string(),
+                                    _ => "light".to_string(),
+                                },
+                                accent: match *accent_color.read() {
+                                    AccentColor::Green => "Green".to_string(),
+                                    AccentColor::Purple => "Purple".to_string(),
+                                    AccentColor::Rose => "Rose".to_string(),
+                                    AccentColor::Amber => "Amber".to_string(),
+                                    _ => "Blue".to_string(),
+                                },
+                            }
+                        
+                        } // end grid
 
                         if *is_editing.read() {
                             div { class: "pt-4 flex justify-end",
                                 button {
-                                    class: "px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50",
+                                    class: "px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50",
                                     disabled: *save_loading.read(),
                                     onclick: move |_| {
                                         if *save_loading.peek() {
@@ -282,6 +332,7 @@ pub fn AppCongregationSettings() -> Element {
                                         let crypto = crypto_signal.read().clone();
                                         let c_id = cong_opt.as_ref().unwrap().id.clone().unwrap();
                                         let c_uid = cong_opt.as_ref().unwrap().uid.clone();
+                                        let wk_uid = c_uid.clone();
                                         let data = CongregationData {
                                             uid: c_uid,
                                             name,
@@ -294,7 +345,10 @@ pub fn AppCongregationSettings() -> Element {
                                             date_format: date_format.read().clone(),
                                             name_format: name_format.read().clone(),
                                             theme: theme.read().clone(),
+                                            accent_color: accent_color.read().clone(),
                                         };
+                                        let theme_val = theme.peek().clone();
+                                        let accent_val = accent_color.peek().clone();
                                         spawn(async move {
                                             if let Some(db) = db_opt {
                                                 match Congregation::update(&db, &crypto, c_id, data).await {
@@ -302,6 +356,34 @@ pub fn AppCongregationSettings() -> Element {
                                                         success.set(Some(t!("success-congregation-updated")));
                                                         is_editing.set(false);
                                                         congregation_res.restart();
+                                                        layout_congregation.restart();
+                                                        let theme_str = match theme_val {
+                                                            Theme::Dark => "dark",
+                                                            _ => "light",
+                                                        };
+                                                        let accent_str = match accent_val {
+                                                            AccentColor::Green => "Green",
+                                                            AccentColor::Purple => "Purple",
+                                                            AccentColor::Rose => "Rose",
+                                                            AccentColor::Amber => "Amber",
+                                                            _ => "Blue",
+                                                        };
+                                                        let _ = document::eval(
+                                                            &format!(
+                                                                "document.body.setAttribute('data-theme', '{}'); document.body.setAttribute('data-accent', '{}')",
+                                                                theme_str,
+                                                                accent_str,
+                                                            ),
+                                                        );
+                                                        // Update workspace theme/accent in localStorage
+                                                        let mut wks = crate::database::get_workspaces().await;
+                                                        if let Some(wk) = wks.iter_mut().find(|w| w.uid == wk_uid) {
+                                                            wk.theme = theme_str.to_string();
+                                                            wk.accent_color = accent_str.to_string();
+                                                        }
+                                                        if let Ok(json) = serde_json::to_string(&wks) {
+                                                            crate::database::ls_set("theo_workspaces", &json);
+                                                        }
                                                     }
                                                     Err(e) => {
                                                         error.set(Some(e.to_string()));
@@ -465,6 +547,7 @@ pub fn AppCongregationSettings() -> Element {
                                                 date_format: c.date_format,
                                                 name_format: c.name_format,
                                                 theme: c.theme,
+                                                accent_color: c.accent_color,
                                             };
                                             let _ = Congregation::update(&db, &new_crypto, c.id.unwrap(), data)
                                                 .await;
@@ -576,15 +659,15 @@ pub fn AppCongregationSettings() -> Element {
                                                         let json_str = serde_json::to_string(&json).unwrap();
                                                         let mut eval = document::eval(
                                                             "
-                                                                                            let data = await dioxus.recv();
-                                                                                            const blob = new Blob([data], { type: 'application/json' });
-                                                                                            const url = URL.createObjectURL(blob);
-                                                                                            const a = document.createElement('a');
-                                                                                            a.href = url;
-                                                                                            a.download = 'theo-manager-export.json';
-                                                                                            a.click();
-                                                                                            URL.revokeObjectURL(url);
-                                                                                        ",
+                                                                                                                                                                                                                                                                                                                            let data = await dioxus.recv();
+                                                                                                                                                                                                                                                                                                                            const blob = new Blob([data], { type: 'application/json' });
+                                                                                                                                                                                                                                                                                                                            const url = URL.createObjectURL(blob);
+                                                                                                                                                                                                                                                                                                                            const a = document.createElement('a');
+                                                                                                                                                                                                                                                                                                                            a.href = url;
+                                                                                                                                                                                                                                                                                                                            a.download = 'theo-manager-export.json';
+                                                                                                                                                                                                                                                                                                                            a.click();
+                                                                                                                                                                                                                                                                                                                            URL.revokeObjectURL(url);
+                                                                                                                                                                                                                                                                                                                        ",
                                                         );
                                                         eval.send(json_str).unwrap();
                                                     }
@@ -654,8 +737,8 @@ pub fn AppCongregationSettings() -> Element {
                                         }
                                         let confirmed = document::eval(
                                             "
-                                                                            dioxus.send(confirm('Are you sure you want to delete all data? This cannot be undone.'));
-                                                                        ",
+                                                                                                                                                                                                                                                                                                            dioxus.send(confirm('Are you sure you want to delete all data? This cannot be undone.'));
+                                                                                                                                                                                                                                                                                                        ",
                                         );
                                         let db_opt = db_signal.read().db.clone();
                                         spawn(async move {

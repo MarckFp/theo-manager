@@ -68,6 +68,22 @@ impl Default for Theme {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 #[surreal(crate = "surrealdb::types")]
+pub enum AccentColor {
+    Blue,
+    Green,
+    Purple,
+    Rose,
+    Amber,
+}
+
+impl Default for AccentColor {
+    fn default() -> Self {
+        Self::Blue
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
+#[surreal(crate = "surrealdb::types")]
 pub struct Congregation {
     pub id: Option<RecordId>,
     /// Unique identifier for this congregation (UUID).
@@ -81,6 +97,7 @@ pub struct Congregation {
     pub date_format: DateFormat,
     pub name_format: NameFormat,
     pub theme: Theme,
+    pub accent_color: AccentColor,
 }
 
 /// Data required to create or update a congregation (no id).
@@ -101,6 +118,8 @@ pub struct CongregationData {
     pub name_format: NameFormat,
     #[serde(default)]
     pub theme: Theme,
+    #[serde(default)]
+    pub accent_color: AccentColor,
 }
 
 impl CongregationData {
@@ -116,6 +135,7 @@ impl CongregationData {
             date_format: self.date_format,
             name_format: self.name_format,
             theme: self.theme,
+            accent_color: self.accent_color,
         })
     }
 }
@@ -134,6 +154,7 @@ impl Congregation {
             date_format: self.date_format,
             name_format: self.name_format,
             theme: self.theme,
+            accent_color: self.accent_color,
         })
     }
 

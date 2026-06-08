@@ -2,10 +2,36 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 use surrealdb::Surreal;
 use surrealdb::engine::any::Any;
+use surrealdb::types::RecordId;
 
 use crate::crypto::SessionCrypto;
 
 use std::sync::Arc;
+
+// ---------------------------------------------------------------------------
+// LocalStorage helpers (JS interop via document::eval)
+// ---------------------------------------------------------------------------
+
+pub async fn ls_get(key: &str) -> Option<String> {
+    let js = format!(
+        "try {{ dioxus.send(localStorage.getItem({key:?})); }} catch(e) {{ dioxus.send(null); }}"
+    );
+    let mut eval = document::eval(&js);
+    eval.recv::<serde_json::Value>().await.ok().and_then(|v| match v {
+        serde_json::Value::String(s) => Some(s),
+        _ => None,
+    })
+}
+
+pub fn ls_set(key: &str, value: &str) {
+    let js = format!("try {{ localStorage.setItem({key:?}, {value:?}); }} catch(e) {{}}");
+    let _ = document::eval(&js);
+}
+
+pub fn ls_remove(key: &str) {
+    let js = format!("try {{ localStorage.removeItem({key:?}); }} catch(e) {{}}");
+    let _ = document::eval(&js);
+}
 
 /// Unified database handle. Works transparently with every backend:
 /// embedded (offline) and remote WebSocket (online).
@@ -32,6 +58,46 @@ pub const CLOUD_ENDPOINT: &str = match option_env!("SURREAL_CLOUD_ENDPOINT") {
 pub enum DatabaseMode {
     Offline,
     Online,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Workspace {
+    pub uid: String,
+    pub name: String,
+    pub mode: DatabaseMode,
+    pub username: Option<String>,
+    #[serde(default)]
+    pub theme: String,
+    #[serde(default)]
+    pub accent_color: String,
+}
+
+pub async fn get_workspaces() -> Vec<Workspace> {
+    if let Some(json) = ls_get("theo_workspaces").await {
+        serde_json::from_str(&json).unwrap_or_default()
+    } else {
+        vec![]
+    }
+}
+
+pub async fn add_workspace(workspace: Workspace) {
+    let mut wks = get_workspaces().await;
+    if let Some(pos) = wks.iter().position(|w| w.uid == workspace.uid) {
+        wks[pos] = workspace;
+    } else {
+        wks.push(workspace);
+    }
+    if let Ok(json) = serde_json::to_string(&wks) {
+        ls_set("theo_workspaces", &json);
+    }
+}
+
+pub async fn remove_workspace(uid: &str) {
+    let mut wks = get_workspaces().await;
+    wks.retain(|w| w.uid != uid);
+    if let Ok(json) = serde_json::to_string(&wks) {
+        ls_set("theo_workspaces", &json);
+    }
 }
 
 /// Connection settings for a remote SurrealDB instance.
@@ -69,6 +135,10 @@ pub struct AppDatabase {
     /// Congregation UUID — used as the SurrealDB namespace for both offline
     /// and online modes. `None` until onboarding is complete.
     pub congregation_uid: Option<String>,
+    /// The currently active congregation in the UI.
+    pub active_congregation_id: Option<RecordId>,
+    /// Kept alive to prevent WASM panic on drop
+    pub leaked_dbs: Vec<Db>,
 }
 
 impl Default for AppDatabase {
@@ -78,6 +148,8 @@ impl Default for AppDatabase {
             mode: DatabaseMode::Offline,
             config: None,
             congregation_uid: None,
+            active_congregation_id: None,
+            leaked_dbs: vec![],
         }
     }
 }

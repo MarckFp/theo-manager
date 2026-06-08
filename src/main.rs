@@ -14,7 +14,7 @@ use pages::{
         AppAbsences, AppAttendants, AppAvPlatform, AppCleaning, AppCongregationPermissions,
         AppCongregationSettings, AppDashboard, AppFieldServiceGroups, AppFieldServiceMeetings,
         AppFieldServiceReports, AppLayout, AppPublicPreaching, AppTerritory, AppUsers,
-        AppWeekdayMeeting, AppWeekendMeeting,
+        AppWeekdayMeeting, AppWeekendMeeting, AppNewCongregation, AppUserSettings
     },
 };
 
@@ -71,6 +71,12 @@ pub enum Route {
         AppCongregationSettings {},
         #[route("/app/congregation/permissions")]
         AppCongregationPermissions {},
+        
+        #[route("/app/congregation/new")]
+        AppNewCongregation {},
+
+        #[route("/app/user/settings")]
+        AppUserSettings {},
     #[end_layout]
 
     // ── Catch-all 404 ──────────────────────────────────────────────────────

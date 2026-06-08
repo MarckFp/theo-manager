@@ -7,7 +7,7 @@ pub fn AppAvPlatform() -> Element {
         div { class: "space-y-6 w-full",
             div { class: "flex items-center justify-between",
                 h1 { class: "text-2xl font-bold text-gray-900", {t!("page-av-platform")} }
-                button { class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors",
+                button { class: "px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors",
                     {t!("btn-add-assignment")}
                 }
             }

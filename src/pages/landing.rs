@@ -1,39 +1,18 @@
 use dioxus::prelude::*;
 use dioxus_i18n::t;
 
+use crate::components::ThemePreview;
 use crate::crypto::KeyStore;
 use crate::database::{
-    DatabaseMode, OnlineConfig, connect_offline, connect_online, signup_online, use_crypto, use_db,
+    DatabaseMode, OnlineConfig, connect_offline, connect_online, signup_online, use_crypto, use_db, ls_get, ls_set, ls_remove
 };
-use crate::models::congregation::{Congregation, CongregationData, DateFormat, NameFormat, Theme, TimeFormat};
+use crate::models::congregation::{AccentColor, Congregation, CongregationData, DateFormat, NameFormat, Theme, TimeFormat};
 use crate::models::user::{User, UserData, UserType};
 
 // ---------------------------------------------------------------------------
 // localStorage helpers (JS interop via document::eval)
 // ---------------------------------------------------------------------------
 
-async fn ls_get(key: &str) -> Option<String> {
-    let js = format!(
-        "try {{ dioxus.send(localStorage.getItem({key:?})); }} catch(e) {{ dioxus.send(null); }}"
-    );
-    let mut eval = document::eval(&js);
-    eval.recv::<serde_json::Value>().await.ok().and_then(|v| match v {
-        serde_json::Value::String(s) => Some(s),
-        _ => None,
-    })
-}
-
-fn ls_set(key: &str, value: &str) {
-    let js = format!("try {{ localStorage.setItem({key:?}, {value:?}); }} catch(e) {{}}");
-    let _ = document::eval(&js);
-}
-
-fn ls_remove(key: &str) {
-    let js = format!("try {{ localStorage.removeItem({key:?}); }} catch(e) {{}}");
-    let _ = document::eval(&js);
-}
-
-// ---------------------------------------------------------------------------
 // Password strength (0.0 – 100.0)
 // ---------------------------------------------------------------------------
 
@@ -91,6 +70,7 @@ struct OnboardingState {
     date_format: DateFormat,
     name_format: NameFormat,
     theme: Theme,
+    accent_color: AccentColor,
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +92,10 @@ pub fn Landing() -> Element {
         restore_checked.set(true);
 
         spawn(async move {
-            if let Some(uid) = ls_get("theo_offline_uid").await {
+            let active = ls_get("theo_active_uid").await;
+            if let Some(uid) = ls_get("theo_active_uid").await {
+                step.set(LandingStep::ResumeSession { uid });
+            } else if let Some(uid) = ls_get("theo_offline_uid").await { // legacy fallback
                 step.set(LandingStep::ResumeSession { uid });
             } else {
                 step.set(LandingStep::AccountChoice);
@@ -131,7 +114,7 @@ pub fn Landing() -> Element {
     }
 
     rsx! {
-        div { class: "min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4",
+        div { class: "min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex items-center justify-center p-4",
             div { class: "w-full max-w-md",
                 div { class: "text-center mb-8",
                     h1 { class: "text-3xl font-bold text-gray-900", {t!("app-name")} }
@@ -141,7 +124,7 @@ pub fn Landing() -> Element {
                     match step.read().clone() {
                         LandingStep::CheckingRestore => rsx! {
                             div { class: "flex justify-center py-8",
-                                div { class: "w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" }
+                                div { class: "w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" }
                             }
                         },
                         LandingStep::AccountChoice => rsx! {
@@ -190,12 +173,12 @@ fn AccountChoice(mut step: Signal<LandingStep>) -> Element {
             p { class: "text-gray-500 text-center text-sm", {t!("landing-welcome-desc")} }
             div { class: "pt-2 space-y-3",
                 button {
-                    class: "w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors",
+                    class: "w-full py-3 px-4 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors",
                     onclick: move |_| step.set(LandingStep::Login),
                     {t!("landing-have-account")}
                 }
                 button {
-                    class: "w-full py-3 px-4 border-2 border-blue-600 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-colors",
+                    class: "w-full py-3 px-4 border-2 border-primary-600 text-primary-600 rounded-xl font-medium hover:bg-primary-50 transition-colors",
                     onclick: move |_| step.set(LandingStep::OnboardingMode),
                     {t!("landing-create-account")}
                 }
@@ -250,7 +233,7 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
 
             FormField { label: t!("onboarding-congregation-code"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "text",
                     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
                     value: congregation_code.read().clone(),
@@ -259,7 +242,7 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
             }
             FormField { label: t!("form-email"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "email",
                     value: username.read().clone(),
                     oninput: move |e| username.set(e.value()),
@@ -267,7 +250,7 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
             }
             FormField { label: t!("form-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: password.read().clone(),
                     oninput: move |e| password.set(e.value()),
@@ -278,21 +261,21 @@ fn LoginScreen(mut step: Signal<LandingStep>) -> Element {
                 label { class: "flex items-center gap-2 text-sm text-gray-600 cursor-pointer",
                     input {
                         r#type: "checkbox",
-                        class: "rounded border-gray-300 text-blue-600",
+                        class: "rounded border-gray-300 text-primary-600",
                         checked: *remember_me.read(),
                         oninput: move |e| remember_me.set(e.checked()),
                     }
                     {t!("form-remember-me")}
                 }
                 button {
-                    class: "text-sm text-blue-600 hover:underline",
+                    class: "text-sm text-primary-600 hover:underline",
                     onclick: move |_| step.set(LandingStep::ForgotPassword),
                     {t!("landing-forgot-password")}
                 }
             }
 
             button {
-                class: "w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50",
+                class: "w-full py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors disabled:opacity-50",
                 disabled: *loading.read(),
                 onclick: move |_| {
                     if *loading.peek() {
@@ -388,7 +371,7 @@ fn OnboardingModeStep(
 
             div { class: "space-y-3 pt-1",
                 button {
-                    class: "w-full py-4 px-4 border-2 border-gray-200 rounded-xl text-left hover:border-blue-400 hover:bg-blue-50 transition-all",
+                    class: "w-full py-4 px-4 border-2 border-gray-200 rounded-xl text-left hover:border-primary-400 hover:bg-primary-50 transition-all",
                     onclick: move |_| {
                         onboarding.write().mode = Some(DatabaseMode::Offline);
                         step.set(LandingStep::OnboardingUser);
@@ -397,7 +380,7 @@ fn OnboardingModeStep(
                     div { class: "text-sm text-gray-500 mt-0.5", {t!("onboarding-mode-offline-desc")} }
                 }
                 button {
-                    class: "w-full py-4 px-4 border-2 border-gray-200 rounded-xl text-left hover:border-blue-400 hover:bg-blue-50 transition-all",
+                    class: "w-full py-4 px-4 border-2 border-gray-200 rounded-xl text-left hover:border-primary-400 hover:bg-primary-50 transition-all",
                     onclick: move |_| {
                         onboarding.write().mode = Some(DatabaseMode::Online);
                         step.set(LandingStep::OnboardingUser);
@@ -449,7 +432,7 @@ fn OnboardingUserStep(
             div { class: "grid grid-cols-2 gap-3",
                 FormField { label: t!("form-first-name"),
                     input {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                         r#type: "text",
                         value: first_name.read().clone(),
                         oninput: move |e| first_name.set(e.value()),
@@ -457,7 +440,7 @@ fn OnboardingUserStep(
                 }
                 FormField { label: t!("form-last-name"),
                     input {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                         r#type: "text",
                         value: last_name.read().clone(),
                         oninput: move |e| last_name.set(e.value()),
@@ -466,7 +449,7 @@ fn OnboardingUserStep(
             }
             FormField { label: t!("form-email"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "email",
                     value: email.read().clone(),
                     oninput: move |e| email.set(e.value()),
@@ -474,7 +457,7 @@ fn OnboardingUserStep(
             }
             FormField { label: t!("form-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: password.read().clone(),
                     oninput: move |e| password.set(e.value()),
@@ -486,7 +469,7 @@ fn OnboardingUserStep(
                             class: match strength_pct() as u32 {
                                 1..=30 => "h-1.5 rounded-full transition-all duration-300 bg-red-500",
                                 31..=60 => "h-1.5 rounded-full transition-all duration-300 bg-yellow-500",
-                                61..=80 => "h-1.5 rounded-full transition-all duration-300 bg-blue-500",
+                                61..=80 => "h-1.5 rounded-full transition-all duration-300 bg-primary-500",
                                 _ => "h-1.5 rounded-full transition-all duration-300 bg-green-500",
                             },
                             style: format!("width: {}%", strength_pct()),
@@ -507,7 +490,7 @@ fn OnboardingUserStep(
             }
             FormField { label: t!("form-confirm-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: confirm_password.read().clone(),
                     oninput: move |e| confirm_password.set(e.value()),
@@ -521,7 +504,7 @@ fn OnboardingUserStep(
                     {t!("btn-back")}
                 }
                 button {
-                    class: "flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors",
+                    class: "flex-1 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors",
                     onclick: move |_| {
                         let fn_val = first_name.read().clone();
                         let ln_val = last_name.read().clone();
@@ -580,6 +563,7 @@ fn OnboardingCongregationStep(
     let mut date_format = use_signal(|| onboarding.read().date_format.clone());
     let mut name_format = use_signal(|| onboarding.read().name_format.clone());
     let mut theme = use_signal(|| onboarding.read().theme.clone());
+    let mut accent_color = use_signal(|| onboarding.read().accent_color.clone());
 
     // Detect browser locale and pre-select language if not already set
     use_effect(move || {
@@ -610,7 +594,7 @@ fn OnboardingCongregationStep(
 
             FormField { label: t!("onboarding-congregation-name"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "text",
                     value: cong_name.read().clone(),
                     oninput: move |e| cong_name.set(e.value()),
@@ -618,7 +602,7 @@ fn OnboardingCongregationStep(
             }
             FormField { label: t!("onboarding-congregation-address"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "text",
                     value: cong_address.read().clone(),
                     oninput: move |e| cong_address.set(e.value()),
@@ -626,7 +610,7 @@ fn OnboardingCongregationStep(
             }
             FormField { label: t!("onboarding-congregation-circuit"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "text",
                     value: cong_circuit.read().clone(),
                     oninput: move |e| cong_circuit.set(e.value()),
@@ -634,7 +618,7 @@ fn OnboardingCongregationStep(
             }
             FormField { label: t!("onboarding-congregation-language"),
                 select {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                     value: cong_language.read().clone(),
                     onchange: move |e| cong_language.set(e.value()),
                     option { value: "en-US", "\u{1f1fa}\u{1f1f8} English" }
@@ -644,7 +628,7 @@ fn OnboardingCongregationStep(
             div { class: "grid grid-cols-2 gap-3",
                 FormField { label: t!("onboarding-congregation-time-format"),
                     select {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                         value: match *time_format.read() {
                             TimeFormat::H12 => "12h",
                             TimeFormat::H24 => "24h",
@@ -662,7 +646,7 @@ fn OnboardingCongregationStep(
                 }
                 FormField { label: t!("onboarding-congregation-date-format"),
                     select {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                         value: match *date_format.read() {
                             DateFormat::YMD => "YMD",
                             DateFormat::DMY => "DMY",
@@ -685,7 +669,7 @@ fn OnboardingCongregationStep(
             div { class: "grid grid-cols-2 gap-3",
                 FormField { label: t!("onboarding-congregation-name-format"),
                     select {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                         value: match *name_format.read() {
                             NameFormat::FirstLast => "FirstLast",
                             NameFormat::LastFirst => "LastFirst",
@@ -703,7 +687,7 @@ fn OnboardingCongregationStep(
                 }
                 FormField { label: t!("onboarding-congregation-theme"),
                     select {
-                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
                         value: match *theme.read() {
                             Theme::Light => "Light",
                             Theme::Dark => "Dark",
@@ -720,6 +704,50 @@ fn OnboardingCongregationStep(
                     }
                 }
             }
+            div { class: "grid grid-cols-1 gap-3",
+                FormField { label: t!("onboarding-congregation-accent-color"),
+                    select {
+                        class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
+                        value: match *accent_color.read() {
+                            AccentColor::Blue => "Blue",
+                            AccentColor::Green => "Green",
+                            AccentColor::Purple => "Purple",
+                            AccentColor::Rose => "Rose",
+                            AccentColor::Amber => "Amber",
+                        },
+                        onchange: move |e| {
+                            let val = match e.value().as_str() {
+                                "Green" => AccentColor::Green,
+                                "Purple" => AccentColor::Purple,
+                                "Rose" => AccentColor::Rose,
+                                "Amber" => AccentColor::Amber,
+                                _ => AccentColor::Blue,
+                            };
+                            accent_color.set(val);
+                        },
+                        option { value: "Blue", {t!("accent-blue")} }
+                        option { value: "Green", {t!("accent-green")} }
+                        option { value: "Purple", {t!("accent-purple")} }
+                        option { value: "Rose", {t!("accent-rose")} }
+                        option { value: "Amber", {t!("accent-amber")} }
+                    }
+                }
+            }
+
+            // ── Theme preview ──────────────────────────────────────────────
+            ThemePreview {
+                theme: match *theme.read() {
+                    Theme::Dark => "dark".to_string(),
+                    _ => "light".to_string(),
+                },
+                accent: match *accent_color.read() {
+                    AccentColor::Green => "Green".to_string(),
+                    AccentColor::Purple => "Purple".to_string(),
+                    AccentColor::Rose => "Rose".to_string(),
+                    AccentColor::Amber => "Amber".to_string(),
+                    _ => "Blue".to_string(),
+                },
+            }
 
             div { class: "flex gap-3 pt-1",
                 button {
@@ -728,7 +756,7 @@ fn OnboardingCongregationStep(
                     {t!("btn-back")}
                 }
                 button {
-                    class: "flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors",
+                    class: "flex-1 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors",
                     onclick: move |_| {
                         let name = cong_name.read().clone();
                         let address = cong_address.read().clone();
@@ -738,6 +766,7 @@ fn OnboardingCongregationStep(
                         let d_fmt = date_format.read().clone();
                         let n_fmt = name_format.read().clone();
                         let thm = theme.read().clone();
+                        let acc = accent_color.read().clone();
 
                         if name.is_empty() || language.is_empty() {
                             error.set(Some(t!("error-fields-required")));
@@ -752,6 +781,7 @@ fn OnboardingCongregationStep(
                         ob.date_format = d_fmt;
                         ob.name_format = n_fmt;
                         ob.theme = thm;
+                        ob.accent_color = acc;
                         drop(ob);
                         step.set(LandingStep::OnboardingEncryption);
                     },
@@ -780,9 +810,9 @@ fn OnboardingEncryptionStep(
     rsx! {
         div { class: "space-y-4",
             div { class: "flex items-center gap-3 mb-1",
-                div { class: "w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0",
+                div { class: "w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center shrink-0",
                     svg {
-                        class: "w-5 h-5 text-indigo-600",
+                        class: "w-5 h-5 text-primary-600",
                         fill: "none",
                         stroke: "currentColor",
                         view_box: "0 0 24 24",
@@ -802,7 +832,7 @@ fn OnboardingEncryptionStep(
                 }
             }
 
-            div { class: "bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800 leading-relaxed",
+            div { class: "bg-primary-50 border border-primary-200 rounded-xl p-4 text-sm text-primary-800 leading-relaxed",
                 {t!("onboarding-encryption-explanation")}
             }
 
@@ -819,7 +849,7 @@ fn OnboardingEncryptionStep(
 
             FormField { label: t!("onboarding-encryption-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: enc_password.read().clone(),
                     oninput: move |e| enc_password.set(e.value()),
@@ -830,7 +860,7 @@ fn OnboardingEncryptionStep(
                             class: match strength_pct() as u32 {
                                 1..=30 => "h-1.5 rounded-full transition-all duration-300 bg-red-500",
                                 31..=60 => "h-1.5 rounded-full transition-all duration-300 bg-yellow-500",
-                                61..=80 => "h-1.5 rounded-full transition-all duration-300 bg-blue-500",
+                                61..=80 => "h-1.5 rounded-full transition-all duration-300 bg-primary-500",
                                 _ => "h-1.5 rounded-full transition-all duration-300 bg-green-500",
                             },
                             style: format!("width: {}%", strength_pct()),
@@ -852,7 +882,7 @@ fn OnboardingEncryptionStep(
 
             FormField { label: t!("form-confirm-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: enc_confirm.read().clone(),
                     oninput: move |e| enc_confirm.set(e.value()),
@@ -866,7 +896,7 @@ fn OnboardingEncryptionStep(
                     {t!("btn-back")}
                 }
                 button {
-                    class: "flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors",
+                    class: "flex-1 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors",
                     onclick: move |_| {
                         let pw = enc_password.read().clone();
                         let cp = enc_confirm.read().clone();
@@ -970,6 +1000,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
                 date_format: ob.date_format.clone(),
                 name_format: ob.name_format.clone(),
                 theme: ob.theme.clone(),
+                accent_color: ob.accent_color.clone(),
             };
             let congregation = match Congregation::create(&db, &crypto, cong_data).await {
                 Ok(Some(c)) => c,
@@ -1005,18 +1036,44 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
                 appointment: None,
                 family_head: false,
                 active: true,
-                congregations: vec![cong_id],
+                congregations: vec![cong_id.clone()],
             };
-            if let Err(e) = User::create(&db, &crypto, user_data).await {
-                error.set(Some(e.to_string()));
-                return;
+            let created_user = match User::create(&db, &crypto, user_data).await {
+                Ok(Some(u)) => u,
+                _ => {
+                    error.set(Some("Failed to create user".to_string()));
+                    return;
+                }
+            };
+
+            if let Some(user_id) = &created_user.id {
+                let key_str = match &user_id.key {
+                    surrealdb::types::RecordIdKey::String(s) => s.clone(),
+                    surrealdb::types::RecordIdKey::Number(n) => n.to_string(),
+                    _ => "unknown".to_string(),
+                };
+                let id_str = format!("{}:{}", user_id.table.as_str(), key_str);
+                ls_set("theo_my_user_id", &id_str);
             }
 
             // Persist connection state
             let mut state = db_state.write();
             state.congregation_uid = Some(uid.clone());
+            state.active_congregation_id = Some(cong_id.clone());
+
+            let workspace = crate::database::Workspace {
+                uid: uid.clone(),
+                name: ob.congregation_name.clone(),
+                mode: ob.mode.clone().unwrap(),
+                username: Some(ob.email.clone()),
+                theme: match ob.theme { Theme::Dark => "dark".to_string(), _ => "light".to_string() },
+                accent_color: match ob.accent_color { AccentColor::Green => "Green".to_string(), AccentColor::Purple => "Purple".to_string(), AccentColor::Rose => "Rose".to_string(), AccentColor::Amber => "Amber".to_string(), _ => "Blue".to_string() },
+            };
+            crate::database::add_workspace(workspace).await;
+
             match &ob.mode {
                 Some(DatabaseMode::Online) => {
+                    ls_set("theo_active_uid", &uid);
                     state.mode = DatabaseMode::Online;
                     state.config = Some(OnlineConfig {
                         congregation_uid: uid,
@@ -1025,8 +1082,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
                     state.db = Some(db);
                 }
                 _ => {
-                    // Save uid to localStorage so session can be restored on refresh
-                    ls_set("theo_offline_uid", &uid);
+                    ls_set("theo_active_uid", &uid);
                     state.mode = DatabaseMode::Offline;
                     state.db = Some(db);
                 }
@@ -1052,7 +1108,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
                 }
             } else {
                 div { class: "flex flex-col items-center gap-4",
-                    div { class: "w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" }
+                    div { class: "w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" }
                     p { class: "text-gray-600 font-medium text-center",
                         {t!("onboarding-connecting")}
                     }
@@ -1075,6 +1131,27 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
     let mut db_state = use_db();
     let mut crypto_state = use_crypto();
     let nav = use_navigator();
+    let mut selected_uid = use_signal(|| uid.clone());
+
+    let workspaces = use_resource(move || async move {
+        crate::database::get_workspaces().await
+    });
+
+    // Apply theme/accent from the selected workspace whenever selection changes.
+    use_effect(move || {
+        let uid = selected_uid.read().clone();
+        if let Some(wks) = workspaces.read().as_ref() {
+            if let Some(wk) = wks.iter().find(|w| w.uid == uid) {
+                let theme = wk.theme.clone();
+                let accent = wk.accent_color.clone();
+                let js = format!(
+                    "document.body.setAttribute('data-theme', '{}'); document.body.setAttribute('data-accent', '{}');",
+                    theme, accent
+                );
+                let _ = document::eval(&js);
+            }
+        }
+    });
 
     rsx! {
         div { class: "space-y-4",
@@ -1087,9 +1164,35 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                 }
             }
 
+            if let Some(wks) = workspaces.read().as_ref() {
+                if wks.len() > 1 {
+                    FormField { label: t!("congregation-label"),
+                        select {
+                            class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white",
+                            value: selected_uid.read().clone(),
+                            onchange: move |e| selected_uid.set(e.value()),
+                            for wk in wks.iter() {
+                                option {
+                                    value: "{wk.uid}",
+                                    selected: *selected_uid.read() == wk.uid,
+                                    {
+                                        if wk.mode == crate::database::DatabaseMode::Offline {
+                                            "💾 "
+                                        } else {
+                                            "☁️ "
+                                        }
+                                    }
+                                    "{wk.name}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             FormField { label: t!("form-password"),
                 input {
-                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500",
                     r#type: "password",
                     value: password.read().clone(),
                     oninput: move |e| password.set(e.value()),
@@ -1097,7 +1200,7 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
             }
 
             button {
-                class: "w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50",
+                class: "w-full py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors disabled:opacity-50",
                 disabled: *loading.read(),
                 onclick: move |_| {
                     if *loading.peek() {
@@ -1105,7 +1208,7 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                     }
                     loading.set(true);
                     let pass = password.peek().clone();
-                    let uid_clone = uid.clone();
+                    let uid_clone = selected_uid.peek().clone();
                     if pass.is_empty() {
                         error.set(Some(t!("error-fields-required")));
                         loading.set(false);
@@ -1113,10 +1216,17 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                     }
                     spawn(async move {
                         error.set(None);
-                        if db_state.read().db.is_none() {
+                        // Re-connect always to the selected db (if it's not the already active one)
+                        let active_cached = db_state.peek().congregation_uid.clone();
+                        let is_new = active_cached != Some(uid_clone.clone());
+
+                        if is_new || db_state.peek().db.is_none() {
                             match connect_offline(&uid_clone).await {
                                 Ok(db) => {
                                     let mut state = db_state.write();
+                                    if let Some(old) = state.db.take() {
+                                        state.leaked_dbs.push(old);
+                                    }
                                     state.db = Some(db);
                                     state.mode = DatabaseMode::Offline;
                                     state.congregation_uid = Some(uid_clone.clone());
@@ -1128,7 +1238,7 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                                 }
                             }
                         }
-                        let db = db_state.read().db.clone().unwrap();
+                        let db = db_state.peek().db.clone().unwrap();
                         let keystore_vals: Vec<serde_json::Value> = match db
                             .select("_keystore")
                             .await
@@ -1165,6 +1275,18 @@ fn ResumeSessionStep(mut step: Signal<LandingStep>, uid: String) -> Element {
                                 return;
                             }
                         };
+
+                        // We verify the password is correct manually by trying to decrypt the congregation table
+                        let mut temp_crypto = crate::crypto::SessionCrypto::default();
+                        temp_crypto.set_key(sym_key.clone());
+                        if crate::models::congregation::Congregation::all(&db, &temp_crypto)
+                            .await
+                            .is_err()
+                        {
+                            error.set(Some(t!("error-incorrect-password")));
+                            loading.set(false);
+                            return;
+                        }
                         crypto_state.write().set_key(sym_key);
                         nav.push(crate::Route::AppDashboard {});
                     });

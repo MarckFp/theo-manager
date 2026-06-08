@@ -287,3 +287,27 @@ btn-edit = Edit
 btn-cancel = Cancel
 btn-save = Save
 btn-saving = Saving...
+
+sidebar-congregation-new = New Congregation
+onboarding-congregation-accent-color = Accent Color
+accent-blue = Blue
+accent-green = Green
+accent-purple = Purple
+accent-rose = Rose
+accent-amber = Amber
+
+# User settings
+nav-user-settings = User Settings
+user-settings-title = My Preferences
+user-settings-desc = Override congregation defaults with your personal preferences. Changes apply only to your device.
+user-settings-congregation-default = Congregation default
+user-settings-reset = Reset to Congregation Defaults
+user-settings-saved = Preferences saved
+default = default
+format-12h = 12h (AM/PM)
+format-24h = 24h
+format-ymd = YYYY-MM-DD
+format-dmy = DD-MM-YYYY
+format-mdy = MM-DD-YYYY
+lang-en = English
+lang-es = Spanish

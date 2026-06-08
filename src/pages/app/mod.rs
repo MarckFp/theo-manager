@@ -13,6 +13,8 @@ pub mod territory;
 pub mod user;
 pub mod weekday_meeting;
 pub mod weekend_meeting;
+pub mod new_congregation;
+pub mod user_settings;
 
 pub use absences::AppAbsences;
 pub use attendants::AppAttendants;
@@ -29,15 +31,19 @@ pub use territory::AppTerritory;
 pub use user::AppUsers;
 pub use weekday_meeting::AppWeekdayMeeting;
 pub use weekend_meeting::AppWeekendMeeting;
+pub use new_congregation::AppNewCongregation;
+pub use user_settings::AppUserSettings;
 
 use dioxus::prelude::*;
 
 use crate::{
     Route,
     components::sidebar::{AppSidebar, SidebarCtx},
-    database::use_db,
+    database::{use_db, use_crypto},
 };
-use dioxus_i18n::t;
+use crate::models::congregation::{Congregation, Theme, AccentColor};
+use crate::pages::app::user_settings::load_prefs;
+use dioxus_i18n::{prelude::i18n, t, unic_langid::LanguageIdentifier};
 
 /// Authenticated app shell.
 ///
@@ -51,6 +57,64 @@ use dioxus_i18n::t;
 pub fn AppLayout() -> Element {
     let db = use_db();
     let nav = use_navigator();
+    let crypto = use_crypto();
+
+    let congregation = use_resource(move || async move {
+        if let Some(db_ref) = db.read().db.clone() {
+            let crypto_ref = crypto.read().clone();
+            if let Ok(congregations) = Congregation::all(&db_ref, &crypto_ref).await {
+                return congregations.into_iter().next();
+            }
+        }
+        None
+    });
+
+    // Provide the congregation resource as context so child pages can restart it.
+    use_context_provider(|| congregation);
+
+    use_effect(move || {
+        if let Some(Some(c)) = congregation.read().as_ref() {
+            let theme_str = match c.theme {
+                Theme::Dark => "dark",
+                _ => "light",
+            };
+            let accent_str = match c.accent_color {
+                AccentColor::Green => "Green",
+                AccentColor::Purple => "Purple",
+                AccentColor::Rose => "Rose",
+                AccentColor::Amber => "Amber",
+                _ => "Blue",
+            };
+            let js = format!(
+                "document.body.setAttribute('data-theme', '{}'); document.body.setAttribute('data-accent', '{}');",
+                theme_str, accent_str
+            );
+            let _ = document::eval(&js);
+        }
+    });
+
+    // Restore user prefs (theme/accent/language overrides) from localStorage.
+    {
+        let uid = db.read().congregation_uid.clone().unwrap_or_default();
+        use_effect(move || {
+            let uid = uid.clone();
+            spawn(async move {
+                let prefs = load_prefs(&uid).await;
+                // Apply theme/accent overrides.
+                crate::pages::app::user_settings::apply_prefs_to_body(
+                    &prefs,
+                    congregation.read().as_ref().and_then(|c| c.as_ref()),
+                );
+                // Apply language override.
+                let lang = prefs.language.as_deref().filter(|s| !s.is_empty());
+                if let Some(lang_str) = lang {
+                    if let Ok(lang_id) = LanguageIdentifier::from_bytes(lang_str.as_bytes()) {
+                        i18n().set_language(lang_id);
+                    }
+                }
+            });
+        });
+    }
 
     // Sidebar open state — provided as context so AppSidebar and NavItem can
     // both read/write it without prop drilling.

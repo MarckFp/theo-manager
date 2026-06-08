@@ -202,7 +202,7 @@ pub fn AppUsers() -> Element {
                     if has_more {
                         div { class: "flex justify-center pt-2",
                             button {
-                                class: "px-5 py-2 text-sm text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50 transition-colors",
+                                class: "px-5 py-2 text-sm text-primary-600 border border-primary-200 rounded-full hover:bg-primary-50 transition-colors",
                                 onclick: move |_| {
                                     let cur = *display_limit.read();
                                     display_limit.set(cur + PAGE_SIZE);
@@ -216,7 +216,7 @@ pub fn AppUsers() -> Element {
 
             // ── Floating add button ───────────────────────────────────────
             button {
-                class: "fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center text-2xl z-20 select-none",
+                class: "fixed bottom-6 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-xl hover:bg-primary-700 active:scale-95 transition-all flex items-center justify-center text-2xl z-20 select-none",
                 onclick: move |_| sheet_open.set(true),
                 "＋"
             }
@@ -245,7 +245,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
             // Name search
             input {
                 r#type: "text",
-                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400",
+                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-gray-400",
                 placeholder: t!("user-search-placeholder"),
                 value: f.name.clone(),
                 oninput: move |e| {
@@ -260,7 +260,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
                 div { class: "flex flex-col gap-1",
                     span { class: "text-xs font-medium text-gray-500", {t!("user-filter-gender")} }
                     select {
-                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                         onchange: move |e| {
                             let mut new = filters();
                             new.gender = match e.value().as_str() {
@@ -278,7 +278,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
                 div { class: "flex flex-col gap-1",
                     span { class: "text-xs font-medium text-gray-500", {t!("user-filter-type")} }
                     select {
-                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                         onchange: move |e| {
                             let mut new = filters();
                             new.user_type = match e.value().as_str() {
@@ -310,7 +310,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
                 div { class: "flex flex-col gap-1",
                     span { class: "text-xs font-medium text-gray-500", {t!("user-filter-appointment")} }
                     select {
-                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                         onchange: move |e| {
                             let mut new = filters();
                             new.appointment = match e.value().as_str() {
@@ -330,7 +330,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
                 div { class: "flex flex-col gap-1",
                     span { class: "text-xs font-medium text-gray-500", {t!("user-filter-family-head")} }
                     select {
-                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                         onchange: move |e| {
                             let mut new = filters();
                             new.family_head = match e.value().as_str() {
@@ -390,7 +390,7 @@ fn UserCard(user: User) -> Element {
 
     rsx! {
         div { class: "bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 hover:border-gray-300 transition-colors cursor-pointer",
-            div { class: "w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold text-sm shrink-0",
+            div { class: "w-10 h-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm shrink-0",
                 "{initials}"
             }
             div { class: "flex-1 min-w-0",
@@ -455,7 +455,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 }
                 input {
                     r#type: "text",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.first_name.clone(),
                     oninput: move |e| form.write().first_name = e.value(),
                 }
@@ -467,7 +467,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 }
                 input {
                     r#type: "text",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.last_name.clone(),
                     oninput: move |e| form.write().last_name = e.value(),
                 }
@@ -506,7 +506,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
         div { class: "flex flex-col gap-1",
             label { class: "text-xs font-medium text-gray-700", {t!("user-form-type")} }
             select {
-                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                 onchange: move |e| form.write().user_type = e.value(),
                 option { value: "student", {t!("user-type-student")} }
                 option { value: "publisher", {t!("user-type-publisher")} }
@@ -522,7 +522,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
             div { class: "flex flex-col gap-1",
                 label { class: "text-xs font-medium text-gray-700", {t!("user-form-appointment")} }
                 select {
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
                     onchange: move |e| form.write().appointment = e.value(),
                     option { value: "", {t!("user-appointment-none")} }
                     option { value: "elder", {t!("user-appointment-elder")} }
@@ -536,7 +536,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 label { class: "text-xs font-medium text-gray-700", {t!("user-form-birthday")} }
                 input {
                     r#type: "date",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.birthday.clone(),
                     oninput: move |e| form.write().birthday = e.value(),
                 }
@@ -545,7 +545,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 label { class: "text-xs font-medium text-gray-700", {t!("user-form-baptism-date")} }
                 input {
                     r#type: "date",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.baptism_date.clone(),
                     oninput: move |e| form.write().baptism_date = e.value(),
                 }
@@ -557,7 +557,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 label { class: "text-xs font-medium text-gray-700", {t!("user-form-phone")} }
                 input {
                     r#type: "tel",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.phone.clone(),
                     oninput: move |e| form.write().phone = e.value(),
                 }
@@ -566,7 +566,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
                 label { class: "text-xs font-medium text-gray-700", {t!("user-form-email")} }
                 input {
                     r#type: "email",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                     value: f.email.clone(),
                     oninput: move |e| form.write().email = e.value(),
                 }
@@ -577,7 +577,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
             label { class: "text-xs font-medium text-gray-700", {t!("user-form-address")} }
             input {
                 r#type: "text",
-                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                 value: f.address.clone(),
                 oninput: move |e| form.write().address = e.value(),
             }
@@ -587,7 +587,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
             label { class: "text-xs font-medium text-gray-700", {t!("user-form-password")} }
             input {
                 r#type: "password",
-                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+                class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
                 value: f.password.clone(),
                 oninput: move |e| form.write().password = e.value(),
             }
@@ -596,7 +596,7 @@ fn UserFormBody(form: Signal<UserFormState>) -> Element {
         label { class: "flex items-center gap-3 cursor-pointer py-1",
             input {
                 r#type: "checkbox",
-                class: "w-4 h-4 rounded border-gray-300 accent-blue-600",
+                class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
                 checked: f.family_head,
                 onchange: move |e| form.write().family_head = e.checked(),
             }

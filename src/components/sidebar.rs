@@ -4,7 +4,8 @@ use dioxus_primitives::{
     separator::Separator,
 };
 
-use crate::{Route, database::use_db};
+use crate::{Route, database::{use_db, get_workspaces, DatabaseMode}};
+use crate::models::congregation::Congregation;
 use dioxus_i18n::t;
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -158,12 +159,37 @@ pub fn AppSidebar() -> Element {
 ///
 /// Congregation data will be loaded from the DB in a future iteration;
 /// for now it uses a placeholder signal.
+
+
+
 #[component]
 fn CongregationSwitcher() -> Element {
-    let congregation = use_signal(|| "My Congregation".to_string());
+    let mut db_state = use_db();
+    let nav = use_navigator();
 
-    let initial = congregation
-        .read()
+    let mut workspaces = use_resource({
+        let db_state = db_state.clone();
+        move || async move {
+            let _trigger_reload = db_state.read().congregation_uid.clone();
+            get_workspaces().await
+        }
+    });
+
+    let current_uid = db_state.read().congregation_uid.clone();
+    
+    let active_name = if let Some(wks) = workspaces.read().as_ref() {
+        if let Some(uid) = current_uid.as_ref() {
+            wks.iter().find(|w| w.uid == *uid).map(|w| w.name.clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let congregation_name = active_name.unwrap_or_else(|| "My Congregation".to_string());
+
+    let initial = congregation_name
         .chars()
         .next()
         .map(|c| c.to_ascii_uppercase().to_string())
@@ -174,13 +200,13 @@ fn CongregationSwitcher() -> Element {
             DropdownMenu { class: "relative",
                 DropdownMenuTrigger { class: "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-left",
                     // Avatar / initial
-                    div { class: "flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold shrink-0",
+                    div { class: "flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600 text-white text-sm font-bold shrink-0",
                         "{initial}"
                     }
                     // Name + role
                     div { class: "flex-1 min-w-0",
                         p { class: "text-sm font-semibold text-gray-900 truncate",
-                            "{congregation}"
+                            "{congregation_name}"
                         }
                         p { class: "text-xs text-gray-500", {t!("congregation-label")} }
                     }
@@ -190,14 +216,57 @@ fn CongregationSwitcher() -> Element {
                     div { class: "px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-100",
                         {t!("switch-congregation")}
                     }
+
+                    if let Some(wks) = workspaces.read().as_ref() {
+                        for (i , wk) in wks.iter().enumerate() {
+                            DropdownMenuItem::<String> {
+                                index: i + 1,
+                                value: wk.uid.clone(),
+                                class: "w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer",
+                                on_select: {
+                                    let iter_uid = current_uid.clone();
+                                    move |value: String| {
+                                        if iter_uid.as_ref() != Some(&value) {
+                                            crate::database::ls_set("theo_active_uid", &value);
+                                            // Leak the current DB before overwriting it so panic is prevented
+                                            let mut state = db_state.write();
+                                            if let Some(old) = state.db.take() {
+                                                state.leaked_dbs.push(old);
+                                            }
+                                            let _ = document::eval("window.location.reload();");
+                                        }
+                                    }
+                                },
+                                div { class: "flex items-center gap-2 truncate",
+                                    span { class: "text-lg shrink-0",
+                                        {
+                                            if wk.mode == crate::database::DatabaseMode::Offline {
+                                                "💾 "
+                                            } else {
+                                                "☁️ "
+                                            }
+                                        }
+                                    }
+                                    span { class: "truncate font-medium text-gray-800",
+                                        "{wk.name}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Separator { class: "h-px w-full bg-gray-100 my-1" }
+
                     DropdownMenuItem::<String> {
                         index: 0usize,
                         value: "new".to_string(),
-                        // TODO: navigate to congregation creation
-                        on_select: move |_: String| {},
-                        div { class: "flex items-center gap-3 px-3 py-2 text-sm text-blue-600 font-medium",
+                        class: "w-full cursor-pointer hover:bg-gray-50 flex items-center transition-colors",
+                        on_select: move |_| {
+                            nav.push(Route::AppNewCongregation {});
+                        },
+                        div { class: "flex items-center gap-3 px-4 py-2.5 text-sm text-primary-600 font-semibold",
                             span { "＋" }
-                            span { {t!("new-congregation")} }
+                            span { {t!("sidebar-congregation-new")} }
                         }
                     }
                 }
@@ -205,24 +274,62 @@ fn CongregationSwitcher() -> Element {
         }
     }
 }
-
-// ── User / account menu ────────────────────────────────────────────────────────
-
 /// Footer dropdown with account settings and disconnect.
 #[component]
 fn UserMenu() -> Element {
     let mut db = use_db();
+    let crypto = crate::database::use_crypto();
     let nav = use_navigator();
+
+    let mut current_user = use_resource(move || async move {
+        if let Some(db_ref) = db.read().db.clone() {
+            let crypto_ref = crypto.read().clone();
+            
+            let mut eval = document::eval("
+                try { dioxus.send(localStorage.getItem('theo_my_user_id')); } 
+                catch(e) { dioxus.send(null); }
+            ");
+            let user_id_str = eval.recv::<serde_json::Value>().await.ok().and_then(|v| {
+                match v {
+                    serde_json::Value::String(val) => Some(val),
+                    _ => None,
+                }
+            });
+
+            if let Some(id_str) = user_id_str {
+                if let Ok(record_id) = surrealdb::types::RecordId::parse_simple(&id_str) {
+                    if let Ok(Some(user)) = crate::models::user::User::get(&db_ref, &crypto_ref, record_id).await {
+                        return Some(user);
+                    }
+                }
+            }
+            
+            // Fallback to first user
+            if let Ok(users) = crate::models::user::User::all(&db_ref, &crypto_ref).await {
+                return users.into_iter().next();
+            }
+        }
+        None
+    });
+
+    let (initial, name) = if let Some(Some(u)) = current_user.read().as_ref() {
+        (
+            u.first_name.chars().next().unwrap_or('?').to_uppercase().to_string(),
+            u.first_name.clone()
+        )
+    } else {
+        ("U".to_string(), t!("user-label").to_string())
+    };
 
     rsx! {
         div { class: "p-2 border-t border-gray-200",
             DropdownMenu { class: "relative",
                 DropdownMenuTrigger { class: "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-left",
                     div { class: "flex items-center justify-center w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-sm font-medium shrink-0",
-                        "U"
+                        "{initial}"
                     }
                     div { class: "flex-1 min-w-0",
-                        p { class: "text-sm font-medium text-gray-900 truncate", {t!("user-label")} }
+                        p { class: "text-sm font-medium text-gray-900 truncate", "{name}" }
                         p { class: "text-xs text-gray-500 truncate", {t!("account-settings")} }
                     }
                     span { class: "text-gray-400 text-xs shrink-0", "⌄" }
@@ -232,8 +339,9 @@ fn UserMenu() -> Element {
                     DropdownMenuItem::<String> {
                         index: 0usize,
                         value: "settings".to_string(),
-                        // TODO: navigate to settings page
-                        on_select: move |_: String| {},
+                        on_select: move |_: String| {
+                            nav.push(Route::AppUserSettings {});
+                        },
                         div { class: "flex items-center gap-3 px-3 py-2 text-sm text-gray-700",
                             span { "⚙️" }
                             span { {t!("menu-settings")} }
@@ -291,7 +399,7 @@ fn NavItem(to: Route, icon: String, label: String) -> Element {
     let is_active = current == to;
 
     let class = if is_active {
-        "flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm w-full"
+        "flex items-center gap-3 px-3 py-2 rounded-lg bg-primary-50 text-primary-700 font-semibold text-sm w-full"
     } else {
         "flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors text-sm w-full"
     };

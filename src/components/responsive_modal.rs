@@ -99,8 +99,8 @@ pub fn ResponsiveModal(
                     }
                     button {
                         class: "flex-1 lg:flex-none px-4 lg:px-5 py-2.5 lg:py-2 \
-                                text-sm bg-blue-600 text-white rounded-xl \
-                                hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium",
+                                text-sm bg-primary-600 text-white rounded-xl \
+                                hover:bg-primary-700 disabled:opacity-50 transition-colors font-medium",
                         disabled: submitting,
                         onclick: move |e| on_submit.call(e),
                         {if submitting { t!("btn-connecting") } else { t!("btn-save") }}
