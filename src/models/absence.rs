@@ -10,7 +10,7 @@ pub const TABLE: &str = "absence";
 #[surreal(crate = "surrealdb::types")]
 pub struct Absence {
     pub id: Option<RecordId>,
-    pub publisher: RecordId, // plaintext: used in DB-side queries
+    pub user: RecordId, // plaintext: used in DB-side queries
     /// ISO 8601 date string: `"2026-06-01"` — encrypted at rest
     pub start_date: String,
     pub end_date: Option<String>,
@@ -20,7 +20,7 @@ pub struct Absence {
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 #[surreal(crate = "surrealdb::types")]
 pub struct AbsenceData {
-    pub publisher: RecordId,
+    pub user: RecordId,
     pub start_date: String,
     pub end_date: Option<String>,
     pub reason: Option<String>,
@@ -29,7 +29,7 @@ pub struct AbsenceData {
 impl AbsenceData {
     pub fn encrypt(self, crypto: &SessionCrypto) -> Result<Self, CryptoError> {
         Ok(Self {
-            publisher: self.publisher,
+            user: self.user,
             start_date: crypto.encrypt(&self.start_date)?,
             end_date: self.end_date.map(|d| crypto.encrypt(&d)).transpose()?,
             reason: self.reason.map(|r| crypto.encrypt(&r)).transpose()?,
@@ -41,7 +41,7 @@ impl Absence {
     pub fn decrypt(self, crypto: &SessionCrypto) -> Result<Self, CryptoError> {
         Ok(Self {
             id: self.id,
-            publisher: self.publisher,
+            user: self.user,
             start_date: crypto.decrypt(&self.start_date)?,
             end_date: self.end_date.map(|d| crypto.decrypt(&d)).transpose()?,
             reason: self.reason.map(|r| crypto.decrypt(&r)).transpose()?,
@@ -58,14 +58,14 @@ impl Absence {
             .collect()
     }
 
-    pub async fn by_publisher(
+    pub async fn by_user(
         db: &Db,
         crypto: &SessionCrypto,
-        publisher_id: RecordId,
+        user_id: RecordId,
     ) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
         let rows: Vec<Self> = db
-            .query("SELECT * FROM absence WHERE publisher = $id ORDER BY start_date DESC")
-            .bind(("id", publisher_id))
+            .query("SELECT * FROM absence WHERE user = $id ORDER BY start_date DESC")
+            .bind(("id", user_id))
             .await?
             .take(0)?;
         // Note: ORDER BY start_date sorts on encrypted values (opaque order).
@@ -111,5 +111,31 @@ impl Absence {
 
     pub async fn delete(db: &Db, id: RecordId) -> surrealdb::Result<Option<Self>> {
         db.delete(id).await
+    }
+
+    /// Delete absences whose `end_date` is before `before_date` (ISO 8601).
+    /// Fetches all absences, decrypts, and removes those that ended before the
+    /// given date. Returns the number of records deleted.
+    pub async fn delete_expired(
+        db: &Db,
+        crypto: &SessionCrypto,
+        before_date: &str,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        let all = Self::all(db, crypto).await?;
+        let mut count = 0;
+        for absence in all {
+            let should_delete = match &absence.end_date {
+                Some(end) => end.as_str() < before_date,
+                // No end_date = ongoing, never auto-expire
+                None => false,
+            };
+            if should_delete {
+                if let Some(id) = absence.id {
+                    let _ = db.delete::<Option<Self>>(id).await;
+                    count += 1;
+                }
+            }
+        }
+        Ok(count)
     }
 }

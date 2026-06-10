@@ -212,7 +212,7 @@ fn CongregationSwitcher() -> Element {
                     }
                     span { class: "text-gray-400 text-xs shrink-0", "⌄" }
                 }
-                DropdownMenuContent { class: "absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50",
+                DropdownMenuContent { class: "absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden py-1 z-50",
                     div { class: "px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-100",
                         {t!("switch-congregation")}
                     }
@@ -335,14 +335,15 @@ fn UserMenu() -> Element {
                     span { class: "text-gray-400 text-xs shrink-0", "⌄" }
                 }
                 // Opens upward so it doesn't overflow the viewport bottom
-                DropdownMenuContent { class: "absolute left-0 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50",
+                DropdownMenuContent { class: "absolute left-0 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden py-1 z-50",
                     DropdownMenuItem::<String> {
                         index: 0usize,
                         value: "settings".to_string(),
+                        class: "w-full cursor-pointer hover:bg-gray-50 flex items-center transition-colors",
                         on_select: move |_: String| {
                             nav.push(Route::AppUserSettings {});
                         },
-                        div { class: "flex items-center gap-3 px-3 py-2 text-sm text-gray-700",
+                        div { class: "flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700",
                             span { "⚙️" }
                             span { {t!("menu-settings")} }
                         }
@@ -350,11 +351,12 @@ fn UserMenu() -> Element {
                     DropdownMenuItem::<String> {
                         index: 1usize,
                         value: "disconnect".to_string(),
+                        class: "w-full cursor-pointer hover:bg-red-50 flex items-center transition-colors",
                         on_select: move |_: String| {
                             db.write().db = None;
                             nav.push(Route::Landing {});
                         },
-                        div { class: "flex items-center gap-3 px-3 py-2 text-sm text-red-600",
+                        div { class: "flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 font-medium",
                             span { "⎋" }
                             span { {t!("menu-disconnect")} }
                         }

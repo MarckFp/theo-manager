@@ -83,7 +83,7 @@ impl FieldServiceGroup {
             .collect()
     }
 
-    /// The group a specific publisher belongs to (at most one).
+    /// The group a specific publisher belongs to (at most one) — checks `members` array only.
     pub async fn of_publisher(
         db: &Db,
         crypto: &SessionCrypto,
@@ -92,6 +92,26 @@ impl FieldServiceGroup {
         let mut rows: Vec<Self> = db
             .query("SELECT * FROM field_service_group WHERE members CONTAINS $id LIMIT 1")
             .bind(("id", publisher_id))
+            .await?
+            .take(0)?;
+        rows.pop()
+            .map(|r| r.decrypt(crypto).map_err(Into::into))
+            .transpose()
+    }
+
+    /// The group a user belongs to as overseer, assistant, or member.
+    pub async fn of_user(
+        db: &Db,
+        crypto: &SessionCrypto,
+        user_id: RecordId,
+    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        let mut rows: Vec<Self> = db
+            .query(
+                "SELECT * FROM field_service_group \
+                 WHERE (members CONTAINS $id OR overseer = $id OR assistant = $id) \
+                 LIMIT 1",
+            )
+            .bind(("id", user_id))
             .await?
             .take(0)?;
         rows.pop()

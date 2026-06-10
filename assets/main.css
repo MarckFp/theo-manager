@@ -12,7 +12,7 @@ body[data-theme="dark"] {
 
 body[data-theme="dark"] * { border-color: var(--color-surface-700); }
 body[data-theme="dark"] .bg-white { background-color: var(--color-surface-800) !important; }
-body[data-theme="dark"] .bg-gray-50 { background-color: var(--color-surface-900) !important; }
+body[data-theme="dark"] .bg-gray-50 { background-color: var(--color-surface-900) !important; background-image: none !important; }
 
 body[data-theme="dark"] .text-gray-900 { color: var(--color-surface-50) !important; }
 body[data-theme="dark"] .text-gray-800 { color: var(--color-surface-100) !important; }

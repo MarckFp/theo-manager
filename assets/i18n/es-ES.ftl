@@ -355,3 +355,70 @@ report-not-submitted = No enviado
 report-add-btn = Añadir
 report-delete-title = Eliminar informe
 report-delete-confirm = ¿Estás seguro de que quieres eliminar este informe de servicio?
+report-form-not-preached = No predicó
+
+# Nombres de meses (completos)
+month-1 = Enero
+month-2 = Febrero
+month-3 = Marzo
+month-4 = Abril
+month-5 = Mayo
+month-6 = Junio
+month-7 = Julio
+month-8 = Agosto
+month-9 = Septiembre
+month-10 = Octubre
+month-11 = Noviembre
+month-12 = Diciembre
+
+# Filtro de actividad
+user-filter-activity = Actividad
+user-filter-active-only = Solo activos
+user-filter-inactive-only = Solo inactivos
+
+# Ausencias
+absence-loading = Cargando…
+absence-load-more = Cargar más
+absence-badge-ongoing = En curso
+absence-filter-search-placeholder = Buscar por nombre…
+absence-filter-month = Mes
+absence-filter-year = Año
+absence-filter-status = Estado
+absence-filter-ongoing = Solo en curso
+absence-form-title-add = Registrar ausencia
+absence-form-title-edit = Editar ausencia
+absence-form-user = Usuario
+absence-form-select-user = Selecciona un usuario…
+absence-form-start-date = Fecha de inicio
+absence-form-end-date = Fecha de fin (opcional)
+absence-form-reason = Motivo
+absence-form-reason-placeholder = Motivo o notas opcionales…
+absence-form-whole-congregation = Aplicar a toda la congregación
+absence-form-required-error = Por favor, completa todos los campos obligatorios.
+absence-form-date-order-error = La fecha de fin debe ser posterior a la de inicio.
+absence-delete-title = Eliminar ausencia
+absence-delete-confirm = ¿Estás seguro de que quieres eliminar esta ausencia?
+
+# Grupos de servicio del campo
+group-loading = Cargando grupos…
+group-role-overseer = Supervisor
+group-role-assistant = Asistente
+group-members-count = Miembros
+group-delete-title = Eliminar grupo
+group-delete-confirm = ¿Estás seguro de que quieres eliminar este grupo? Los miembros no serán eliminados.
+group-form-title-add = Nuevo grupo
+group-form-desc-add = Crea un nuevo grupo de servicio del campo.
+group-form-title-edit = Editar grupo
+group-form-desc-edit = Actualiza los datos del grupo.
+group-form-name = Nombre del grupo
+group-form-overseer = Supervisor
+group-form-assistant = Asistente
+group-form-members = Miembros
+group-form-none = — Ninguno —
+group-form-no-eligible = No se encontraron publicadores elegibles.
+group-form-required-error = El nombre del grupo es obligatorio.
+group-form-no-congregation = No se encontró una congregación activa.
+user-filter-group = Grupo
+user-filter-no-group = Sin grupo
+user-detail-group = Grupo de servicio del campo
+user-detail-no-group = Sin grupo

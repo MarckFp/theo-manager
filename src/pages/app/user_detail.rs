@@ -6,12 +6,13 @@ use crate::components::ResponsiveModal;
 use crate::database::{use_crypto, use_db};
 use crate::models::congregation::{Congregation, DateFormat, NameFormat};
 use crate::models::emergency_contact::{EmergencyContact, EmergencyContactData};
+use crate::models::field_service_group::FieldServiceGroup;
 use crate::models::field_service_report::{FieldServiceReport, FieldServiceReportData};
 use crate::models::user::{Appointment, Gender, User, UserData, UserType};
 use crate::pages::app::user::{
     appointment_to_key, date_format_hint, effective_date_format, effective_name_format,
-    format_date, format_name, key_to_user_type, user_form_state_from, user_type_to_key,
-    UserFormBody, UserFormState,
+    format_date, format_name, is_publisher_type, key_to_user_type, user_form_state_from,
+    user_type_to_key, UserFormBody, UserFormState,
 };
 use crate::Route;
 
@@ -28,10 +29,9 @@ fn current_year_month() -> (i32, u8) {
     (2026, 6)
 }
 
-/// Last 12 calendar months (inclusive of current), oldest → newest.
+/// Last 12 calendar months (inclusive of current), newest → oldest.
 fn last_12_months(now_year: i32, now_month: u8) -> Vec<(i32, u8)> {
     (0..12u32)
-        .rev()
         .map(|i| {
             let total = (now_year as u32 * 12 + now_month as u32 - 1).saturating_sub(i);
             let y = (total / 12) as i32;
@@ -105,6 +105,7 @@ struct ReportFormState {
     bible_studies: String,
     hours: String,
     auxiliary_pioneer: bool,
+    not_preached: bool,
     notes: String,
     submitting: bool,
     error: Option<String>,
@@ -119,6 +120,7 @@ impl ReportFormState {
             bible_studies: r.bible_studies.map(|v| v.to_string()).unwrap_or_default(),
             hours: r.hours.map(|v| v.to_string()).unwrap_or_default(),
             auxiliary_pioneer: r.auxiliary_pioneer,
+            not_preached: r.not_preached,
             notes: r.notes.clone().unwrap_or_default(),
             ..Default::default()
         }
@@ -143,8 +145,9 @@ pub fn AppUserDetail(id: String) -> Element {
         use_effect(move || {
             let uid = uid.clone();
             let cong_snap = congregation_res.read().clone();
+            let db_opt = db_signal.read().db.clone();
             spawn(async move {
-                let prefs = crate::pages::app::user_settings::load_prefs(&uid).await;
+                let prefs = crate::pages::app::user_settings::load_prefs(&uid, db_opt).await;
                 let cong_ref = cong_snap.as_ref().and_then(|o| o.as_ref());
                 name_fmt.set(effective_name_format(
                     cong_ref,
@@ -202,6 +205,19 @@ pub fn AppUserDetail(id: String) -> Element {
                 FieldServiceReport::by_publisher(&db, &crypto, rid)
                     .await
                     .unwrap_or_default()
+            }
+        })
+    };
+
+    // Group this user belongs to (as overseer, assistant, or member)
+    let group_res = {
+        let rid = record_id.clone();
+        use_resource(move || {
+            let rid = rid.clone();
+            async move {
+                let Some(db) = db_signal.read().db.clone() else { return None };
+                let crypto = crypto_signal.read().clone();
+                FieldServiceGroup::of_user(&db, &crypto, rid).await.ok().flatten()
             }
         })
     };
@@ -302,6 +318,23 @@ pub fn AppUserDetail(id: String) -> Element {
     let contacts: Vec<EmergencyContact> = contacts_res().unwrap_or_default();
     let reports: Vec<FieldServiceReport> = reports_res().unwrap_or_default();
 
+    // Compute active/inactive from reports for publisher-type users.
+    let (cy, cm) = current_year_month();
+    let (since_year, since_month) = if cm > 6 {
+        (cy, cm - 6)
+    } else {
+        (cy - 1, cm + 6)
+    };
+    let computed_active: Option<bool> = if is_publisher_type(&user.user_type) {
+        let active = reports.iter().any(|r| {
+            !r.not_preached
+                && (r.year > since_year || (r.year == since_year && r.month >= since_month))
+        });
+        Some(active)
+    } else {
+        None
+    };
+
     let user_rid = record_id.clone();
 
     rsx! {
@@ -338,13 +371,15 @@ pub fn AppUserDetail(id: String) -> Element {
                                     "{a}"
                                 }
                             }
-                            if user.active {
-                                span { class: "inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700",
-                                    {t!("user-badge-active")}
-                                }
-                            } else {
-                                span { class: "inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500",
-                                    {t!("user-badge-inactive")}
+                            if let Some(active) = computed_active {
+                                if active {
+                                    span { class: "inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-600 text-white",
+                                        {t!("user-badge-active")}
+                                    }
+                                } else {
+                                    span { class: "inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-400 text-white",
+                                        {t!("user-badge-inactive")}
+                                    }
                                 }
                             }
                             if user.family_head {
@@ -389,6 +424,15 @@ pub fn AppUserDetail(id: String) -> Element {
                     DetailRow {
                         label: t!("user-form-family-head"),
                         value: if user.family_head { t!("user-yes") } else { t!("user-no") },
+                    }
+                    {
+                        let group_name = group_res()
+                            .flatten()
+                            .map(|g| g.name.clone())
+                            .unwrap_or_else(|| t!("user-detail-no-group"));
+                        rsx! {
+                            DetailRow { label: t!("user-detail-group"), value: group_name }
+                        }
                     }
                 }
                 // Contact info
@@ -463,7 +507,7 @@ pub fn AppUserDetail(id: String) -> Element {
                         {t!("user-detail-reports-title")}
                     }
                 }
-                div { class: "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100",
+                div { class: "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 divide-y divide-gray-100",
                     for (year , month) in months.iter().copied() {
                         {
                             let existing = reports
@@ -1121,6 +1165,16 @@ fn ReportFormBody(form: Signal<ReportFormState>) -> Element {
             }
             span { class: "text-sm text-gray-700", {t!("report-form-aux-pioneer")} }
         }
+        // Did not preach
+        label { class: "flex items-center gap-3 cursor-pointer py-1",
+            input {
+                r#type: "checkbox",
+                class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
+                checked: f.not_preached,
+                onchange: move |e| form.write().not_preached = e.checked(),
+            }
+            span { class: "text-sm text-gray-700", {t!("report-form-not-preached")} }
+        }
         // Notes
         div { class: "flex flex-col gap-1",
             label { class: "text-xs font-medium text-gray-700", {t!("report-form-notes")} }
@@ -1176,6 +1230,7 @@ fn ReportFormModal(
             bible_studies: fd.bible_studies.trim().parse().ok(),
             hours: fd.hours.trim().parse().ok(),
             auxiliary_pioneer: fd.auxiliary_pioneer,
+            not_preached: fd.not_preached,
             notes: (!fd.notes.trim().is_empty()).then(|| fd.notes.trim().to_string()),
         };
         let eid = existing_id.clone();

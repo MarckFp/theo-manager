@@ -114,7 +114,7 @@ pub fn Landing() -> Element {
     }
 
     rsx! {
-        div { class: "min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex items-center justify-center p-4",
+        div { class: "min-h-screen bg-gray-50 bg-gradient-to-br from-slate-50 to-primary-50 flex items-center justify-center p-4",
             div { class: "w-full max-w-md",
                 div { class: "text-center mb-8",
                     h1 { class: "text-3xl font-bold text-gray-900", {t!("app-name")} }

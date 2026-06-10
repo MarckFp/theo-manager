@@ -4,6 +4,8 @@ use dioxus_i18n::t;
 use crate::components::ResponsiveModal;
 use crate::database::{use_crypto, use_db};
 use crate::models::congregation::{Congregation, DateFormat, NameFormat};
+use crate::models::field_service_group::FieldServiceGroup;
+use crate::models::field_service_report::FieldServiceReport;
 use crate::models::user::{Appointment, Gender, User, UserData, UserType};
 use crate::Route;
 
@@ -63,6 +65,20 @@ pub fn date_format_hint(fmt: &DateFormat) -> &'static str {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn current_year_month() -> (i32, u8) {
+    let d = js_sys::Date::new_0();
+    (d.get_full_year() as i32, (d.get_month() + 1) as u8)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn current_year_month() -> (i32, u8) { (2026, 6) }
+
+/// Returns true if this user type should show an Active/Inactive badge.
+pub fn is_publisher_type(t: &UserType) -> bool {
+    !matches!(t, UserType::Student)
+}
+
 const PAGE_SIZE: usize = 20;
 
 // ── Accent/case-insensitive normalisation ─────────────────────────────────────
@@ -82,6 +98,18 @@ fn normalize(s: &str) -> String {
         .collect()
 }
 
+fn rid_to_str(id: &surrealdb::types::RecordId) -> String {
+    format!(
+        "{}:{}",
+        id.table,
+        match &id.key {
+            surrealdb::types::RecordIdKey::String(k) => k.clone(),
+            surrealdb::types::RecordIdKey::Number(n) => n.to_string(),
+            _ => String::new(),
+        }
+    )
+}
+
 // ── Filter state ──────────────────────────────────────────────────────────────
 
 #[derive(Clone, PartialEq, Default)]
@@ -94,12 +122,30 @@ enum AppointmentFilter {
 }
 
 #[derive(Clone, PartialEq, Default)]
+enum ActivityFilter {
+    #[default]
+    All,
+    Active,
+    Inactive,
+}
+
+#[derive(Clone, PartialEq, Default)]
+enum GroupFilter {
+    #[default]
+    All,
+    NoGroup,
+    InGroup(String), // group record id str, e.g. "field_service_group:KEY"
+}
+
+#[derive(Clone, PartialEq, Default)]
 struct Filters {
     name: String,
     gender: Option<Gender>,
     user_type: Option<UserType>,
     appointment: AppointmentFilter,
     family_head: Option<bool>,
+    activity: ActivityFilter,
+    group_filter: GroupFilter,
 }
 
 // ── Form state ────────────────────────────────────────────────────────────────
@@ -202,8 +248,9 @@ pub fn AppUsers() -> Element {
         use_effect(move || {
             let uid = uid.clone();
             let cong_snap = congregation_res.read().clone();
+            let db_opt = db_state.read().db.clone();
             spawn(async move {
-                let prefs = crate::pages::app::user_settings::load_prefs(&uid).await;
+                let prefs = crate::pages::app::user_settings::load_prefs(&uid, db_opt).await;
                 let cong_ref = cong_snap.as_ref().and_then(|o| o.as_ref());
                 name_fmt.set(effective_name_format(cong_ref, prefs.name_format.as_deref().unwrap_or("")));
                 date_fmt.set(effective_date_format(cong_ref, prefs.date_format.as_deref().unwrap_or("")));
@@ -226,11 +273,37 @@ pub fn AppUsers() -> Element {
         }
     });
 
+    // Load active publisher IDs (reports in last 6 months, not flagged not_preached).
+    let (cur_year, cur_month) = current_year_month();
+    let (since_year, since_month) = if cur_month > 6 {
+        (cur_year, cur_month - 6)
+    } else {
+        (cur_year - 1, cur_month + 6)
+    };
+    let mut active_ids_res = use_resource(move || async move {
+        let Some(db) = db_signal.read().db.clone() else {
+            return std::collections::HashSet::new();
+        };
+        FieldServiceReport::active_publisher_ids(&db, since_year, since_month)
+            .await
+            .unwrap_or_default()
+    });
+
+    let mut groups_res = use_resource(move || async move {
+        let Some(db) = db_signal.read().db.clone() else {
+            return vec![];
+        };
+        let crypto = crypto_signal.read().clone();
+        FieldServiceGroup::all(&db, &crypto).await.unwrap_or_default()
+    });
+
     let mut restarted = use_signal(|| false);
     use_effect(move || {
         if *restarted.peek() { return; }
         restarted.set(true);
         users.restart();
+        active_ids_res.restart();
+        groups_res.restart();
     });
 
     let mut filters = use_signal(Filters::default);
@@ -239,58 +312,107 @@ pub fn AppUsers() -> Element {
 
     let filtered = use_memo(move || {
         let all = users().unwrap_or_default();
+        let active_ids = active_ids_res().unwrap_or_default();
+        let groups = groups_res().unwrap_or_default();
         let f = filters();
         let norm = normalize(&f.name);
 
-        let mut result: Vec<User> = all
+        // Build map: user_id_str -> (group_id_str, group_name)
+        let mut user_group_map: std::collections::HashMap<String, (String, String)> =
+            std::collections::HashMap::new();
+        for group in &groups {
+            let gid = group.id.as_ref().map(rid_to_str).unwrap_or_default();
+            let gname = group.name.clone();
+            for rid in &group.members {
+                user_group_map
+                    .entry(rid_to_str(rid))
+                    .or_insert_with(|| (gid.clone(), gname.clone()));
+            }
+            if let Some(rid) = &group.overseer {
+                user_group_map
+                    .entry(rid_to_str(rid))
+                    .or_insert_with(|| (gid.clone(), gname.clone()));
+            }
+            if let Some(rid) = &group.assistant {
+                user_group_map
+                    .entry(rid_to_str(rid))
+                    .or_insert_with(|| (gid.clone(), gname.clone()));
+            }
+        }
+
+        let mut result: Vec<(User, Option<bool>, Option<String>)> = all
             .into_iter()
             .filter(|p| {
                 if !norm.is_empty() {
                     let full = normalize(&format!("{} {}", p.first_name, p.last_name));
-                    if !full.contains(&norm) {
-                        return false;
-                    }
+                    if !full.contains(&norm) { return false; }
                 }
                 if let Some(g) = &f.gender {
-                    if &p.gender != g {
-                        return false;
-                    }
+                    if &p.gender != g { return false; }
                 }
                 if let Some(c) = &f.user_type {
-                    if &p.user_type != c {
-                        return false;
-                    }
+                    if &p.user_type != c { return false; }
                 }
                 match &f.appointment {
                     AppointmentFilter::All => {}
                     AppointmentFilter::WithoutAppointment => {
-                        if p.appointment.is_some() {
-                            return false;
-                        }
+                        if p.appointment.is_some() { return false; }
                     }
                     AppointmentFilter::Elder => {
-                        if !matches!(p.appointment, Some(Appointment::Elder)) {
-                            return false;
-                        }
+                        if !matches!(p.appointment, Some(Appointment::Elder)) { return false; }
                     }
                     AppointmentFilter::MinisterialServant => {
-                        if !matches!(p.appointment, Some(Appointment::MinisterialServant)) {
-                            return false;
-                        }
+                        if !matches!(p.appointment, Some(Appointment::MinisterialServant)) { return false; }
                     }
                 }
                 if let Some(fh) = f.family_head {
-                    if p.family_head != fh {
-                        return false;
+                    if p.family_head != fh { return false; }
+                }
+                // Activity filter only applies to publisher-type users.
+                if is_publisher_type(&p.user_type) {
+                    let uid_str = p.id.as_ref().map(rid_to_str).unwrap_or_default();
+                    let is_act = active_ids.contains(&uid_str);
+                    match f.activity {
+                        ActivityFilter::Active => { if !is_act { return false; } }
+                        ActivityFilter::Inactive => { if is_act { return false; } }
+                        ActivityFilter::All => {}
+                    }
+                } else if !matches!(f.activity, ActivityFilter::All) {
+                    return false;
+                }
+                // Group filter
+                let uid_str = p.id.as_ref().map(rid_to_str).unwrap_or_default();
+                match &f.group_filter {
+                    GroupFilter::All => {}
+                    GroupFilter::NoGroup => {
+                        if user_group_map.contains_key(&uid_str) { return false; }
+                    }
+                    GroupFilter::InGroup(gid) => {
+                        match user_group_map.get(&uid_str) {
+                            Some((user_gid, _)) => {
+                                if user_gid != gid { return false; }
+                            }
+                            None => return false,
+                        }
                     }
                 }
                 true
             })
+            .map(|p| {
+                let uid_str = p.id.as_ref().map(rid_to_str).unwrap_or_default();
+                let activity = if is_publisher_type(&p.user_type) {
+                    Some(active_ids.contains(&uid_str))
+                } else {
+                    None
+                };
+                let group_name = user_group_map.get(&uid_str).map(|(_, n)| n.clone());
+                (p, activity, group_name)
+            })
             .collect();
 
         result.sort_by(|a, b| {
-            let ka = normalize(&format!("{} {}", a.last_name, a.first_name));
-            let kb = normalize(&format!("{} {}", b.last_name, b.first_name));
+            let ka = normalize(&format!("{} {}", a.0.last_name, a.0.first_name));
+            let kb = normalize(&format!("{} {}", b.0.last_name, b.0.first_name));
             ka.cmp(&kb)
         });
         result
@@ -299,14 +421,22 @@ pub fn AppUsers() -> Element {
     let is_loading = users.read().is_none();
     let total = filtered.read().len();
     let limit = *display_limit.read();
-    let shown: Vec<User> = filtered.read()[..limit.min(total)].to_vec();
+    let shown: Vec<(User, Option<bool>, Option<String>)> = filtered.read()[..limit.min(total)].to_vec();
     let has_more = limit < total;
+
+    // Build group options for the group filter dropdown: (id_str, name)
+    let group_opts: Vec<(String, String)> = groups_res()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|g| g.id.as_ref().map(|id| (rid_to_str(id), g.name.clone())))
+        .collect();
 
     rsx! {
         div { class: "relative w-full space-y-4 pb-24",
             // ── Filter card ───────────────────────────────────────────────
             FilterCard {
                 filters,
+                group_options: group_opts,
                 on_filters_change: move |f: Filters| {
                     filters.set(f);
                     display_limit.set(PAGE_SIZE);
@@ -322,8 +452,13 @@ pub fn AppUsers() -> Element {
                 EmptyUsers {}
             } else {
                 div { class: "space-y-2",
-                    for p in shown {
-                        UserCard { user: p, name_fmt: name_fmt.read().clone() }
+                    for (p , is_active , group_name) in shown {
+                        UserCard {
+                            user: p,
+                            name_fmt: name_fmt.read().clone(),
+                            is_active,
+                            group_name,
+                        }
                     }
                     if has_more {
                         div { class: "flex justify-center pt-2",
@@ -364,7 +499,11 @@ pub fn AppUsers() -> Element {
 // ── Filter card ───────────────────────────────────────────────────────────────
 
 #[component]
-fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) -> Element {
+fn FilterCard(
+    filters: Signal<Filters>,
+    group_options: Vec<(String, String)>,
+    on_filters_change: Callback<Filters>,
+) -> Element {
     let f = filters();
 
     rsx! {
@@ -473,6 +612,34 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
                     }
                 }
             }
+
+            // Group filter
+            div { class: "flex flex-col gap-1",
+                span { class: "text-xs font-medium text-gray-500", {t!("user-filter-group")} }
+                select {
+                    class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
+                    onchange: move |e| {
+                        let mut new = filters();
+                        new.group_filter = match e.value().as_str() {
+                            "none" => GroupFilter::NoGroup,
+                            v if !v.is_empty() => GroupFilter::InGroup(v.to_string()),
+                            _ => GroupFilter::All,
+                        };
+                        on_filters_change.call(new);
+                    },
+                    option { value: "", {t!("user-filter-all")} }
+                    option { value: "none", {t!("user-filter-no-group")} }
+                    for (gid , gname) in group_options.iter() {
+                        {
+                            let gid = gid.clone();
+                            let gname = gname.clone();
+                            rsx! {
+                                option { value: "{gid}", "{gname}" }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -480,7 +647,7 @@ fn FilterCard(filters: Signal<Filters>, on_filters_change: Callback<Filters>) ->
 // ── User card ────────────────────────────────────────────────────────────
 
 #[component]
-fn UserCard(user: User, name_fmt: NameFormat) -> Element {
+fn UserCard(user: User, name_fmt: NameFormat, is_active: Option<bool>, group_name: Option<String>) -> Element {
     let nav = use_navigator();
     let id_str = user
         .id
@@ -536,15 +703,33 @@ fn UserCard(user: User, name_fmt: NameFormat) -> Element {
                     span { class: "text-gray-400 text-xs shrink-0", "{gender_icon}" }
                 }
                 div { class: "flex items-center gap-1.5 mt-0.5 flex-wrap",
-                    span { class: "text-xs text-gray-500", "{category_label}" }
+                    span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700",
+                        "{category_label}"
+                    }
                     if let Some(a) = appt {
                         span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800",
                             "{a}"
                         }
                     }
                     if user.family_head {
-                        span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700",
+                        span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-purple-600 text-white",
                             {t!("user-family-head-badge")}
+                        }
+                    }
+                    if let Some(active) = is_active {
+                        if active {
+                            span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-600 text-white",
+                                {t!("user-badge-active")}
+                            }
+                        } else {
+                            span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-gray-400 text-white",
+                                {t!("user-badge-inactive")}
+                            }
+                        }
+                    }
+                    if let Some(gname) = &group_name {
+                        span { class: "inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800",
+                            "{gname}"
                         }
                     }
                 }

@@ -39,6 +39,8 @@ pub enum Route {
         // Users section
         #[route("/app/users")]
         AppUsers {},
+        #[route("/app/user/settings")]
+        AppUserSettings {},
         #[route("/app/user/:id")]
         AppUserDetail { id: String },
         #[route("/app/field-service-reports")]
@@ -76,9 +78,6 @@ pub enum Route {
         
         #[route("/app/congregation/new")]
         AppNewCongregation {},
-
-        #[route("/app/user/settings")]
-        AppUserSettings {},
     #[end_layout]
 
     // ── Catch-all 404 ──────────────────────────────────────────────────────

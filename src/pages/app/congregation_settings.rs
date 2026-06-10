@@ -136,7 +136,7 @@ pub fn AppCongregationSettings() -> Element {
                             }
                         }
                         if let Some(msg) = success.read().clone() {
-                            div { class: "bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm",
+                            div { class: "bg-green-600 text-white rounded-lg p-3 text-sm font-medium",
                                 "{msg}"
                             }
                         }
@@ -424,7 +424,7 @@ pub fn AppCongregationSettings() -> Element {
                                 }
                             }
                             if let Some(msg) = password_success.read().clone() {
-                                div { class: "bg-white/80 border border-green-300 rounded-lg p-3 text-green-700 text-sm font-medium",
+                                div { class: "bg-green-600 text-white rounded-lg p-3 text-sm font-medium",
                                     "{msg}"
                                 }
                             }
@@ -602,7 +602,7 @@ pub fn AppCongregationSettings() -> Element {
                                         }
                                         for a in absences {
                                             let data = AbsenceData {
-                                                publisher: a.publisher,
+                                                user: a.user,
                                                 start_date: a.start_date,
                                                 end_date: a.end_date,
                                                 reason: a.reason,
@@ -659,15 +659,15 @@ pub fn AppCongregationSettings() -> Element {
                                                         let json_str = serde_json::to_string(&json).unwrap();
                                                         let mut eval = document::eval(
                                                             "
-                                                                                                                                                                                                                                                                                                                            let data = await dioxus.recv();
-                                                                                                                                                                                                                                                                                                                            const blob = new Blob([data], { type: 'application/json' });
-                                                                                                                                                                                                                                                                                                                            const url = URL.createObjectURL(blob);
-                                                                                                                                                                                                                                                                                                                            const a = document.createElement('a');
-                                                                                                                                                                                                                                                                                                                            a.href = url;
-                                                                                                                                                                                                                                                                                                                            a.download = 'theo-manager-export.json';
-                                                                                                                                                                                                                                                                                                                            a.click();
-                                                                                                                                                                                                                                                                                                                            URL.revokeObjectURL(url);
-                                                                                                                                                                                                                                                                                                                        ",
+                                                                                                                                                                                                                                                                                                                                                                                            let data = await dioxus.recv();
+                                                                                                                                                                                                                                                                                                                                                                                            const blob = new Blob([data], { type: 'application/json' });
+                                                                                                                                                                                                                                                                                                                                                                                            const url = URL.createObjectURL(blob);
+                                                                                                                                                                                                                                                                                                                                                                                            const a = document.createElement('a');
+                                                                                                                                                                                                                                                                                                                                                                                            a.href = url;
+                                                                                                                                                                                                                                                                                                                                                                                            a.download = 'theo-manager-export.json';
+                                                                                                                                                                                                                                                                                                                                                                                            a.click();
+                                                                                                                                                                                                                                                                                                                                                                                            URL.revokeObjectURL(url);
+                                                                                                                                                                                                                                                                                                                                                                                        ",
                                                         );
                                                         eval.send(json_str).unwrap();
                                                     }
@@ -737,8 +737,8 @@ pub fn AppCongregationSettings() -> Element {
                                         }
                                         let confirmed = document::eval(
                                             "
-                                                                                                                                                                                                                                                                                                            dioxus.send(confirm('Are you sure you want to delete all data? This cannot be undone.'));
-                                                                                                                                                                                                                                                                                                        ",
+                                                                                                                                                                                                                                                                                                                                                                            dioxus.send(confirm('Are you sure you want to delete all data? This cannot be undone.'));
+                                                                                                                                                                                                                                                                                                                                                                        ",
                                         );
                                         let db_opt = db_signal.read().db.clone();
                                         spawn(async move {

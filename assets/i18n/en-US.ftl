@@ -355,3 +355,70 @@ report-not-submitted = Not submitted
 report-add-btn = Add
 report-delete-title = Delete Report
 report-delete-confirm = Are you sure you want to delete this service report?
+report-form-not-preached = Did not preach
+
+# Month names (full)
+month-1 = January
+month-2 = February
+month-3 = March
+month-4 = April
+month-5 = May
+month-6 = June
+month-7 = July
+month-8 = August
+month-9 = September
+month-10 = October
+month-11 = November
+month-12 = December
+
+# User activity filter
+user-filter-activity = Activity
+user-filter-active-only = Active only
+user-filter-inactive-only = Inactive only
+
+# Absences
+absence-loading = Loading…
+absence-load-more = Load more
+absence-badge-ongoing = Ongoing
+absence-filter-search-placeholder = Search by name…
+absence-filter-month = Month
+absence-filter-year = Year
+absence-filter-status = Status
+absence-filter-ongoing = Ongoing only
+absence-form-title-add = Record Absence
+absence-form-title-edit = Edit Absence
+absence-form-user = User
+absence-form-select-user = Select a user…
+absence-form-start-date = Start Date
+absence-form-end-date = End Date (optional)
+absence-form-reason = Reason
+absence-form-reason-placeholder = Optional reason or notes…
+absence-form-whole-congregation = Apply to whole congregation
+absence-form-required-error = Please fill in all required fields.
+absence-form-date-order-error = End date must be after start date.
+absence-delete-title = Delete Absence
+absence-delete-confirm = Are you sure you want to delete this absence?
+
+# Field service groups
+group-loading = Loading groups…
+group-role-overseer = Overseer
+group-role-assistant = Assistant
+group-members-count = Members
+group-delete-title = Delete Group
+group-delete-confirm = Are you sure you want to delete this group? Members will not be deleted.
+group-form-title-add = New Group
+group-form-desc-add = Create a new field service group.
+group-form-title-edit = Edit Group
+group-form-desc-edit = Update the group details.
+group-form-name = Group Name
+group-form-overseer = Overseer
+group-form-assistant = Assistant
+group-form-members = Members
+group-form-none = — None —
+group-form-no-eligible = No eligible publishers found.
+group-form-required-error = Group name is required.
+group-form-no-congregation = No active congregation found.
+user-filter-group = Group
+user-filter-no-group = No Group
+user-detail-group = Field Service Group
+user-detail-no-group = No Group

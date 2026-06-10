@@ -3,8 +3,9 @@ use dioxus_i18n::{prelude::i18n, t, unic_langid::LanguageIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::components::ThemePreview;
-use crate::database::{use_db, ls_get, ls_set};
+use crate::database::{use_db, ls_get, ls_set, Db};
 use crate::models::congregation::{AccentColor, Congregation, DateFormat, NameFormat, Theme, TimeFormat};
+use crate::models::user_prefs::{self as prefs_model, UserPrefsData};
 
 // ── Persisted user prefs ──────────────────────────────────────────────────────
 
@@ -30,7 +31,47 @@ pub fn prefs_storage_key(uid: &str) -> String {
     format!("theo_user_prefs_{}", uid)
 }
 
-pub async fn load_prefs(uid: &str) -> UserPrefs {
+/// Load prefs: DB-first (so changes sync across devices), localStorage fallback.
+/// On first DB load when localStorage has data, migrates it to the DB.
+pub async fn load_prefs(uid: &str, db: Option<Db>) -> UserPrefs {
+    if let Some(ref db_ref) = db {
+        match prefs_model::get(db_ref).await {
+            Ok(Some(rec)) => {
+                let prefs = UserPrefs {
+                    theme: rec.theme,
+                    accent_color: rec.accent_color,
+                    name_format: rec.name_format,
+                    date_format: rec.date_format,
+                    time_format: rec.time_format,
+                    language: rec.language,
+                };
+                // Keep localStorage in sync as a fast-load cache.
+                save_prefs_local(uid, &prefs);
+                return prefs;
+            }
+            Ok(None) => {
+                // No DB record yet — migrate from localStorage if present.
+                let local = load_prefs_local(uid).await;
+                if local != UserPrefs::default() {
+                    let data = UserPrefsData {
+                        theme: local.theme.clone(),
+                        accent_color: local.accent_color.clone(),
+                        name_format: local.name_format.clone(),
+                        date_format: local.date_format.clone(),
+                        time_format: local.time_format.clone(),
+                        language: local.language.clone(),
+                    };
+                    let _ = prefs_model::upsert(db_ref, &data).await;
+                }
+                return local;
+            }
+            Err(_) => { /* fall through to localStorage */ }
+        }
+    }
+    load_prefs_local(uid).await
+}
+
+async fn load_prefs_local(uid: &str) -> UserPrefs {
     let key = prefs_storage_key(uid);
     if let Some(json) = ls_get(&key).await {
         serde_json::from_str(&json).unwrap_or_default()
@@ -39,7 +80,25 @@ pub async fn load_prefs(uid: &str) -> UserPrefs {
     }
 }
 
-pub fn save_prefs(uid: &str, prefs: &UserPrefs) {
+/// Write to localStorage immediately, then persist to DB in the background.
+pub fn save_prefs(uid: &str, prefs: &UserPrefs, db: Option<Db>) {
+    save_prefs_local(uid, prefs);
+    if let Some(db_ref) = db {
+        let data = UserPrefsData {
+            theme: prefs.theme.clone(),
+            accent_color: prefs.accent_color.clone(),
+            name_format: prefs.name_format.clone(),
+            date_format: prefs.date_format.clone(),
+            time_format: prefs.time_format.clone(),
+            language: prefs.language.clone(),
+        };
+        spawn(async move {
+            let _ = prefs_model::upsert(&db_ref, &data).await;
+        });
+    }
+}
+
+pub fn save_prefs_local(uid: &str, prefs: &UserPrefs) {
     let key = prefs_storage_key(uid);
     if let Ok(json) = serde_json::to_string(prefs) {
         ls_set(&key, &json);
@@ -120,8 +179,9 @@ pub fn AppUserSettings() -> Element {
         let uid = uid.clone();
         use_effect(move || {
             let uid = uid.clone();
+            let db_opt = db_state.read().db.clone();
             spawn(async move {
-                let prefs = load_prefs(&uid).await;
+                let prefs = load_prefs(&uid, db_opt).await;
                 pref_theme.set(prefs.theme.unwrap_or_default());
                 pref_accent.set(prefs.accent_color.unwrap_or_default());
                 pref_name_format.set(prefs.name_format.unwrap_or_default());
@@ -132,15 +192,26 @@ pub fn AppUserSettings() -> Element {
         });
     }
 
-    // Derive the congregation's own values for display as "(Congregation default)" labels.
+    // Derive the congregation's own values for display as "(default)" labels.
     let cong = congregation_res.read();
     let cong_ref = cong.as_ref().and_then(|c| c.as_ref());
 
+    let cong_theme_key = cong_ref.map(|c| match c.theme {
+        Theme::Dark => "dark",
+        _ => "light",
+    }).unwrap_or("light");
     let cong_theme_label = cong_ref.map(|c| match c.theme {
         Theme::Dark => t!("theme-dark"),
         _ => t!("theme-light"),
     }).unwrap_or_default();
 
+    let cong_accent_key = cong_ref.map(|c| match c.accent_color {
+        AccentColor::Green => "Green",
+        AccentColor::Purple => "Purple",
+        AccentColor::Rose => "Rose",
+        AccentColor::Amber => "Amber",
+        _ => "Blue",
+    }).unwrap_or("Blue");
     let cong_accent_label = cong_ref.map(|c| match c.accent_color {
         AccentColor::Green => t!("accent-green"),
         AccentColor::Purple => t!("accent-purple"),
@@ -149,26 +220,37 @@ pub fn AppUserSettings() -> Element {
         _ => t!("accent-blue"),
     }).unwrap_or_default();
 
+    let cong_name_format_key = cong_ref.map(|c| match c.name_format {
+        NameFormat::LastFirst => "LastFirst",
+        _ => "FirstLast",
+    }).unwrap_or("FirstLast");
     let cong_name_format_label = cong_ref.map(|c| match c.name_format {
         NameFormat::LastFirst => t!("format-last-first"),
         _ => t!("format-first-last"),
     }).unwrap_or_default();
 
+    let cong_date_format_key = cong_ref.map(|c| match c.date_format {
+        DateFormat::DMY => "DMY",
+        DateFormat::MDY => "MDY",
+        _ => "YMD",
+    }).unwrap_or("YMD");
     let cong_date_format_label = cong_ref.map(|c| match c.date_format {
         DateFormat::DMY => t!("format-dmy"),
         DateFormat::MDY => t!("format-mdy"),
         _ => t!("format-ymd"),
     }).unwrap_or_default();
 
+    let cong_time_format_key = cong_ref.map(|c| match c.time_format {
+        TimeFormat::H12 => "12h",
+        _ => "24h",
+    }).unwrap_or("24h");
     let cong_time_format_label = cong_ref.map(|c| match c.time_format {
         TimeFormat::H12 => t!("format-12h"),
         _ => t!("format-24h"),
     }).unwrap_or_default();
 
-    let cong_language_label = cong_ref.map(|c| match c.language.as_str() {
-        "es-ES" => t!("lang-es"),
-        _ => t!("lang-en"),
-    }).unwrap_or_default();
+    let cong_language_key = cong_ref.map(|c| c.language.as_str()).unwrap_or("en-US").to_string();
+    let cong_language_label = if cong_language_key == "es-ES" { t!("lang-es") } else { t!("lang-en") };
 
     // Save handler
     let mut save = {
@@ -182,7 +264,7 @@ pub fn AppUserSettings() -> Element {
                 time_format: Some(pref_time_format.read().clone()).filter(|s| !s.is_empty()),
                 language: Some(pref_language.read().clone()).filter(|s| !s.is_empty()),
             };
-            save_prefs(&uid, &prefs);
+            save_prefs(&uid, &prefs, db_state.read().db.clone());
 
             // Apply theme/accent immediately.
             let cong = congregation_res.read();
@@ -212,7 +294,7 @@ pub fn AppUserSettings() -> Element {
             pref_date_format.set(String::new());
             pref_time_format.set(String::new());
             pref_language.set(String::new());
-            save_prefs(&uid, &UserPrefs::default());
+            save_prefs(&uid, &UserPrefs::default(), db_state.read().db.clone());
 
             // Re-apply congregation defaults.
             let cong = congregation_res.read();
@@ -255,8 +337,12 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_theme_label} ({cong_default_label})" }
-                        option { value: "light", {t!("theme-light")} }
-                        option { value: "dark", {t!("theme-dark")} }
+                        if cong_theme_key != "light" {
+                            option { value: "light", {t!("theme-light")} }
+                        }
+                        if cong_theme_key != "dark" {
+                            option { value: "dark", {t!("theme-dark")} }
+                        }
                     }
                 }
 
@@ -270,11 +356,21 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_accent_label} ({cong_default_label})" }
-                        option { value: "Blue", {t!("accent-blue")} }
-                        option { value: "Green", {t!("accent-green")} }
-                        option { value: "Purple", {t!("accent-purple")} }
-                        option { value: "Rose", {t!("accent-rose")} }
-                        option { value: "Amber", {t!("accent-amber")} }
+                        if cong_accent_key != "Blue" {
+                            option { value: "Blue", {t!("accent-blue")} }
+                        }
+                        if cong_accent_key != "Green" {
+                            option { value: "Green", {t!("accent-green")} }
+                        }
+                        if cong_accent_key != "Purple" {
+                            option { value: "Purple", {t!("accent-purple")} }
+                        }
+                        if cong_accent_key != "Rose" {
+                            option { value: "Rose", {t!("accent-rose")} }
+                        }
+                        if cong_accent_key != "Amber" {
+                            option { value: "Amber", {t!("accent-amber")} }
+                        }
                     }
                 }
                 // ── Theme preview ──────────────────────────────────────────
@@ -324,8 +420,12 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_name_format_label} ({cong_default_label})" }
-                        option { value: "FirstLast", {t!("format-first-last")} }
-                        option { value: "LastFirst", {t!("format-last-first")} }
+                        if cong_name_format_key != "FirstLast" {
+                            option { value: "FirstLast", {t!("format-first-last")} }
+                        }
+                        if cong_name_format_key != "LastFirst" {
+                            option { value: "LastFirst", {t!("format-last-first")} }
+                        }
                     }
                 }
 
@@ -339,9 +439,15 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_date_format_label} ({cong_default_label})" }
-                        option { value: "YMD", {t!("format-ymd")} }
-                        option { value: "DMY", {t!("format-dmy")} }
-                        option { value: "MDY", {t!("format-mdy")} }
+                        if cong_date_format_key != "YMD" {
+                            option { value: "YMD", {t!("format-ymd")} }
+                        }
+                        if cong_date_format_key != "DMY" {
+                            option { value: "DMY", {t!("format-dmy")} }
+                        }
+                        if cong_date_format_key != "MDY" {
+                            option { value: "MDY", {t!("format-mdy")} }
+                        }
                     }
                 }
 
@@ -355,8 +461,12 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_time_format_label} ({cong_default_label})" }
-                        option { value: "24h", {t!("format-24h")} }
-                        option { value: "12h", {t!("format-12h")} }
+                        if cong_time_format_key != "24h" {
+                            option { value: "24h", {t!("format-24h")} }
+                        }
+                        if cong_time_format_key != "12h" {
+                            option { value: "12h", {t!("format-12h")} }
+                        }
                     }
                 }
 
@@ -370,8 +480,12 @@ pub fn AppUserSettings() -> Element {
                             saved.set(false);
                         },
                         option { value: "", "{cong_language_label} ({cong_default_label})" }
-                        option { value: "en-US", {t!("lang-en")} }
-                        option { value: "es-ES", {t!("lang-es")} }
+                        if cong_language_key != "en-US" {
+                            option { value: "en-US", {t!("lang-en")} }
+                        }
+                        if cong_language_key != "es-ES" {
+                            option { value: "es-ES", {t!("lang-es")} }
+                        }
                     }
                 }
             }

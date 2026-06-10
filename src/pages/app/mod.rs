@@ -100,8 +100,9 @@ pub fn AppLayout() -> Element {
         let uid = db.read().congregation_uid.clone().unwrap_or_default();
         use_effect(move || {
             let uid = uid.clone();
+            let db_opt = db.read().db.clone();
             spawn(async move {
-                let prefs = load_prefs(&uid).await;
+                let prefs = load_prefs(&uid, db_opt).await;
                 // Apply theme/accent overrides.
                 crate::pages::app::user_settings::apply_prefs_to_body(
                     &prefs,

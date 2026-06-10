@@ -5,6 +5,7 @@ pub mod field_service_group;
 pub mod field_service_report;
 pub mod migrate;
 pub mod user;
+pub mod user_prefs;
 
 // Re-export the database handle so models can be used without importing database directly.
 pub use crate::database::Db;
