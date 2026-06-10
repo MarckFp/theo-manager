@@ -3,6 +3,9 @@ name = "TheoManager"
 default_platform = "web"
 hot_reload = true
 
+[bundle]
+identifier = "com.MarckFp.theo-manager"
+
 #------------------------------------------
 # Web
 #------------------------------------------
