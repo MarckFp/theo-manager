@@ -15,7 +15,6 @@ serde_json = "1"
 aes-gcm = "0.10"
 argon2 = "0.5"
 ml-kem = { version = "0.3", features = ["getrandom"] }
-rand = { version = "0.8", features = ["getrandom"] }
 base64 = "0.22"
 uuid = { version = "1", features = ["v4"] }
 gloo-timers = { version = "0.3.0", features = ["futures"] }

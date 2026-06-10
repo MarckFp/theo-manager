@@ -7782,7 +7782,6 @@ dependencies = [
  "gloo-timers",
  "js-sys",
  "ml-kem",
- "rand 0.8.6",
  "serde",
  "serde_json",
  "surrealdb",
