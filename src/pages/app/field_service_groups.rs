@@ -424,7 +424,21 @@ fn GroupFormBody(form: Signal<GroupFormState>, eligible_users: Vec<User>) -> Ele
             label { class: "text-xs font-medium text-gray-700", {t!("group-form-overseer")} }
             select {
                 class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
-                onchange: move |e| form.write().overseer_str = e.value(),
+                onchange: move |e| {
+                    let uid = e.value();
+                    let mut fw = form.write();
+                    // Remove old overseer from forced-member list only if it's
+                    // not also the assistant (edge case).
+                    let old = fw.overseer_str.clone();
+                    if !old.is_empty() && old != fw.assistant_str {
+                        fw.member_strs.retain(|s| s != &old);
+                    }
+                    fw.overseer_str = uid.clone();
+                    // Auto-add new overseer to members.
+                    if !uid.is_empty() && !fw.member_strs.contains(&uid) {
+                        fw.member_strs.push(uid);
+                    }
+                },
                 option { value: "", selected: f.overseer_str.is_empty(), {t!("group-form-none")} }
                 for user in eligible_users.iter() {
                     {
@@ -444,7 +458,18 @@ fn GroupFormBody(form: Signal<GroupFormState>, eligible_users: Vec<User>) -> Ele
             label { class: "text-xs font-medium text-gray-700", {t!("group-form-assistant")} }
             select {
                 class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
-                onchange: move |e| form.write().assistant_str = e.value(),
+                onchange: move |e| {
+                    let uid = e.value();
+                    let mut fw = form.write();
+                    let old = fw.assistant_str.clone();
+                    if !old.is_empty() && old != fw.overseer_str {
+                        fw.member_strs.retain(|s| s != &old);
+                    }
+                    fw.assistant_str = uid.clone();
+                    if !uid.is_empty() && !fw.member_strs.contains(&uid) {
+                        fw.member_strs.push(uid);
+                    }
+                },
                 option { value: "", selected: f.assistant_str.is_empty(), {t!("group-form-none")} }
                 for user in eligible_users.iter() {
                     {
@@ -470,15 +495,30 @@ fn GroupFormBody(form: Signal<GroupFormState>, eligible_users: Vec<User>) -> Ele
                         {
                             let uid = user.id.as_ref().map(rid_str).unwrap_or_default();
                             let name = format!("{} {}", user.first_name, user.last_name);
-                            let is_checked = f.member_strs.contains(&uid);
+                            let is_locked = uid == f.overseer_str || uid == f.assistant_str;
+                            let is_checked = is_locked || f.member_strs.contains(&uid);
                             let uid_toggle = uid.clone();
+                            let row_cls = if is_locked {
+                                "flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 select-none"
+                            } else {
+                                "flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 cursor-pointer select-none"
+                            };
+                            let label_cls = if is_locked {
+                                "text-sm text-gray-500"
+                            } else {
+                                "text-sm text-gray-800"
+                            };
                             rsx! {
-                                label { class: "flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 cursor-pointer select-none",
+                                label { class: row_cls,
                                     input {
                                         r#type: "checkbox",
                                         class: "rounded border-gray-300 text-primary-600 focus:ring-primary-500",
                                         checked: is_checked,
+                                        disabled: is_locked,
                                         onchange: move |e| {
+                                            if is_locked {
+                                                return;
+                                            }
                                             let mut fw = form.write();
                                             if e.checked() {
                                                 if !fw.member_strs.contains(&uid_toggle) {
@@ -489,7 +529,18 @@ fn GroupFormBody(form: Signal<GroupFormState>, eligible_users: Vec<User>) -> Ele
                                             }
                                         },
                                     }
-                                    span { class: "text-sm text-gray-800", "{name}" }
+                                    span { class: label_cls, "{name}" }
+                                    if is_locked {
+                                        span { class: "ml-auto text-xs text-gray-400 italic",
+                                            if uid == f.overseer_str && uid == f.assistant_str {
+                                                {t!("group-form-role-both")}
+                                            } else if uid == f.overseer_str {
+                                                {t!("group-form-role-overseer")}
+                                            } else {
+                                                {t!("group-form-role-assistant")}
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
