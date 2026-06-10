@@ -5,11 +5,11 @@ on:
     tags:
       - '*.*.*'
 
-#For NDK see: https://developer.android.com/ndk/downloads
 env:
   GH_TOKEN: ${{ github.token }}
-  NDK_VERSION: "29.0.14206865"
+  NDK_VERSION: "29.0.14206865" #For NDK see: https://developer.android.com/ndk/downloads
   DX_VERSION: "0.7.9"
+  APP_NAME: "${{ github.event.repository.name }}"
 
 jobs:
   deploy:
@@ -122,7 +122,7 @@ jobs:
 
           case "${{ matrix.platform }}" in
             "web")
-              sed -i '/^\[web\.app\]$/a base_path = "theo-manager"' Dioxus.toml
+              sed -i '/^\[web\.app\]$/a base_path = "${{ env.APP_NAME }}"' Dioxus.toml
               ;;
 
             "android")
@@ -132,7 +132,7 @@ jobs:
 
           cargo binstall dioxus-cli --version ${{ env.DX_VERSION }} -y
 
-      - name: Build & Deploy ${{ matrix.name }} 🚀
+      - name: Build ${{ matrix.name }} 🚀
         shell: bash
         run: |
           case "${{ matrix.platform }}" in
@@ -155,14 +155,14 @@ jobs:
           esac
 
           if [[ "${{ matrix.platform }}" == "web" ]]; then
-            cp target/dx/dx-app/release/web/public/index.html target/dx/dx-app/release/web/public/404.html
+            cp target/dx/${{ env.APP_NAME }}/release/web/public/index.html target/dx/${{ env.APP_NAME }}/release/web/public/404.html
           fi
 
       - name: Optimize Wasm ⚡
         if: ${{ matrix.platform == 'web'}}
         uses: NiklasEi/wasm-opt-action@v2
         with:
-          file: target/dx/dx-app/release/web/public/wasm/*.wasm
+          file: target/dx/${{ env.APP_NAME }}/release/web/public/wasm/*.wasm
           optimize_all: true
           options: -Oz
 
@@ -170,7 +170,7 @@ jobs:
         if: ${{ matrix.platform == 'web'}}
         uses: actions/upload-pages-artifact@v5
         with:
-          path: target/dx/dx-app/release/web/public/
+          path: target/dx/${{ env.APP_NAME }}/release/web/public/
 
       - name: Deploy Github Pages 🌐
         if: ${{ matrix.platform == 'web' }}
@@ -189,55 +189,55 @@ jobs:
         run: |
           case "${{ matrix.name }}" in
             "Windows x86 🪟")
-              upx --best target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x86_en-US.msi \
-                target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x86_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
               ;;
             "Windows x64 🪟")
-              upx --best target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x64_en-US.msi \
-                target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
               ;;
 
             "Windows ARM64 🪟")
-              upx --best target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_arm64_en-US.msi \
-                target/dx/dx-app/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_arm64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
               ;;
 
             "Linux x64 🐧")
-              upx --best target/dx/dx-app/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_amd64.deb \
-                target/dx/dx-app/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.x86_64.rpm \
-                target/dx/dx-app/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_amd64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.x86_64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
               ;;
 
             "Linux ARM64 🐧")
-              upx --best target/dx/dx-app/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_arm64.deb \
-                target/dx/dx-app/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.aarch64.rpm \
-                target/dx/dx-app/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_arm64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.aarch64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
               ;;
 
             "MacOS x64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_x64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_x64.dmg
               ;;
 
             "MacOS ARM64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_aarch64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_aarch64.dmg
               ;;
 
             "iOS 📱")
               mkdir Payload
-              mv target/dx/dx-app/release/ios/DxApp.app Payload/
+              mv target/dx/${{ env.APP_NAME }}/release/ios/DxApp.app Payload/
               zip -r DxApp_${{ github.ref_name }}.ipa Payload
               gh release upload ${{ github.ref_name }} DxApp_${{ github.ref_name }}.ipa
               ;;
 
             "Android 🤖")
-              mv target/dx/dx-app/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/dx-app/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk
-              mv target/dx/dx-app/release/android/app/app/build/outputs/bundle/release/DxApp-aarch64-linux-android.aab target/dx/dx-app/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
-              gh release upload ${{ github.ref_name }} target/dx/dx-app/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk \
-                target/dx/dx-app/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
+              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk
+              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp-aarch64-linux-android.aab target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk \
+                target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
               ;;
           esac
