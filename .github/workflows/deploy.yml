@@ -84,7 +84,7 @@ jobs:
         run: |
           mv Cargo.toml Cargo.toml.orig
           sed "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" Cargo.toml.orig >Cargo.toml
-          sed -i "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" assets/sw.js
+          sed -i.bak "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" assets/sw.js && rm -f assets/sw.js.bak
 
       - name: Setup Rust Targets 🦀
         run: rustup target add ${{ matrix.target }}
