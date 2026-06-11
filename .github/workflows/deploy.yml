@@ -157,6 +157,9 @@ jobs:
 
           if [[ "${{ matrix.platform }}" == "web" ]]; then
             cp target/dx/${{ env.APP_NAME }}/release/web/public/index.html target/dx/${{ env.APP_NAME }}/release/web/public/404.html
+            # Copy sw.js to the output root so it can control scope '/' (covers /theo-manager/).
+            # The version has already been substituted by sed above.
+            cp assets/sw.js "target/dx/${{ env.APP_NAME }}/release/web/public/sw.js"
           fi
 
       - name: Upload Github Pages 📤
@@ -206,18 +209,18 @@ jobs:
               ;;
 
             "Linux ARM64 🐧")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
               gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/theo-manager_${{ github.ref_name }}_arm64.deb \
                 target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/theo-manager-${{ github.ref_name }}-.aarch64.rpm \
                 target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
               ;;
 
             "MacOS x64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/theo-manager_${{ github.ref_name }}_x64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/theo-manager_${{ github.ref_name }}_x64.dmg
               ;;
 
             "MacOS ARM64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/theo-manager_${{ github.ref_name }}_aarch64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/theo-manager_${{ github.ref_name }}_aarch64.dmg
               ;;
 
             "iOS 📱")

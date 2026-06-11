@@ -31,6 +31,10 @@ pub const TABLES: &[&str] = &[
     super::absence::TABLE,
     super::privilege::TABLE,
     super::field_service_meeting::TABLE,
+    super::territory::TERRITORY_TABLE,
+    super::territory::TERRITORY_ADDRESS_TABLE,
+    super::territory::TERRITORY_ASSIGNMENT_TABLE,
+    super::territory::TERRITORY_REQUEST_TABLE,
 ];
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,10 @@
 use dioxus::prelude::*;
 use dioxus_i18n::t;
 
-use crate::database::{use_crypto, use_db};
+use crate::database::{ls_get, use_crypto, use_db};
 use crate::models::event::{CongregationEvent, EventType};
 use crate::models::field_service_report::FieldServiceReport;
+use crate::models::territory::{Territory, TerritoryAssignment};
 use crate::models::user::{Appointment, User, UserType};
 use crate::pages::app::events::{event_display_title, event_type_label};
 
@@ -57,6 +58,48 @@ pub fn AppDashboard() -> Element {
     let events_res = use_resource(move || async move {
         let Some(db) = db_signal.read().db.clone() else { return vec![] };
         CongregationEvent::upcoming(&db, 60).await.unwrap_or_default()
+    });
+
+    let my_terr_res = use_resource(move || {
+        let db_signal = db_signal.clone();
+        let crypto_signal = crypto_signal.clone();
+        async move {
+            let db = db_signal.read().db.clone()?;
+            let crypto = crypto_signal.read().clone();
+            let uid_str = ls_get("theo_current_user_id").await;
+            let users = User::all(&db, &crypto).await.ok()?;
+            let fmt_id = |id: &surrealdb::types::RecordId| -> String {
+                format!("{}:{}", id.table, match &id.key {
+                    surrealdb::types::RecordIdKey::String(k) => k.clone(),
+                    surrealdb::types::RecordIdKey::Number(n) => n.to_string(),
+                    _ => String::new(),
+                })
+            };
+            let found_uid = if let Some(ref s) = uid_str {
+                users.iter()
+                    .find(|u| u.id.as_ref().map(|id| fmt_id(id) == *s).unwrap_or(false))
+                    .and_then(|u| u.id.clone())
+            } else {
+                None
+            };
+            let current_uid = found_uid
+                .or_else(|| users.iter().next().and_then(|u| u.id.clone()))?;
+            let assignments = TerritoryAssignment::active(&db).await.ok()?;
+            let territories = Territory::all(&db).await.ok()?;
+            let terr_map: std::collections::HashMap<_, _> = territories
+                .into_iter()
+                .filter_map(|t| t.id.clone().map(|id| (id, t)))
+                .collect();
+            let my: Vec<(Territory, String)> = assignments
+                .into_iter()
+                .filter(|a| a.user == current_uid)
+                .filter_map(|a| {
+                    let terr = terr_map.get(&a.territory)?.clone();
+                    Some((terr, a.assigned_date.clone()))
+                })
+                .collect();
+            Some(my)
+        }
     });
 
     let is_loading = users_res.read().is_none() || reports_res.read().is_none() || events_res.read().is_none();
@@ -284,6 +327,36 @@ pub fn AppDashboard() -> Element {
                                                 p { class: "text-sm font-medium text-gray-800 truncate", "{title}" }
                                                 p { class: "text-xs text-gray-400 tabular-nums", "{date_range}" }
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // ── Row 4: My territories ─────────────────────────────────────────────
+                if let Some(Some(my_terrs)) = my_terr_res() {
+                    if !my_terrs.is_empty() {
+                        div { class: "bg-white rounded-xl border border-gray-200 p-5",
+                            p { class: "text-sm font-semibold text-gray-700 mb-3",
+                                {t!("dash-my-territories")}
+                            }
+                            div { class: "divide-y divide-gray-100",
+                                for (terr , date) in my_terrs.iter() {
+                                    div { class: "flex items-center gap-3 py-2.5",
+                                        div { class: "flex items-center justify-center w-10 h-10 rounded-lg bg-primary-100 text-primary-700 font-bold text-sm shrink-0",
+                                            "#{terr.number}"
+                                        }
+                                        div { class: "flex-1 min-w-0",
+                                            p { class: "text-sm font-medium text-gray-800 truncate",
+                                                "{terr.name}"
+                                            }
+                                            p { class: "text-xs text-gray-400 tabular-nums",
+                                                "{date}"
+                                            }
+                                        }
+                                        span { class: "shrink-0 text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium",
+                                            {t!("terr-still-out")}
                                         }
                                     }
                                 }

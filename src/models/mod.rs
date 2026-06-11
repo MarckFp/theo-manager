@@ -7,6 +7,7 @@ pub mod field_service_meeting;
 pub mod field_service_report;
 pub mod migrate;
 pub mod privilege;
+pub mod territory;
 pub mod user;
 pub mod user_prefs;
 

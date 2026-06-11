@@ -270,12 +270,7 @@ pub fn AppFieldServiceMeetings() -> Element {
                                 span { class: "hidden sm:inline", " {month_full}" }
                                 span { class: "sm:hidden", " {month_abbr}" }
                                 span { class: "text-xs text-gray-400",
-                                    if show_picker() {
-                                        "▴"
-                                    }
-                                    }
-                                        "▾"
-                                    }
+                                    if show_picker() { "▴" } else { "▾" }
                                 }
                             }
                         }
@@ -459,22 +454,25 @@ pub fn AppFieldServiceMeetings() -> Element {
                                                             class: "group flex items-start gap-0.5 mt-1",
                                                             onclick: move |e| e.stop_propagation(),
                                                             button {
-                                                                class: "flex-1 min-w-0 text-left text-[10px] sm:text-xs leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 bg-primary-100 text-primary-800 rounded-lg hover:bg-primary-200 transition-colors",
+                                                                class: "flex-1 min-w-0 text-left leading-tight bg-primary-100 text-primary-800 rounded-lg hover:bg-primary-200 transition-colors",
                                                                 onclick: move |e| {
                                                                     e.stop_propagation();
                                                                     edit_target.set(Some(m_for_edit.clone()));
                                                                     prefill_date.set(m_for_edit.date.clone());
                                                                     modal_open.set(true);
                                                                 },
-                                                                div { class: "font-medium truncate", "{assignee_name}" }
-                                                                if !location_str.is_empty() {
-                                                                    div { class: "hidden sm:block text-[10px] text-primary-600 truncate mt-0.5",
-                                                                        "📍 {location_str}"
+                                                                // Mobile: colored dot only
+                                                                div { class: "sm:hidden w-full h-2 rounded-full bg-primary-400" }
+                                                                // sm+: full pill with name and optional location
+                                                                div { class: "hidden sm:block px-1.5 py-1",
+                                                                    div { class: "text-xs font-medium truncate", "{assignee_name}" }
+                                                                    if !location_str.is_empty() {
+                                                                        div { class: "text-[10px] text-primary-600 truncate mt-0.5", "📍 {location_str}" }
                                                                     }
                                                                 }
                                                             }
                                                             button {
-                                                                class: "shrink-0 text-[10px] w-4 h-4 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100",
+                                                                class: "shrink-0 hidden sm:flex text-[10px] w-4 h-4 items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100",
                                                                 onclick: move |e| {
                                                                     e.stop_propagation();
                                                                     pending_delete.set(del_id.clone());

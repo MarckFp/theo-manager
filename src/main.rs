@@ -112,14 +112,15 @@ fn App() -> Element {
     use_init_i18n(i18n::init_config);
 
     // Register the service worker after the client-side hydration.
-    // This must run in use_effect so it only executes in the browser.
+    // sw.js is copied to the root of the output by deploy.yml so it can
+    // control the full origin — including the /theo-manager/ GitHub Pages path.
     use_effect(|| {
-        let sw_path = SW_JS.to_string();
-        let _ = document::eval(&format!(r#"
-            if ('serviceWorker' in navigator) {{
-                navigator.serviceWorker.register('{sw_path}', {{ scope: '/' }});
-            }}
-        "#));
+        let _ = document::eval(r#"
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .catch(function(e) { console.warn('[SW] Registration failed:', e); });
+            }
+        "#);
     });
 
     rsx! {

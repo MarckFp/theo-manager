@@ -133,6 +133,7 @@ dash-stat-report-title = Field Service Reports
 dash-stat-report-submitted = Submitted
 dash-stat-report-pending = Pending
 dash-stat-user-types-title = Members by Type
+dash-my-territories = My Territories
 dash-loading = Loading…
 
 # Users page
@@ -196,8 +197,53 @@ empty-absences-desc = Absences will appear here once added.
 # Territory page
 page-territory = Territory
 btn-add-territory = ＋ Add Territory
+terr-search = Search territories…
 empty-territory-title = No territories yet
 empty-territory-desc = Territory cards will appear here.
+# Territory tabs
+terr-tab-mine = My Territories
+terr-tab-list = Territories
+terr-tab-assignments = Assignments
+# Territory list
+terr-number = Number
+terr-name = Name
+terr-description = Description
+terr-boundary = Map Boundary
+terr-notes = Notes
+terr-no-boundary = No boundary drawn
+terr-addresses = Addresses
+terr-address-desc = Description
+terr-address-lat = Latitude
+terr-address-lng = Longitude
+terr-add-address = Add Address
+terr-edit = Edit Territory
+terr-delete = Delete Territory
+terr-confirm-delete = Delete this territory and all its addresses?
+terr-save = Save Territory
+# Territory assignments
+terr-assign = Assign
+terr-assigned-to = Assigned To
+terr-assigned-date = Assigned Date
+terr-returned-date = Returned Date
+terr-still-out = Still Out
+terr-return = Return
+terr-overdue-title = Overdue (4+ months)
+terr-no-assignments = No assignments this year
+terr-no-mine = No territories assigned to you
+terr-request = Request Territory
+terr-request-notes = Notes (optional)
+terr-request-notes-hint = Describe what kind of territory you need or any preferences…
+terr-request-submit = Submit Request
+terr-request-pending = Territory request pending
+terr-requests-title = Territory Requests
+terr-request-assign = Assign Territory
+terr-request-fulfill = Assign to Publisher
+terr-assign-new = New Assignment
+terr-territory = Territory
+terr-returned = Returned
+terr-draw-hint = Click on the map to draw a boundary polygon. Click the first point to close it.
+terr-clear-boundary = Clear Boundary
+terr-map-click-hint = Click on the map to add an address point
 
 # Attendants page
 page-attendants = Attendants

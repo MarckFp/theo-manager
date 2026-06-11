@@ -133,6 +133,7 @@ dash-stat-report-title = Informes de Campo
 dash-stat-report-submitted = Enviados
 dash-stat-report-pending = Pendientes
 dash-stat-user-types-title = Miembros por Tipo
+dash-my-territories = Mis Territorios
 dash-loading = Cargando…
 
 # Users page
@@ -196,8 +197,53 @@ empty-absences-desc = Las ausencias aparecerán aquí una vez añadidas.
 # Territory page
 page-territory = Territorio
 btn-add-territory = ＋ Añadir territorio
+terr-search = Buscar territorios…
 empty-territory-title = Sin territorios aún
 empty-territory-desc = Las tarjetas de territorio aparecerán aquí.
+# Territory tabs
+terr-tab-mine = Mis Territorios
+terr-tab-list = Territorios
+terr-tab-assignments = Asignaciones
+# Territory list
+terr-number = Número
+terr-name = Nombre
+terr-description = Descripción
+terr-boundary = Límites en mapa
+terr-notes = Notas
+terr-no-boundary = Sin límites dibujados
+terr-addresses = Direcciones
+terr-address-desc = Descripción
+terr-address-lat = Latitud
+terr-address-lng = Longitud
+terr-add-address = Agregar dirección
+terr-edit = Editar territorio
+terr-delete = Eliminar territorio
+terr-confirm-delete = ¿Eliminar este territorio y todas sus direcciones?
+terr-save = Guardar territorio
+# Territory assignments
+terr-assign = Asignar
+terr-assigned-to = Asignado a
+terr-assigned-date = Fecha de asignación
+terr-returned-date = Fecha de devolución
+terr-still-out = En campo
+terr-return = Devolver
+terr-overdue-title = Atrasados (4+ meses)
+terr-no-assignments = Sin asignaciones este año
+terr-no-mine = No tienes territorios asignados
+terr-request = Solicitar territorio
+terr-request-notes = Notas (opcional)
+terr-request-notes-hint = Describe qué tipo de territorio necesitas o tus preferencias…
+terr-request-submit = Enviar solicitud
+terr-request-pending = Solicitud de territorio pendiente
+terr-requests-title = Solicitudes de territorio
+terr-request-assign = Asignar territorio
+terr-request-fulfill = Asignar a publicador
+terr-assign-new = Nueva asignación
+terr-territory = Territorio
+terr-returned = Devuelto
+terr-draw-hint = Haz clic en el mapa para dibujar el polígono. Haz clic en el primer punto para cerrarlo.
+terr-clear-boundary = Borrar límites
+terr-map-click-hint = Haz clic en el mapa para agregar una dirección
 
 # Attendants page
 page-attendants = Acomodadores
