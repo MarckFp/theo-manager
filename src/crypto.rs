@@ -99,9 +99,14 @@ impl From<base64::DecodeError> for CryptoError {
 // Argon2id KDF
 // ---------------------------------------------------------------------------
 
-/// Argon2id parameters — intentionally conservative for a browser context.
-/// Increase m_cost / t_cost for native targets if desired.
-const ARGON2_M_COST: u32 = 65536; // 64 MiB
+/// Argon2id parameters.
+/// WASM (browser): keep memory cost low to avoid OOM in the constrained WASM
+/// linear memory heap, especially after SurrealDB/IndexedDB is already running.
+/// Native: use a stronger 64 MiB cost.
+#[cfg(target_arch = "wasm32")]
+const ARGON2_M_COST: u32 = 8192; // 8 MiB — safe for browser WASM
+#[cfg(not(target_arch = "wasm32"))]
+const ARGON2_M_COST: u32 = 65536; // 64 MiB for native targets
 const ARGON2_T_COST: u32 = 3;
 const ARGON2_P_COST: u32 = 1;
 const SALT_LEN: usize = 32;
@@ -113,9 +118,21 @@ const KEY_LEN: usize = 32; // AES-256
 pub struct SymKey([u8; KEY_LEN]);
 
 impl SymKey {
-    /// Derive a [`SymKey`] from a passphrase + salt using Argon2id.
+    /// Derive a [`SymKey`] from a passphrase + salt using Argon2id with the
+    /// platform-default memory cost.
     pub fn derive(passphrase: &str, salt: &[u8]) -> Result<Self, CryptoError> {
-        let params = Params::new(ARGON2_M_COST, ARGON2_T_COST, ARGON2_P_COST, Some(KEY_LEN))?;
+        Self::derive_with_m_cost(passphrase, salt, ARGON2_M_COST)
+    }
+
+    /// Derive a [`SymKey`] with an explicit `m_cost` (memory cost in KiB).
+    /// Used when unlocking an existing keystore that may have been created with
+    /// a different memory cost than the current platform default.
+    pub fn derive_with_m_cost(
+        passphrase: &str,
+        salt: &[u8],
+        m_cost: u32,
+    ) -> Result<Self, CryptoError> {
+        let params = Params::new(m_cost, ARGON2_T_COST, ARGON2_P_COST, Some(KEY_LEN))?;
         let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
         let mut key = [0u8; KEY_LEN];
         argon2.hash_password_into(passphrase.as_bytes(), salt, &mut key)?;
@@ -187,12 +204,22 @@ pub fn decrypt_field(key: &SymKey, encoded: &str) -> Result<String, CryptoError>
 /// - `kem_ciphertext`: KEM encapsulation of the sym key.
 /// - `encrypted_sym_key`: AES-256-GCM encryption of the raw sym key bytes,
 ///   using the shared secret produced by the KEM.
+fn default_argon2_m_cost() -> u32 {
+    65536
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyStore {
     pub salt: String,              // base64
     pub kem_pk: String,            // base64 ML-KEM-768 public key
     pub kem_ciphertext: String,    // base64 KEM ciphertext
     pub encrypted_sym_key: String, // base64( nonce ‖ AES-GCM(sym_key, kem_shared_secret) )
+    /// Argon2id memory cost (KiB) used when this keystore was created.
+    /// Stored so unlock always uses the same parameters regardless of the
+    /// current platform default. Defaults to 65536 for keystores created
+    /// before this field was added.
+    #[serde(default = "default_argon2_m_cost")]
+    pub m_cost: u32,
 }
 
 impl KeyStore {
@@ -227,6 +254,7 @@ impl KeyStore {
             kem_pk: B64.encode(&ek_bytes[..]),
             kem_ciphertext: B64.encode(&kem_ct[..]),
             encrypted_sym_key,
+            m_cost: ARGON2_M_COST,
         };
 
         // The decapsulation key (private key) would be stored here for key rotation.
@@ -244,7 +272,7 @@ impl KeyStore {
     /// key encapsulation of the at-rest data, not as an authentication mechanism.
     pub fn unlock(&self, passphrase: &str) -> Result<SymKey, CryptoError> {
         let salt = B64.decode(&self.salt)?;
-        SymKey::derive(passphrase, &salt)
+        SymKey::derive_with_m_cost(passphrase, &salt, self.m_cost)
     }
 }
 
