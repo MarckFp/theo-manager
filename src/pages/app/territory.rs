@@ -892,7 +892,7 @@ fn TerritoriesListTab(
                                                 *form.write() = TerritoryFormState {
                                                     number: terr_edit.number.clone(),
                                                     name: terr_edit.name.clone(),
-                                                    description: terr_edit.description.clone().unwrap_or_default(), // Map  Map
+                                                    description: terr_edit.description.clone().unwrap_or_default(), // Map  Map // Map  Map
                                                     notes: terr_edit.notes.clone().unwrap_or_default(),
                                                     boundary: terr_edit.boundary.clone(),
                                                     ..Default::default()
@@ -904,7 +904,7 @@ fn TerritoriesListTab(
                                         }
                                         if let Some(ref tid) = terr_id_del {
                                             {
-                                                let tid = tid.clone(); // Map
+                                                let tid = tid.clone(); // Map // Map
                                                 rsx! {
                                                     button {
                                                         class: "px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 rounded-lg text-red-600",
@@ -948,8 +948,7 @@ fn TerritoriesListTab(
                                             onclick: move |_| {
                                                 if !*add_point_mode.read() {
                                                     add_point_mode.set(true);
-                                                }
-                                                }
+                                                } else {
                                                     *addr_form.write() = AddressFormState::default();
                                                     add_addr_open.set(true);
                                                     add_point_mode.set(false);
