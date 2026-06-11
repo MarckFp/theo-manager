@@ -28,10 +28,6 @@ jobs:
       matrix:
         include:
         # Windows
-          - name: 'Windows x86 🪟'
-            os: 'windows-2025-vs2026'
-            target: 'i686-pc-windows-msvc'
-            platform: desktop
           - name: 'Windows x64 🪟'
             os: 'windows-2025-vs2026'
             target: 'x86_64-pc-windows-msvc'
@@ -138,7 +134,17 @@ jobs:
         run: |
           case "${{ matrix.platform }}" in
             "desktop")
-              dx bundle --release --platform ${{ matrix.platform }} --target ${{ matrix.target }} --features bundle
+              case "${{ runner.os }}" in
+                "Windows")
+                  dx bundle --release --platform desktop --target ${{ matrix.target }} --package-types msi,nsis --features bundle
+                  ;;
+                "macOS")
+                  dx bundle --release --platform desktop --target ${{ matrix.target }} --package-types dmg --features bundle
+                  ;;
+                "Linux")
+                  dx bundle --release --platform desktop --target ${{ matrix.target }} --package-types deb,rpm,appimage --features bundle
+                  ;;
+              esac
               ;;
 
             "android")
@@ -174,7 +180,7 @@ jobs:
         uses: actions/deploy-pages@v5
       
       - name: Install UPX 🛠️
-        if: ${{ matrix.platform == 'desktop' && matrix.name != 'MacOS x64 🍏' && matrix.name != 'MacOS ARM64 🍏'}}
+        if: ${{ matrix.platform == 'desktop' && matrix.name != 'MacOS x64 🍏' && matrix.name != 'MacOS ARM64 🍏' && matrix.name != 'Windows ARM64 🪟'}}
         uses: crazy-max/ghaction-upx@v4
         with:
           install-only: true
@@ -184,43 +190,41 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.name }}" in
-            "Windows x86 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x86-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_x86_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x86-setup.exe
-              ;;
             "Windows x64 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_x64_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x64-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
+              gh release upload ${{ github.ref_name }} \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/msi/TheoManager_${{ github.ref_name }}_x64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/nsis/TheoManager_${{ github.ref_name }}_x64-setup.exe
               ;;
 
             "Windows ARM64 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_arm64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_arm64_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_arm64-setup.exe
+              gh release upload ${{ github.ref_name }} \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/msi/TheoManager_${{ github.ref_name }}_arm64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/nsis/TheoManager_${{ github.ref_name }}_arm64-setup.exe
               ;;
 
             "Linux x64 🐧")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/theo-manager_${{ github.ref_name }}_amd64.deb \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/theo-manager-${{ github.ref_name }}-.x86_64.rpm \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
+              gh release upload ${{ github.ref_name }} \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/deb/theo-manager_${{ github.ref_name }}_amd64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/rpm/theo-manager-${{ github.ref_name }}-.x86_64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
               ;;
 
             "Linux ARM64 🐧")
               upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/theo-manager_${{ github.ref_name }}_arm64.deb \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/theo-manager-${{ github.ref_name }}-.aarch64.rpm \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
+              gh release upload ${{ github.ref_name }} \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/deb/theo-manager_${{ github.ref_name }}_aarch64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/rpm/theo-manager-${{ github.ref_name }}-.aarch64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
               ;;
 
             "MacOS x64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/theo-manager_${{ github.ref_name }}_x64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/TheoManager_${{ github.ref_name }}_x64.dmg
               ;;
 
             "MacOS ARM64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/theo-manager_${{ github.ref_name }}_aarch64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/macos/TheoManager_${{ github.ref_name }}_aarch64.dmg
               ;;
 
             "iOS 📱")
