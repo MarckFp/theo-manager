@@ -57,6 +57,13 @@ fn yesterday_iso() -> String {
 fn iso_month(iso: &str) -> Option<u8> { iso.get(5..7)?.parse().ok() }
 fn iso_year(iso: &str) -> Option<i32> { iso.get(0..4)?.parse().ok() }
 
+fn current_year_month() -> (i32, u8) {
+    let today = today_iso();
+    let y = iso_year(&today).unwrap_or(2026);
+    let m = iso_month(&today).unwrap_or(6);
+    (y, m)
+}
+
 fn normalize(s: &str) -> String {
     s.chars()
         .map(|c| match c {
@@ -90,8 +97,6 @@ const PAGE_SIZE: usize = 20;
 #[derive(Clone, Default, PartialEq)]
 struct Filters {
     user_search: String,
-    month: Option<u8>,
-    year: Option<i32>,
     ongoing_only: bool,
 }
 
@@ -166,6 +171,12 @@ pub fn AppAbsences() -> Element {
     let mut delete_open = use_signal(|| false);
     let mut delete_id: Signal<Option<RecordId>> = use_signal(|| None);
 
+    // Month/year navigation
+    let (cur_year, cur_month) = current_year_month();
+    let mut sel_year = use_signal(|| cur_year);
+    let mut sel_month = use_signal(|| cur_month);
+    let mut show_picker = use_signal(|| false);
+
     // Filters + pagination
     let mut filters = use_signal(Filters::default);
     let mut display_limit = use_signal(|| PAGE_SIZE);
@@ -173,7 +184,7 @@ pub fn AppAbsences() -> Element {
     let is_loading = absences_res.read().is_none() || users_res.read().is_none();
     let users: Vec<User> = users_res().unwrap_or_default();
     // Years present in data (for year filter) — reactive read
-    let mut years: Vec<i32> = {
+    let years: Vec<i32> = {
         let abs = absences_res().unwrap_or_default();
         let mut ys: Vec<i32> = abs
             .iter()
@@ -184,18 +195,18 @@ pub fn AppAbsences() -> Element {
         ys.sort_unstable();
         ys
     };
-    if years.is_empty() {
-        if let Some(y) = iso_year(&today_iso()) { years.push(y); }
-    }
+    let _ = years; // no longer used in dropdowns
 
-    // Pre-compute localized full month names (called in component body → i18n context available)
-    let month_labels: Vec<(u8, String)> = vec![
-        (1, t!("month-1")), (2, t!("month-2")), (3, t!("month-3")),
-        (4, t!("month-4")), (5, t!("month-5")), (6, t!("month-6")),
-        (7, t!("month-7")), (8, t!("month-8")), (9, t!("month-9")),
-        (10, t!("month-10")), (11, t!("month-11")), (12, t!("month-12")),
-    ];
-    let month_labels_for_select = month_labels.clone();
+    // Pre-compute localized month abbreviations for the picker grid
+    let month_picker_labels: Vec<String> = vec![
+        t!("month-1"), t!("month-2"), t!("month-3"),
+        t!("month-4"), t!("month-5"), t!("month-6"),
+        t!("month-7"), t!("month-8"), t!("month-9"),
+        t!("month-10"), t!("month-11"), t!("month-12"),
+    ]
+    .into_iter()
+    .map(|s| s.chars().take(3).collect::<String>())
+    .collect();
 
     // Filtered + sorted rows, returning pre-computed display strings so user_map
     // and absences_res are read reactively INSIDE the memo.
@@ -208,6 +219,8 @@ pub fn AppAbsences() -> Element {
         let norm = normalize(&f.user_search);
         let name_fmt_snap = name_fmt.read().clone();
         let date_fmt_snap = date_fmt.read().clone();
+        let sel_m = sel_month();
+        let sel_y = sel_year();
 
         let um: std::collections::HashMap<String, (String, String)> = users_snap
             .iter()
@@ -220,6 +233,9 @@ pub fn AppAbsences() -> Element {
         let mut result: Vec<FilteredRow> = absences
             .iter()
             .filter(|a| {
+                // Always filter by selected month/year
+                if iso_month(&a.start_date) != Some(sel_m) { return false; }
+                if iso_year(&a.start_date) != Some(sel_y) { return false; }
                 if !norm.is_empty() {
                     let uid_str = record_id_str(&a.user);
                     let full = um
@@ -227,12 +243,6 @@ pub fn AppAbsences() -> Element {
                         .map(|(first, last)| normalize(&format!("{} {}", first, last)))
                         .unwrap_or_default();
                     if !full.contains(&norm) { return false; }
-                }
-                if let Some(m) = f.month {
-                    if iso_month(&a.start_date) != Some(m) { return false; }
-                }
-                if let Some(y) = f.year {
-                    if iso_year(&a.start_date) != Some(y) { return false; }
                 }
                 if f.ongoing_only && a.end_date.is_some() { return false; }
                 true
@@ -263,6 +273,140 @@ pub fn AppAbsences() -> Element {
     rsx! {
         div { class: "relative space-y-4 w-full pb-24",
 
+            // ── Month / year navigation ───────────────────────────────────
+            div { class: "bg-white rounded-xl border border-gray-200 p-4",
+                div { class: "flex items-center justify-between gap-3",
+                    button {
+                        class: "px-5 py-2.5 min-w-[56px] rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-colors select-none text-xl font-semibold",
+                        onclick: move |_| {
+                            let (y, m) = (sel_year(), sel_month());
+                            if m == 1 {
+                                sel_year.set(y - 1);
+                                sel_month.set(12);
+                            } else {
+                                sel_month.set(m - 1);
+                            }
+                            display_limit.set(PAGE_SIZE);
+                        },
+                        "‹"
+                    }
+
+                    // Clickable month/year label — opens picker
+                    {
+                        let month_full = match sel_month() {
+                            1 => t!("month-1"),
+                            2 => t!("month-2"),
+                            3 => t!("month-3"),
+                            4 => t!("month-4"),
+                            5 => t!("month-5"),
+                            6 => t!("month-6"),
+                            7 => t!("month-7"),
+                            8 => t!("month-8"),
+                            9 => t!("month-9"),
+                            10 => t!("month-10"),
+                            11 => t!("month-11"),
+                            12 => t!("month-12"),
+                            _ => t!("month-1"),
+                        };
+                        let month_abbr = month_full.chars().take(3).collect::<String>();
+                        let year_str = sel_year().to_string();
+                        let is_ymd = matches!(date_fmt(), DateFormat::YMD);
+                        let btn_cls = if show_picker() {
+                            "flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-primary-400 text-primary-700 font-semibold bg-primary-50 transition-colors"
+                        } else {
+                            "flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-900 font-semibold hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                        };
+                        rsx! {
+                            button { class: btn_cls, onclick: move |_| show_picker.set(!show_picker()),
+                                if is_ymd {
+                                    span { "{year_str}" }
+                                    span { class: "hidden sm:inline", " {month_full}" }
+                                    span { class: "sm:hidden", " {month_abbr}" }
+                                } else {
+                                    span { class: "hidden sm:inline", "{month_full}" }
+                                    span { class: "sm:hidden", "{month_abbr}" }
+                                    span { " {year_str}" }
+                                }
+                                span { class: "text-xs text-gray-400",
+                                    if show_picker() {
+                                        "▴"
+                                    } else {
+                                        "▾"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    button {
+                        class: "px-5 py-2.5 min-w-[56px] rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-colors select-none text-xl font-semibold",
+                        onclick: move |_| {
+                            let (y, m) = (sel_year(), sel_month());
+                            if m == 12 {
+                                sel_year.set(y + 1);
+                                sel_month.set(1);
+                            } else {
+                                sel_month.set(m + 1);
+                            }
+                            display_limit.set(PAGE_SIZE);
+                        },
+                        "›"
+                    }
+                }
+
+                // Month picker grid
+                if show_picker() {
+                    div { class: "mt-3 space-y-3",
+                        div { class: "flex items-center justify-center gap-4",
+                            button {
+                                class: "px-3 py-1 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50",
+                                onclick: move |_| {
+                                    sel_year.set(sel_year() - 1);
+                                    display_limit.set(PAGE_SIZE);
+                                },
+                                "−"
+                            }
+                            span { class: "text-sm font-medium text-gray-800 w-12 text-center",
+                                "{sel_year()}"
+                            }
+                            button {
+                                class: "px-3 py-1 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50",
+                                onclick: move |_| {
+                                    sel_year.set(sel_year() + 1);
+                                    display_limit.set(PAGE_SIZE);
+                                },
+                                "＋"
+                            }
+                        }
+                        div { class: "grid grid-cols-4 gap-1.5",
+                            for (idx , abbr) in month_picker_labels.iter().enumerate() {
+                                {
+                                    let m = (idx + 1) as u8;
+                                    let abbr = abbr.clone();
+                                    let is_sel = sel_month() == m;
+                                    let cls = if is_sel {
+                                        "py-1.5 text-xs rounded-lg text-center bg-primary-600 text-white font-medium"
+                                    } else {
+                                        "py-1.5 text-xs rounded-lg text-center border border-gray-200 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    };
+                                    rsx! {
+                                        button {
+                                            class: cls,
+                                            onclick: move |_| {
+                                                sel_month.set(m);
+                                                show_picker.set(false);
+                                                display_limit.set(PAGE_SIZE);
+                                            },
+                                            "{abbr}"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Filter card ────────────────────────────────────────────────
             div { class: "bg-white rounded-xl border border-gray-200 p-4 space-y-3",
                 input {
@@ -275,54 +419,17 @@ pub fn AppAbsences() -> Element {
                         display_limit.set(PAGE_SIZE);
                     },
                 }
-                div { class: "grid grid-cols-2 sm:grid-cols-3 gap-2",
-                    div { class: "flex flex-col gap-1",
-                        span { class: "text-xs font-medium text-gray-500",
-                            {t!("absence-filter-month")}
-                        }
-                        select {
-                            class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
-                            onchange: move |e| {
-                                filters.write().month = e.value().parse().ok();
-                                display_limit.set(PAGE_SIZE);
-                            },
-                            option { value: "", {t!("user-filter-all")} }
-                            for (m , label) in month_labels_for_select.iter() {
-                                option { value: "{m}", "{label}" }
-                            }
-                        }
+                label { class: "flex items-center gap-2 px-1 cursor-pointer",
+                    input {
+                        r#type: "checkbox",
+                        class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
+                        checked: filters.read().ongoing_only,
+                        onchange: move |e| {
+                            filters.write().ongoing_only = e.checked();
+                            display_limit.set(PAGE_SIZE);
+                        },
                     }
-                    div { class: "flex flex-col gap-1",
-                        span { class: "text-xs font-medium text-gray-500", {t!("absence-filter-year")} }
-                        select {
-                            class: "w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500",
-                            onchange: move |e| {
-                                filters.write().year = e.value().parse().ok();
-                                display_limit.set(PAGE_SIZE);
-                            },
-                            option { value: "", {t!("user-filter-all")} }
-                            for y in years.iter().copied() {
-                                option { value: "{y}", "{y}" }
-                            }
-                        }
-                    }
-                    div { class: "flex flex-col gap-1",
-                        span { class: "text-xs font-medium text-gray-500",
-                            {t!("absence-filter-status")}
-                        }
-                        label { class: "flex items-center gap-2 px-2 py-1.5 cursor-pointer",
-                            input {
-                                r#type: "checkbox",
-                                class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
-                                checked: filters.read().ongoing_only,
-                                onchange: move |e| {
-                                    filters.write().ongoing_only = e.checked();
-                                    display_limit.set(PAGE_SIZE);
-                                },
-                            }
-                            span { class: "text-sm text-gray-700", {t!("absence-filter-ongoing")} }
-                        }
-                    }
+                    span { class: "text-sm text-gray-700", {t!("absence-filter-ongoing")} }
                 }
             }
 

@@ -1,9 +1,11 @@
 pub mod absence;
 pub mod congregation;
 pub mod emergency_contact;
+pub mod event;
 pub mod field_service_group;
 pub mod field_service_report;
 pub mod migrate;
+pub mod privilege;
 pub mod user;
 pub mod user_prefs;
 

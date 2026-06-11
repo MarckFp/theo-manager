@@ -1,6 +1,6 @@
 [package]
 name = "theo-manager"
-version = "0.1.0"
+version = "0.0.0-git"
 authors = ["MarckFp <33698618+MarckFp@users.noreply.github.com>"]
 edition = "2024"
 publish = false
@@ -22,8 +22,12 @@ gloo-timers = { version = "0.3.0", features = ["futures"] }
 # WASM (browser): IndexedDB for embedded storage, no rustls (browser handles TLS natively)
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 surrealdb = { version = "3.1.2", default-features = false, features = ["protocol-ws", "kv-indxdb"] }
-# getrandom wasm_js enables window.crypto.getRandomValues() for ml-kem/crypto-common
+# getrandom 0.4 — used by ml-kem / kem / crypto-common 0.2 (wasm_js = use window.crypto)
 getrandom = { version = "0.4", features = ["wasm_js"] }
+# getrandom 0.2 — used by aes-gcm → rand_core 0.6 (OsRng::fill_bytes panics without "js" in WASM)
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+# getrandom 0.3 — used by bcrypt / ahash (pulled in by surrealdb-core)
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 web-sys = { version = "0.3", features = ["Window", "Navigator"] }
 js-sys = "0.3"
 
@@ -48,6 +52,12 @@ codegen-units = 1
 panic = "abort"
 strip = true
 incremental = false
+
+[profile.dev]
+# opt-level=0 (default) generates too many locals in async state machines for
+# walrus (used by `dx serve`) to parse the WASM module. Level 1 folds duplicate
+# locals via basic optimizations without meaningful compile-time impact.
+opt-level = 1
 
 [profile.dev.package.argon2]
 opt-level = 3

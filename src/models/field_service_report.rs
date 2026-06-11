@@ -4,6 +4,8 @@ use surrealdb::types::{RecordId, SurrealValue};
 use crate::crypto::{CryptoError, SessionCrypto};
 use crate::database::Db;
 
+fn bool_true() -> bool { true }
+
 pub const TABLE: &str = "field_service_report";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
@@ -13,17 +15,23 @@ pub struct FieldServiceReport {
     pub publisher: RecordId,   // plaintext FK
     pub year: i32,             // plaintext (calendar year)
     pub month: u8,             // 1-12, plaintext
-    pub placements: Option<u32>,
-    pub videos: Option<u32>,
-    pub return_visits: Option<u32>,
-    pub bible_studies: Option<u32>,
-    pub hours: Option<f64>,
-    pub auxiliary_pioneer: bool,
-    /// When true the publisher submitted a "did not preach" report.
-    /// Old records without this field deserialize as false (serde default).
+    pub hours: Option<u32>,
     #[serde(default)]
-    pub not_preached: bool,
+    pub credits: Option<u32>,
+    pub bible_studies: Option<u32>,
+    pub auxiliary_pioneer: bool,
+    /// When true the publisher preached this month.
+    /// Old records without this field deserialize as true (preached by default).
+    #[serde(default = "bool_true")]
+    pub preached: bool,
     pub notes: Option<String>, // encrypted
+    // Legacy fields kept for backward-compatible deserialization only.
+    #[serde(default)]
+    pub placements: Option<u32>,
+    #[serde(default)]
+    pub videos: Option<u32>,
+    #[serde(default)]
+    pub return_visits: Option<u32>,
 }
 
 /// Payload for creating or updating a field service report.
@@ -33,14 +41,12 @@ pub struct FieldServiceReportData {
     pub publisher: RecordId,
     pub year: i32,
     pub month: u8,
-    pub placements: Option<u32>,
-    pub videos: Option<u32>,
-    pub return_visits: Option<u32>,
-    pub bible_studies: Option<u32>,
-    pub hours: Option<f64>,
-    pub auxiliary_pioneer: bool,
+    pub hours: Option<u32>,
     #[serde(default)]
-    pub not_preached: bool,
+    pub credits: Option<u32>,
+    pub bible_studies: Option<u32>,
+    pub auxiliary_pioneer: bool,
+    pub preached: bool,
     pub notes: Option<String>,
 }
 
@@ -64,6 +70,26 @@ impl FieldServiceReport {
         Ok(self)
     }
 
+    /// All reports for a given month/year, decrypted.
+    pub async fn by_month(
+        db: &Db,
+        crypto: &SessionCrypto,
+        year: i32,
+        month: u8,
+    ) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
+        let rows: Vec<Self> = db
+            .query(
+                "SELECT * FROM field_service_report WHERE year = $y AND month = $m",
+            )
+            .bind(("y", year))
+            .bind(("m", month))
+            .await?
+            .take(0)?;
+        rows.into_iter()
+            .map(|r| r.decrypt(crypto).map_err(Into::into))
+            .collect()
+    }
+
     /// All reports for a given publisher, sorted newest first.
     pub async fn by_publisher(
         db: &Db,
@@ -85,10 +111,10 @@ impl FieldServiceReport {
 
     /// Returns the set of publisher record-ID strings (e.g. `"user:abc123"`)
     /// that have at least one report since `(since_year, since_month)` inclusive
-    /// where `not_preached` is not true (i.e. they actually preached).
+    /// where `preached` is true.
     ///
-    /// Existing records that pre-date the `not_preached` field are treated as
-    /// preached (SurrealDB stores them without the field → != true).
+    /// Legacy records that pre-date the `preached` field (which stored `not_preached`)
+    /// are included via the backward-compat OR clause.
     pub async fn active_publisher_ids(
         db: &Db,
         since_year: i32,
@@ -98,7 +124,7 @@ impl FieldServiceReport {
             .query(
                 "SELECT publisher FROM field_service_report \
                  WHERE (year > $sy OR (year = $sy AND month >= $sm)) \
-                 AND not_preached != true",
+                 AND (preached = true OR not_preached != true)",
             )
             .bind(("sy", since_year))
             .bind(("sm", since_month))

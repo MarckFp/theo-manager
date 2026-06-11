@@ -128,6 +128,11 @@ pub fn AppSidebar() -> Element {
                     icon: "🗣️",
                     label: t!("nav-weekend-meeting"),
                 }
+                NavItem {
+                    to: Route::AppPublicTalks {},
+                    icon: "🎤",
+                    label: t!("nav-public-talks"),
+                }
 
                 NavDivider {}
 
@@ -143,6 +148,26 @@ pub fn AppSidebar() -> Element {
                     },
                     icon: "🔒",
                     label: t!("nav-permissions"),
+                }
+                NavItem {
+                    to: Route::AppPrivileges {},
+                    icon: "🔑",
+                    label: t!("nav-privileges"),
+                }
+                NavItem {
+                    to: Route::AppMaintenance {},
+                    icon: "🔧",
+                    label: t!("nav-maintenance"),
+                }
+                NavItem {
+                    to: Route::AppEvents {},
+                    icon: "📅",
+                    label: t!("nav-events"),
+                }
+                NavItem {
+                    to: Route::AppCustom {},
+                    icon: "🎨",
+                    label: t!("nav-custom"),
                 }
             }
 

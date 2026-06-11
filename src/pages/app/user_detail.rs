@@ -97,30 +97,41 @@ impl ContactFormState {
 
 // ── Field service report form state ──────────────────────────────────────────
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct ReportFormState {
-    placements: String,
-    videos: String,
-    return_visits: String,
-    bible_studies: String,
     hours: String,
+    credits: String,
+    bible_studies: String,
     auxiliary_pioneer: bool,
-    not_preached: bool,
+    preached: bool,
     notes: String,
     submitting: bool,
     error: Option<String>,
 }
 
+impl Default for ReportFormState {
+    fn default() -> Self {
+        Self {
+            preached: true,
+            hours: String::new(),
+            credits: String::new(),
+            bible_studies: String::new(),
+            auxiliary_pioneer: false,
+            notes: String::new(),
+            submitting: false,
+            error: None,
+        }
+    }
+}
+
 impl ReportFormState {
     fn from_report(r: &FieldServiceReport) -> Self {
         Self {
-            placements: r.placements.map(|v| v.to_string()).unwrap_or_default(),
-            videos: r.videos.map(|v| v.to_string()).unwrap_or_default(),
-            return_visits: r.return_visits.map(|v| v.to_string()).unwrap_or_default(),
-            bible_studies: r.bible_studies.map(|v| v.to_string()).unwrap_or_default(),
             hours: r.hours.map(|v| v.to_string()).unwrap_or_default(),
+            credits: r.credits.map(|v| v.to_string()).unwrap_or_default(),
+            bible_studies: r.bible_studies.map(|v| v.to_string()).unwrap_or_default(),
             auxiliary_pioneer: r.auxiliary_pioneer,
-            not_preached: r.not_preached,
+            preached: r.preached,
             notes: r.notes.clone().unwrap_or_default(),
             ..Default::default()
         }
@@ -327,7 +338,7 @@ pub fn AppUserDetail(id: String) -> Element {
     };
     let computed_active: Option<bool> = if is_publisher_type(&user.user_type) {
         let active = reports.iter().any(|r| {
-            !r.not_preached
+            r.preached
                 && (r.year > since_year || (r.year == since_year && r.month >= since_month))
         });
         Some(active)
@@ -607,6 +618,7 @@ pub fn AppUserDetail(id: String) -> Element {
         if let Some((year, month, existing)) = editing_report.read().clone() {
             ReportFormModal {
                 publisher_id: record_id.clone(),
+                user_type: user.user_type.clone(),
                 year,
                 month,
                 open: report_modal_open,
@@ -734,28 +746,33 @@ fn ReportMonthCard(
                 }
             }
             if let Some(r) = report {
-                div { class: "grid grid-cols-2 gap-x-3 gap-y-1",
-                    ReportStat {
-                        label: t!("report-form-placements"),
-                        value: r.placements,
+                if !r.preached {
+                    span { class: "inline-flex px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500 italic",
+                        {t!("report-form-not-preached")}
                     }
-                    ReportStat { label: t!("report-form-videos"), value: r.videos }
-                    ReportStat {
-                        label: t!("report-form-return-visits"),
-                        value: r.return_visits,
-                    }
-                    ReportStat {
-                        label: t!("report-form-bible-studies"),
-                        value: r.bible_studies,
-                    }
-                    if let Some(h) = r.hours {
-                        div { class: "col-span-2 flex items-center justify-between text-xs",
-                            span { class: "text-gray-500", {t!("report-form-hours")} }
-                            span { class: "font-medium text-gray-800", "{h}" }
+                } else {
+                    div { class: "space-y-1",
+                        div { class: "grid grid-cols-2 gap-x-3 gap-y-1",
+                            if let Some(h) = r.hours {
+                                div { class: "flex items-center justify-between text-xs",
+                                    span { class: "text-gray-500", {t!("report-form-hours")} }
+                                    span { class: "font-medium text-gray-800", "{h}" }
+                                }
+                            }
+                            if let Some(c) = r.credits {
+                                div { class: "flex items-center justify-between text-xs",
+                                    span { class: "text-gray-500", {t!("report-form-credits")} }
+                                    span { class: "font-medium text-gray-800", "{c}" }
+                                }
+                            }
+                            if let Some(bs) = r.bible_studies {
+                                div { class: "flex items-center justify-between text-xs",
+                                    span { class: "text-gray-500", {t!("report-form-bible-studies")} }
+                                    span { class: "font-medium text-gray-800", "{bs}" }
+                                }
+                            }
                         }
-                    }
-                    if r.auxiliary_pioneer {
-                        div { class: "col-span-2 mt-0.5",
+                        if r.auxiliary_pioneer {
                             span { class: "inline-flex px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-700",
                                 {t!("report-form-aux-pioneer")}
                             }
@@ -765,17 +782,6 @@ fn ReportMonthCard(
             } else {
                 p { class: "text-xs text-gray-400 italic", {t!("report-not-submitted")} }
             }
-        }
-    }
-}
-
-#[component]
-fn ReportStat(label: String, value: Option<u32>) -> Element {
-    let display = value.map(|v| v.to_string()).unwrap_or_else(|| "—".to_string());
-    rsx! {
-        div { class: "flex items-center justify-between text-xs",
-            span { class: "text-gray-500", "{label}" }
-            span { class: "font-medium text-gray-800", "{display}" }
         }
     }
 }
@@ -1088,92 +1094,105 @@ fn ContactFormModal(
 
 // ── Report form body ──────────────────────────────────────────────────────────
 
+/// True when the user type always requires hours/credits (pioneers, missionaries).
+pub fn always_show_hours(ut: &UserType) -> bool {
+    matches!(
+        ut,
+        UserType::ContinuousAuxiliaryPioneer
+            | UserType::RegularPioneer
+            | UserType::SpecialPioneer
+            | UserType::Missionary
+    )
+}
+
 #[component]
-fn ReportFormBody(form: Signal<ReportFormState>) -> Element {
+fn ReportFormBody(form: Signal<ReportFormState>, user_type: UserType) -> Element {
     let f = form.read().clone();
+    let is_pioneer = always_show_hours(&user_type);
+    let show_hours = is_pioneer || f.auxiliary_pioneer;
+    let show_credits = is_pioneer;
     rsx! {
         if let Some(err) = &f.error {
             div { class: "bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg",
                 "{err}"
             }
         }
-        // Placements + Videos
-        div { class: "grid grid-cols-2 gap-3",
-            div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("report-form-placements")} }
+        // Auxiliary pioneer (only for publisher/baptized types)
+        if !is_pioneer {
+            label { class: "flex items-center gap-3 cursor-pointer py-1",
                 input {
-                    r#type: "number",
-                    min: "0",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
-                    value: f.placements.clone(),
-                    oninput: move |e| form.write().placements = e.value(),
+                    r#type: "checkbox",
+                    class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
+                    checked: f.auxiliary_pioneer,
+                    onchange: move |e| form.write().auxiliary_pioneer = e.checked(),
                 }
+                span { class: "text-sm text-gray-700", {t!("report-form-aux-pioneer")} }
             }
-            div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("report-form-videos")} }
-                input {
-                    r#type: "number",
-                    min: "0",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
-                    value: f.videos.clone(),
-                    oninput: move |e| form.write().videos = e.value(),
+        }
+        // Hours + Credits (conditional)
+        if show_hours {
+            div { class: "grid grid-cols-2 gap-3",
+                div { class: "flex flex-col gap-1",
+                    label { class: "text-xs font-medium text-gray-700",
+                        {t!("report-form-hours")}
+                        span { class: "text-red-500 ml-0.5", " *" }
+                    }
+                    input {
+                        r#type: "number",
+                        min: "0",
+                        step: "1",
+                        class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
+                        value: f.hours.clone(),
+                        oninput: move |e| form.write().hours = e.value(),
+                    }
+                }
+                if show_credits {
+                    div { class: "flex flex-col gap-1",
+                        label { class: "text-xs font-medium text-gray-700", {t!("report-form-credits")} }
+                        input {
+                            r#type: "number",
+                            min: "0",
+                            step: "1",
+                            class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
+                            value: f.credits.clone(),
+                            oninput: move |e| form.write().credits = e.value(),
+                        }
+                    }
                 }
             }
         }
-        // Return visits + Bible studies
-        div { class: "grid grid-cols-2 gap-3",
-            div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("report-form-return-visits")} }
-                input {
-                    r#type: "number",
-                    min: "0",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
-                    value: f.return_visits.clone(),
-                    oninput: move |e| form.write().return_visits = e.value(),
-                }
-            }
-            div { class: "flex flex-col gap-1",
-                label { class: "text-xs font-medium text-gray-700", {t!("report-form-bible-studies")} }
-                input {
-                    r#type: "number",
-                    min: "0",
-                    class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
-                    value: f.bible_studies.clone(),
-                    oninput: move |e| form.write().bible_studies = e.value(),
-                }
-            }
-        }
-        // Hours
+        // Bible studies
         div { class: "flex flex-col gap-1",
-            label { class: "text-xs font-medium text-gray-700", {t!("report-form-hours")} }
+            label { class: "text-xs font-medium text-gray-700", {t!("report-form-bible-studies")} }
             input {
                 r#type: "number",
                 min: "0",
-                step: "0.5",
+                step: "1",
                 class: "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500",
-                value: f.hours.clone(),
-                oninput: move |e| form.write().hours = e.value(),
+                value: f.bible_studies.clone(),
+                oninput: move |e| form.write().bible_studies = e.value(),
             }
         }
-        // Auxiliary pioneer
-        label { class: "flex items-center gap-3 cursor-pointer py-1",
-            input {
-                r#type: "checkbox",
-                class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
-                checked: f.auxiliary_pioneer,
-                onchange: move |e| form.write().auxiliary_pioneer = e.checked(),
+        // Preached / not-preached toggle (hidden for pioneers/missionaries)
+        if !is_pioneer {
+            div { class: "flex items-center gap-3 py-1",
+                button {
+                    r#type: "button",
+                    class: if f.preached { "relative inline-flex h-6 w-11 shrink-0 rounded-full bg-primary-600 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1" } else { "relative inline-flex h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1" },
+                    onclick: move |_| {
+                        let cur = form.read().preached;
+                        form.write().preached = !cur;
+                    },
+                    span { class: if f.preached { "inline-block h-5 w-5 translate-x-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out" } else { "inline-block h-5 w-5 translate-x-0.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out" } }
+                }
+                span { class: if f.preached { "text-sm font-medium text-gray-900" } else { "text-sm text-gray-400" },
+                    if f.preached {
+                        {t!("report-preached")}
+                    } else {
+                        {t!("report-form-not-preached")}
+                    }
+                }
             }
-            span { class: "text-sm text-gray-700", {t!("report-form-aux-pioneer")} }
-        }
-        // Did not preach
-        label { class: "flex items-center gap-3 cursor-pointer py-1",
-            input {
-                r#type: "checkbox",
-                class: "w-4 h-4 rounded border-gray-300 accent-primary-600",
-                checked: f.not_preached,
-                onchange: move |e| form.write().not_preached = e.checked(),
-            }
-            span { class: "text-sm text-gray-700", {t!("report-form-not-preached")} }
         }
         // Notes
         div { class: "flex flex-col gap-1",
@@ -1193,6 +1212,7 @@ fn ReportFormBody(form: Signal<ReportFormState>) -> Element {
 #[component]
 fn ReportFormModal(
     publisher_id: RecordId,
+    user_type: UserType,
     year: i32,
     month: u8,
     open: Signal<bool>,
@@ -1224,13 +1244,11 @@ fn ReportFormModal(
             publisher: pub_id.clone(),
             year,
             month,
-            placements: fd.placements.trim().parse().ok(),
-            videos: fd.videos.trim().parse().ok(),
-            return_visits: fd.return_visits.trim().parse().ok(),
-            bible_studies: fd.bible_studies.trim().parse().ok(),
             hours: fd.hours.trim().parse().ok(),
+            credits: fd.credits.trim().parse().ok(),
+            bible_studies: fd.bible_studies.trim().parse().ok(),
             auxiliary_pioneer: fd.auxiliary_pioneer,
-            not_preached: fd.not_preached,
+            preached: fd.preached,
             notes: (!fd.notes.trim().is_empty()).then(|| fd.notes.trim().to_string()),
         };
         let eid = existing_id.clone();
@@ -1267,7 +1285,7 @@ fn ReportFormModal(
             description: String::new(),
             submitting: f.submitting,
             on_submit,
-            ReportFormBody { form }
+            ReportFormBody { form, user_type }
         }
     }
 }

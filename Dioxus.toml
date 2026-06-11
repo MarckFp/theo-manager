@@ -3,9 +3,6 @@ name = "TheoManager"
 default_platform = "web"
 hot_reload = true
 
-[bundle]
-identifier = "com.MarckFp.theo-manager"
-
 #------------------------------------------
 # Web
 #------------------------------------------
@@ -26,8 +23,29 @@ index_on_404 = true
 watch_path = ["src"]
 
 #------------------------------------------
+# Bundler
+#------------------------------------------
+[bundle]
+identifier = "com.MarckFp.theo-manager"
+publisher = "MarckFp"
+copyright = ""
+category = "Utility"
+short_description = "An amazing dioxus application."
+long_description = """
+An amazing dioxus application.
+"""
+
+#------------------------------------------
 # Windows
 #------------------------------------------
+[bundle.windows]
+allow_downgrades = false
+tsp = false
+webview_install_mode = {DownloadBootstrapper = {silent = true}}
+silent = true
+[bundle.windows.nsis]
+install_mode = "Both"
+display_language_selector = false
 
 #------------------------------------------
 # MacOS

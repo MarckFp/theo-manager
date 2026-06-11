@@ -158,14 +158,6 @@ jobs:
             cp target/dx/${{ env.APP_NAME }}/release/web/public/index.html target/dx/${{ env.APP_NAME }}/release/web/public/404.html
           fi
 
-      - name: Optimize Wasm ⚡
-        if: ${{ matrix.platform == 'web'}}
-        uses: NiklasEi/wasm-opt-action@v2
-        with:
-          file: target/dx/${{ env.APP_NAME }}/release/web/public/wasm/*.wasm
-          optimize_all: true
-          options: -Oz
-
       - name: Upload Github Pages 📤
         if: ${{ matrix.platform == 'web'}}
         uses: actions/upload-pages-artifact@v5

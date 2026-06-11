@@ -13,8 +13,9 @@ use pages::{
     app::{
         AppAbsences, AppAttendants, AppAvPlatform, AppCleaning, AppCongregationPermissions,
         AppCongregationSettings, AppDashboard, AppFieldServiceGroups, AppFieldServiceMeetings,
-        AppFieldServiceReports, AppLayout, AppPublicPreaching, AppTerritory, AppUsers,
-        AppWeekdayMeeting, AppWeekendMeeting, AppNewCongregation, AppUserSettings, AppUserDetail
+        AppFieldServiceReports, AppLayout, AppMaintenance, AppPrivileges, AppPublicPreaching,
+        AppPublicTalks, AppTerritory, AppUsers, AppWeekdayMeeting, AppWeekendMeeting,
+        AppNewCongregation, AppUserSettings, AppUserDetail, AppEvents, AppCustom
     },
 };
 
@@ -69,12 +70,22 @@ pub enum Route {
         AppWeekdayMeeting {},
         #[route("/app/meetings/weekend")]
         AppWeekendMeeting {},
+        #[route("/app/meetings/public-talks")]
+        AppPublicTalks {},
 
         // Congregation section
         #[route("/app/congregation/settings")]
         AppCongregationSettings {},
         #[route("/app/congregation/permissions")]
         AppCongregationPermissions {},
+        #[route("/app/congregation/privileges")]
+        AppPrivileges {},
+        #[route("/app/congregation/maintenance")]
+        AppMaintenance {},
+        #[route("/app/congregation/events")]
+        AppEvents {},
+        #[route("/app/congregation/custom")]
+        AppCustom {},
         
         #[route("/app/congregation/new")]
         AppNewCongregation {},

@@ -125,6 +125,15 @@ dash-users = Usuarios
 dash-users-desc = Gestionar usuarios de la congregación
 dash-absences = Ausencias
 dash-absences-desc = Registrar ausencias de los usuarios
+dash-stat-publishers = Publicadores
+dash-stat-publishers-desc = Miembros activos (sin estudiantes)
+dash-stat-elders = Ancianos
+dash-stat-ms = Siervos Min.
+dash-stat-report-title = Informes de Campo
+dash-stat-report-submitted = Enviados
+dash-stat-report-pending = Pendientes
+dash-stat-user-types-title = Miembros por Tipo
+dash-loading = Cargando…
 
 # Users page
 page-users = Usuarios
@@ -349,6 +358,7 @@ report-form-videos = Videos
 report-form-return-visits = Revisitas
 report-form-bible-studies = Estudios bíblicos
 report-form-hours = Horas
+report-form-credits = Créditos
 report-form-aux-pioneer = Precursor auxiliar
 report-form-notes = Notas
 report-not-submitted = No enviado
@@ -356,6 +366,13 @@ report-add-btn = Añadir
 report-delete-title = Eliminar informe
 report-delete-confirm = ¿Estás seguro de que quieres eliminar este informe de servicio?
 report-form-not-preached = No predicó
+report-preached = Predicó
+report-detail-title = Detalles del informe
+report-btn-view = Ver
+report-filter-user-placeholder = Buscar por nombre…
+reports-loading = Cargando informes…
+reports-no-reports = No hay informes para este mes.
+reports-submitted-of = enviados
 
 # Nombres de meses (completos)
 month-1 = Enero
@@ -425,3 +442,112 @@ user-filter-group = Grupo
 user-filter-no-group = Sin grupo
 user-detail-group = Grupo de servicio del campo
 user-detail-no-group = Sin grupo
+
+# Sidebar nav (new items)
+nav-privileges = Privilegios
+nav-maintenance = Mantenimiento
+nav-public-talks = Discursos Públicos
+
+# Privileges page
+page-privileges = Privilegios
+priv-filter-placeholder = Buscar por nombre…
+priv-loading = Cargando…
+priv-no-users = Sin usuarios
+priv-btn-edit = Editar
+priv-edit-title = Privilegios
+
+# Privilege categories
+priv-cat-midweek = Reunión Entre Semana
+priv-cat-weekend = Reunión Fin de Semana
+priv-cat-platform = Departamentos
+priv-cat-other = Otros
+
+# Privilege names
+priv-weekday-pray = Oración (entre semana)
+priv-weekday-chairman = Presidente (entre semana)
+priv-aux-chairman = Presidente aux. (2.ª sala)
+priv-treasures = Tesoros de la Palabra de Dios
+priv-spiritual-gems = Joyas espirituales
+priv-bible-reading = Lectura de la Biblia
+priv-field-ministry-discussion = Discusión sobre el ministerio
+priv-starting-conversation = Iniciar una conversación
+priv-following-up = Hacer un seguimiento
+priv-making-disciples = Hacer discípulos
+priv-assistant = Asistente
+priv-student-talk = Intervención del estudiante
+priv-living-as-christians = Nuestra vida cristiana
+priv-congregation-bible-study = Estudio Bíblico de la Cong.
+priv-congregation-bible-study-reader = Lector del Estudio Bíblico
+priv-weekend-pray = Oración (fin de semana)
+priv-weekend-chairman = Presidente (fin de semana)
+priv-watchtower-conductor = Director del Estudio de La Atalaya
+priv-public-talks = Discursos públicos
+priv-public-talks-away = Discursos fuera
+priv-stage = Escenario
+priv-audio = Audio
+priv-video = Video
+priv-microphones = Micrófonos
+priv-attendant = Acomodador
+priv-zoom-attendant = Acomodador de Zoom
+priv-hospitality = Hospitalidad
+priv-interpreter = Intérprete
+priv-field-service-meeting = Reunión del ministerio de campo
+priv-public-witnessing = Predicación pública
+priv-cleaning = Limpieza
+priv-maintenance = Mantenimiento
+priv-territory = Territorio
+
+# Maintenance page
+page-maintenance = Mantenimiento
+empty-maintenance-title = Sin tareas de mantenimiento
+empty-maintenance-desc = Las tareas y programas de mantenimiento aparecerán aquí.
+
+# Public Talks page
+page-public-talks = Discursos Públicos
+empty-public-talks-title = Sin discursos públicos programados
+empty-public-talks-desc = Los discursos públicos entrantes y salientes aparecerán aquí.
+
+# Events page
+nav-events = Eventos
+page-events = Eventos
+empty-events-title = Sin eventos
+empty-events-desc = Los eventos y actividades de la congregación aparecerán aquí.
+
+# Custom page
+nav-custom = Personalizado
+page-custom = Personalizado
+empty-custom-title = Nada por aquí aún
+empty-custom-desc = Las funciones personalizadas de la congregación aparecerán aquí.
+
+# Privilege sub-categories (midweek meeting)
+priv-sub-treasures = Tesoros de la Palabra de Dios
+priv-sub-field-ministry = Seamos mejores maestros
+priv-sub-christians = Nuestra vida cristiana
+
+# Privilege filter
+priv-filter-privilege = Filtrar por privilegio
+
+# Event types
+event-type-circuit-assembly = Asamblea de Circuito
+event-type-memorial = Conmemoración
+event-type-circuit-overseer = Visita del Superintendente de Circuito
+event-type-regional-convention = Convención Regional
+event-type-other = Otro
+
+# Event form
+event-btn-new = Nuevo Evento
+event-new-title = Nuevo Evento
+event-edit-title = Editar Evento
+event-form-type = Tipo de Evento
+event-form-title = Título Personalizado
+event-form-start-date = Fecha de Inicio
+event-form-end-date = Fecha de Fin
+event-form-description = Descripción
+event-delete-confirm = ¿Seguro?
+
+# Dashboard upcoming events
+dash-upcoming-events = Próximos Eventos
+dash-no-upcoming-events = No hay eventos en los próximos 30 días
+
+# Common buttons
+btn-delete = Eliminar

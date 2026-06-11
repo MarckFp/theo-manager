@@ -125,6 +125,15 @@ dash-users = Users
 dash-users-desc = Manage congregation users
 dash-absences = Absences
 dash-absences-desc = Track user absences
+dash-stat-publishers = Publishers
+dash-stat-publishers-desc = Active members (excluding students)
+dash-stat-elders = Elders
+dash-stat-ms = Min. Servants
+dash-stat-report-title = Field Service Reports
+dash-stat-report-submitted = Submitted
+dash-stat-report-pending = Pending
+dash-stat-user-types-title = Members by Type
+dash-loading = Loading…
 
 # Users page
 page-users = Users
@@ -349,6 +358,7 @@ report-form-videos = Videos
 report-form-return-visits = Return Visits
 report-form-bible-studies = Bible Studies
 report-form-hours = Hours
+report-form-credits = Credits
 report-form-aux-pioneer = Auxiliary Pioneer
 report-form-notes = Notes
 report-not-submitted = Not submitted
@@ -356,6 +366,13 @@ report-add-btn = Add
 report-delete-title = Delete Report
 report-delete-confirm = Are you sure you want to delete this service report?
 report-form-not-preached = Did not preach
+report-preached = Preached
+report-detail-title = Report Details
+report-btn-view = View
+report-filter-user-placeholder = Search by name…
+reports-loading = Loading reports…
+reports-no-reports = No reports submitted for this month.
+reports-submitted-of = submitted
 
 # Month names (full)
 month-1 = January
@@ -425,3 +442,112 @@ user-filter-group = Group
 user-filter-no-group = No Group
 user-detail-group = Field Service Group
 user-detail-no-group = No Group
+
+# Sidebar nav (new items)
+nav-privileges = Privileges
+nav-maintenance = Maintenance
+nav-public-talks = Public Talks
+
+# Privileges page
+page-privileges = Privileges
+priv-filter-placeholder = Search by name…
+priv-loading = Loading…
+priv-no-users = No users found
+priv-btn-edit = Edit
+priv-edit-title = Privileges
+
+# Privilege categories
+priv-cat-midweek = Midweek Meeting
+priv-cat-weekend = Weekend Meeting
+priv-cat-platform = Departments
+priv-cat-other = Other
+
+# Privilege names
+priv-weekday-pray = Weekday Pray
+priv-weekday-chairman = Weekday Chairman
+priv-aux-chairman = Aux. Chairman (2nd classroom)
+priv-treasures = Treasures from God’s Word
+priv-spiritual-gems = Spiritual Gems
+priv-bible-reading = Bible Reading
+priv-field-ministry-discussion = Field Ministry Discussion
+priv-starting-conversation = Starting a Conversation
+priv-following-up = Following Up
+priv-making-disciples = Making Disciples
+priv-assistant = Assistant
+priv-student-talk = Student Talk
+priv-living-as-christians = Living as Christians
+priv-congregation-bible-study = Congregation Bible Study
+priv-congregation-bible-study-reader = CBS Reader
+priv-weekend-pray = Weekend Pray
+priv-weekend-chairman = Weekend Chairman
+priv-watchtower-conductor = Watchtower Conductor
+priv-public-talks = Public Talks
+priv-public-talks-away = Public Talks — Away
+priv-stage = Stage
+priv-audio = Audio
+priv-video = Video
+priv-microphones = Microphones
+priv-attendant = Attendant
+priv-zoom-attendant = Zoom Attendant
+priv-hospitality = Hospitality
+priv-interpreter = Interpreter
+priv-field-service-meeting = Field Service Meeting
+priv-public-witnessing = Public Witnessing
+priv-cleaning = Cleaning
+priv-maintenance = Maintenance
+priv-territory = Territory
+
+# Maintenance page
+page-maintenance = Maintenance
+empty-maintenance-title = No maintenance tasks yet
+empty-maintenance-desc = Maintenance tasks and schedules will appear here.
+
+# Public Talks page
+page-public-talks = Public Talks
+empty-public-talks-title = No public talks scheduled yet
+empty-public-talks-desc = Incoming and outgoing public talks will appear here.
+
+# Events page
+nav-events = Events
+page-events = Events
+empty-events-title = No events yet
+empty-events-desc = Congregation events and activities will appear here.
+
+# Custom page
+nav-custom = Custom
+page-custom = Custom
+empty-custom-title = Nothing here yet
+empty-custom-desc = Custom congregation features will appear here.
+
+# Privilege sub-categories (midweek meeting)
+priv-sub-treasures = Treasures from God's Word
+priv-sub-field-ministry = Apply Yourself to the Ministry
+priv-sub-christians = Living as Christians
+
+# Privilege filter
+priv-filter-privilege = Filter by privilege
+
+# Event types
+event-type-circuit-assembly = Circuit Assembly
+event-type-memorial = Memorial
+event-type-circuit-overseer = Circuit Overseer Visit
+event-type-regional-convention = Regional Convention
+event-type-other = Other
+
+# Event form
+event-btn-new = New Event
+event-new-title = New Event
+event-edit-title = Edit Event
+event-form-type = Event Type
+event-form-title = Custom Title
+event-form-start-date = Start Date
+event-form-end-date = End Date
+event-form-description = Description
+event-delete-confirm = Are you sure?
+
+# Dashboard upcoming events
+dash-upcoming-events = Upcoming Events
+dash-no-upcoming-events = No events in the next 30 days
+
+# Common buttons
+btn-delete = Delete
