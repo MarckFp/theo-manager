@@ -547,7 +547,29 @@ event-delete-confirm = Are you sure?
 
 # Dashboard upcoming events
 dash-upcoming-events = Upcoming Events
-dash-no-upcoming-events = No events in the next 30 days
+dash-no-upcoming-events = No events in the next 60 days
 
 # Common buttons
 btn-delete = Delete
+
+# Field service meetings calendar
+fsm-day-mon = Mon
+fsm-day-tue = Tue
+fsm-day-wed = Wed
+fsm-day-thu = Thu
+fsm-day-fri = Fri
+fsm-day-sat = Sat
+fsm-day-sun = Sun
+fsm-loading = Loading…
+fsm-meeting-form-title-new = New Meeting
+fsm-meeting-form-title-edit = Edit Meeting
+fsm-meeting-form-date = Date
+fsm-meeting-form-location = Location
+fsm-meeting-form-location-placeholder = e.g. Kingdom Hall, Park…
+fsm-meeting-form-assignee = Assignee
+fsm-meeting-form-assignee-select = Select an assignee…
+fsm-meeting-form-notes = Notes
+fsm-meeting-form-notes-placeholder = Optional notes…
+fsm-meeting-form-required-error = Please fill in all required fields.
+fsm-assign-to-anyone = Assign to anyone
+fsm-delete-confirm = Delete this meeting?

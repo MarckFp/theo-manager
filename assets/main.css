@@ -36,6 +36,7 @@ body[data-theme="dark"] textarea {
 }
 
 body[data-theme="dark"] .bg-white\/80 { background-color: rgba(31, 41, 55, 0.8) !important; }
+body[data-theme="dark"] .bg-white\/95 { background-color: rgba(31, 41, 55, 0.97) !important; }
 body[data-theme="dark"] .bg-black\/50 { background-color: rgba(0, 0, 0, 0.7) !important; }
 
 body[data-accent="Green"] { --theme-primary-50: #f0fdf4; --theme-primary-100: #dcfce7; --theme-primary-200: #bbf7d0; --theme-primary-300: #86efac; --theme-primary-400: #4ade80; --theme-primary-500: #22c55e; --theme-primary-600: #16a34a; --theme-primary-700: #15803d; --theme-primary-800: #166534; --theme-primary-900: #14532d; }
@@ -84,7 +85,8 @@ body[data-theme="dark"] input[class*="border-red"] {
 }
 
 /* ── Dark mode: dropdown menus ───────────────────────────────── */
-body[data-theme="dark"] .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; }
+body[data-theme="dark"] .shadow-lg  { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; }
+body[data-theme="dark"] .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7) !important; }
 
 /* ── Dark mode: mode-selector buttons (new congregation / onboarding) ── */
 body[data-theme="dark"] .bg-primary-50 { background-color: color-mix(in srgb, var(--theme-primary-600) 20%, var(--color-surface-800)) !important; }

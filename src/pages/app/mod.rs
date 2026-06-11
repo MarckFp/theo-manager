@@ -50,12 +50,12 @@ use dioxus::prelude::*;
 
 use crate::{
     Route,
-    components::sidebar::{AppSidebar, SidebarCtx},
+    components::sidebar::{AppSidebar, MobileDock, MobileHeader, SidebarCtx},
     database::{use_db, use_crypto},
 };
 use crate::models::congregation::{Congregation, Theme, AccentColor};
 use crate::pages::app::user_settings::load_prefs;
-use dioxus_i18n::{prelude::i18n, t, unic_langid::LanguageIdentifier};
+use dioxus_i18n::{prelude::i18n, unic_langid::LanguageIdentifier};
 
 /// Authenticated app shell.
 ///
@@ -163,29 +163,15 @@ pub fn AppLayout() -> Element {
 
             // ── Main content column ────────────────────────────────────────
             div { class: "flex flex-col flex-1 min-w-0 overflow-hidden",
-                // Top bar visible only on mobile — provides the hamburger toggle
-                // and app name when the sidebar is hidden.
-                header { class: "flex items-center gap-3 h-14 px-4 border-b border-gray-200 bg-white shrink-0 md:hidden",
-                    // Hamburger button
-                    button {
-                        class: "p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors",
-                        aria_label: t!("nav-toggle"),
-                        onclick: move |_| {
-                            let current = *sidebar_open.read();
-                            sidebar_open.set(!current);
-                        },
-                        div { class: "flex flex-col gap-1.5 w-5",
-                            div { class: "h-0.5 bg-current rounded-full" }
-                            div { class: "h-0.5 bg-current rounded-full" }
-                            div { class: "h-0.5 bg-current rounded-full" }
-                        }
-                    }
-                    span { class: "font-semibold text-gray-900", {t!("app-name")} }
-                }
+                // Top bar — mobile only, shows congregation name and user menu.
+                MobileHeader {}
 
                 // Scrollable page content area
-                main { class: "flex-1 overflow-y-auto p-4 sm:p-6", Outlet::<Route> {} }
+                main { class: "flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6", Outlet::<Route> {} }
             }
+
+            // Mobile bottom dock
+            MobileDock {}
         }
     }
 }

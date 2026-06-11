@@ -547,7 +547,29 @@ event-delete-confirm = ¿Seguro?
 
 # Dashboard upcoming events
 dash-upcoming-events = Próximos Eventos
-dash-no-upcoming-events = No hay eventos en los próximos 30 días
+dash-no-upcoming-events = No hay eventos en los próximos 60 días
 
 # Common buttons
 btn-delete = Eliminar
+
+# Reuniones al ministerio de campo - calendario
+fsm-day-mon = Lun
+fsm-day-tue = Mar
+fsm-day-wed = Mié
+fsm-day-thu = Jue
+fsm-day-fri = Vie
+fsm-day-sat = Sáb
+fsm-day-sun = Dom
+fsm-loading = Cargando…
+fsm-meeting-form-title-new = Nueva reunión
+fsm-meeting-form-title-edit = Editar reunión
+fsm-meeting-form-date = Fecha
+fsm-meeting-form-location = Lugar
+fsm-meeting-form-location-placeholder = Ej. Salón del Reino, Parque…
+fsm-meeting-form-assignee = Responsable
+fsm-meeting-form-assignee-select = Selecciona un responsable…
+fsm-meeting-form-notes = Notas
+fsm-meeting-form-notes-placeholder = Notas opcionales…
+fsm-meeting-form-required-error = Por favor, completa todos los campos obligatorios.
+fsm-assign-to-anyone = Asignar a cualquiera
+fsm-delete-confirm = ¿Eliminar esta reunión?

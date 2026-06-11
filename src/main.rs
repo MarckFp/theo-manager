@@ -99,6 +99,9 @@ pub enum Route {
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
+const MANIFEST: Asset = asset!("/assets/manifest.json");
+// Service workers must be served at a fixed path (no content-hash suffix).
+const SW_JS: Asset = asset!("/assets/sw.js", AssetOptions::builder().with_hash_suffix(false));
 
 fn main() {
     dioxus::launch(App);
@@ -107,9 +110,22 @@ fn main() {
 #[component]
 fn App() -> Element {
     use_init_i18n(i18n::init_config);
+
+    // Register the service worker after the client-side hydration.
+    // This must run in use_effect so it only executes in the browser.
+    use_effect(|| {
+        let sw_path = SW_JS.to_string();
+        let _ = document::eval(&format!(r#"
+            if ('serviceWorker' in navigator) {{
+                navigator.serviceWorker.register('{sw_path}', {{ scope: '/' }});
+            }}
+        "#));
+    });
+
     rsx! {
         database::DatabaseProvider {
             document::Link { rel: "icon", href: FAVICON }
+            document::Link { rel: "manifest", href: MANIFEST }
             document::Link { rel: "stylesheet", href: MAIN_CSS }
             document::Link { rel: "stylesheet", href: TAILWIND_CSS }
             Router::<Route> {}

@@ -84,6 +84,7 @@ jobs:
         run: |
           mv Cargo.toml Cargo.toml.orig
           sed "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" Cargo.toml.orig >Cargo.toml
+          sed -i "s/0\\.0\\.0-git/${RELEASE_TAG##*\/v}/" assets/sw.js
 
       - name: Setup Rust Targets 🦀
         run: rustup target add ${{ matrix.target }}
@@ -181,55 +182,55 @@ jobs:
         run: |
           case "${{ matrix.name }}" in
             "Windows x86 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x86_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x86-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x86-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_x86_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x86-setup.exe
               ;;
             "Windows x64 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_x64_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_x64-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_x64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_x64-setup.exe
               ;;
 
             "Windows ARM64 🪟")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/DxApp_${{ github.ref_name }}_arm64_en-US.msi \
-                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/DxApp_${{ github.ref_name }}_arm64-setup.exe
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_arm64-setup.exe
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/msi/theo-manager_${{ github.ref_name }}_arm64_en-US.msi \
+                target/dx/${{ env.APP_NAME }}/bundle/windows/bundle/nsis/theo-manager_${{ github.ref_name }}_arm64-setup.exe
               ;;
 
             "Linux x64 🐧")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_amd64.deb \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.x86_64.rpm \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_amd64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/theo-manager_${{ github.ref_name }}_amd64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/theo-manager-${{ github.ref_name }}-.x86_64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_amd64.AppImage
               ;;
 
             "Linux ARM64 🐧")
-              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/DxApp_${{ github.ref_name }}_arm64.deb \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/DxApp-${{ github.ref_name }}-.aarch64.rpm \
-                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/DxApp_${{ github.ref_name }}_aarch64.AppImage
+              upx --best target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/deb/theo-manager_${{ github.ref_name }}_arm64.deb \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/rpm/theo-manager-${{ github.ref_name }}-.aarch64.rpm \
+                target/dx/${{ env.APP_NAME }}/bundle/linux/bundle/appimage/theo-manager_${{ github.ref_name }}_aarch64.AppImage
               ;;
 
             "MacOS x64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_x64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/theo-manager_${{ github.ref_name }}_x64.dmg
               ;;
 
             "MacOS ARM64 🍏")
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/DxApp_${{ github.ref_name }}_aarch64.dmg
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/bundle/macos/bundle/dmg/theo-manager_${{ github.ref_name }}_aarch64.dmg
               ;;
 
             "iOS 📱")
               mkdir Payload
-              mv target/dx/${{ env.APP_NAME }}/release/ios/DxApp.app Payload/
-              zip -r DxApp_${{ github.ref_name }}.ipa Payload
-              gh release upload ${{ github.ref_name }} DxApp_${{ github.ref_name }}.ipa
+              mv target/dx/${{ env.APP_NAME }}/release/ios/theo-manager.app Payload/
+              zip -r theo-manager_${{ github.ref_name }}.ipa Payload
+              gh release upload ${{ github.ref_name }} theo-manager_${{ github.ref_name }}.ipa
               ;;
 
             "Android 🤖")
-              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk
-              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp-aarch64-linux-android.aab target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
-              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/DxApp_${{ github.ref_name }}.apk \
-                target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/DxApp_${{ github.ref_name }}.aab
+              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/app-debug.apk target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/theo-manager_${{ github.ref_name }}.apk
+              mv target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/theo-manager-aarch64-linux-android.aab target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/theo-manager_${{ github.ref_name }}.aab
+              gh release upload ${{ github.ref_name }} target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/apk/debug/theo-manager_${{ github.ref_name }}.apk \
+                target/dx/${{ env.APP_NAME }}/release/android/app/app/build/outputs/bundle/release/theo-manager_${{ github.ref_name }}.aab
               ;;
           esac

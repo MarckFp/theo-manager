@@ -175,15 +175,17 @@ pub fn AppDashboard() -> Element {
                                             format!("width: {}%; background-color: {};", pct, color);
                                         let count_val = *count;
                                         rsx! {
-                                            div { class: "flex items-center gap-2",
-                                                span { class: "text-xs text-gray-600 w-28 shrink-0 truncate", "{label}" }
-                                                div { class: "flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden",
+                                            div { class: "space-y-1",
+                                                div { class: "flex items-center justify-between gap-2",
+                                                    span { class: "text-xs text-gray-600", "{label}" }
+                                                    span { class: "text-xs font-semibold text-gray-700 tabular-nums shrink-0", "{count_val}" }
+                                                }
+                                                div { class: "w-full bg-gray-100 rounded-full h-2 overflow-hidden",
                                                     div {
-                                                        class: "h-2.5 rounded-full transition-all duration-500",
+                                                        class: "h-2 rounded-full transition-all duration-500",
                                                         style: "{bar_style}",
                                                     }
                                                 }
-                                                span { class: "text-xs font-semibold text-gray-700 w-5 text-right shrink-0", "{count_val}" }
                                             }
                                         }
                                     }

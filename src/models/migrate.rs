@@ -30,6 +30,7 @@ pub const TABLES: &[&str] = &[
     super::field_service_group::TABLE,
     super::absence::TABLE,
     super::privilege::TABLE,
+    super::field_service_meeting::TABLE,
 ];
 
 // ---------------------------------------------------------------------------

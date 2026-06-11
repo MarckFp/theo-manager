@@ -166,7 +166,7 @@ pub fn AppFieldServiceGroups() -> Element {
 
             // ── FAB ────────────────────────────────────────────────────────
             button {
-                class: "fixed bottom-6 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-xl hover:bg-primary-700 active:scale-95 transition-all flex items-center justify-center text-2xl z-20 select-none",
+                class: "fixed bottom-20 right-6 md:bottom-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-xl hover:bg-primary-700 active:scale-95 transition-all flex items-center justify-center text-2xl z-20 select-none",
                 onclick: move |_| {
                     editing_group.set(None);
                     sheet_open.set(true);
