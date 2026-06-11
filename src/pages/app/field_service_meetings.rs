@@ -270,7 +270,12 @@ pub fn AppFieldServiceMeetings() -> Element {
                                 span { class: "hidden sm:inline", " {month_full}" }
                                 span { class: "sm:hidden", " {month_abbr}" }
                                 span { class: "text-xs text-gray-400",
-                                    if show_picker() { "▴" } else { "▾" }
+                                    if show_picker() {
+                                        "▴"
+                                    }
+                                    }
+                                        "▾"
+                                    }
                                 }
                             }
                         }
