@@ -204,7 +204,7 @@ pub async fn connect_offline(congregation_uid: &str) -> surrealdb::Result<Db> {
     // before we send the `USE NS` query. Under wasm, both channels are polled randomly,
     // which can lead to a "Session not found" race-condition panic.
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+    gloo_timers::future::sleep(std::time::Duration::from_millis(350)).await;
 
     db.use_ns(congregation_uid).use_db(DB_NAME).await?;
     Ok(Arc::new(db))
@@ -234,7 +234,7 @@ pub async fn connect_online(config: &OnlineConfig, password: &str) -> surrealdb:
     .await?;
 
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+    gloo_timers::future::sleep(std::time::Duration::from_millis(350)).await;
 
     db.use_ns(&config.congregation_uid).use_db(DB_NAME).await?;
     Ok(Arc::new(db))
@@ -262,7 +262,7 @@ pub async fn signup_online(
     .await?;
 
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::sleep(std::time::Duration::from_millis(50)).await;
+    gloo_timers::future::sleep(std::time::Duration::from_millis(350)).await;
 
     db.use_ns(congregation_uid).use_db(DB_NAME).await?;
     Ok(Arc::new(db))

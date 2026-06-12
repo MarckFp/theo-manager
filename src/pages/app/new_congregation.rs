@@ -245,6 +245,10 @@ pub fn AppNewCongregation() -> Element {
                                     return;
                                 }
                                 let s = state.peek().clone();
+                                if s.mode.is_none() {
+                                    error.set(Some(t!("error-fields-required")));
+                                    return;
+                                }
                                 if s.name.is_empty() || s.language.is_empty() {
                                     error.set(Some(t!("error-fields-required")));
                                     return;
@@ -279,9 +283,9 @@ pub fn AppNewCongregation() -> Element {
                                     let mut current_user_data: Option<UserData> = None;
                                     let mut eval = document::eval(
                                         "
-                                                                                                                                        try { dioxus.send(localStorage.getItem('theo_my_user_id')); } 
-                                                                                                                                        catch(e) { dioxus.send(null); }
-                                                                                                                                    ",
+                                                                                                                                                                try { dioxus.send(localStorage.getItem('theo_my_user_id')); } 
+                                                                                                                                                                catch(e) { dioxus.send(null); }
+                                                                                                                                                            ",
                                     );
                                     let user_id_str = eval
                                         .recv::<serde_json::Value>()

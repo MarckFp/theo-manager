@@ -37,6 +37,9 @@ js-sys = "0.3"
 surrealdb = { version = "3.1.2", default-features = false, features = ["protocol-ws", "kv-mem"] }
 sys-locale = "0.3"
 
+[target.wasm32-unknown-unknown.dependencies]
+console_error_panic_hook = "0.1.7"
+
 [features]
 default = ["web"]
 web = ["dioxus/web"]

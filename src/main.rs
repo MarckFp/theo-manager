@@ -104,6 +104,8 @@ const MANIFEST: Asset = asset!("/assets/manifest.json");
 const SW_JS: Asset = asset!("/assets/sw.js", AssetOptions::builder().with_hash_suffix(false));
 
 fn main() {
+    #[cfg(target_arch = "wasm32")]
+    console_error_panic_hook::set_once();
     dioxus::launch(App);
 }
 

@@ -1064,7 +1064,7 @@ fn ConnectingStep(mut step: Signal<LandingStep>, onboarding: Signal<OnboardingSt
             let workspace = crate::database::Workspace {
                 uid: uid.clone(),
                 name: ob.congregation_name.clone(),
-                mode: ob.mode.clone().unwrap(),
+                mode: ob.mode.clone().unwrap_or(DatabaseMode::Offline),
                 username: Some(ob.email.clone()),
                 theme: match ob.theme { Theme::Dark => "dark".to_string(), _ => "light".to_string() },
                 accent_color: match ob.accent_color { AccentColor::Green => "Green".to_string(), AccentColor::Purple => "Purple".to_string(), AccentColor::Rose => "Rose".to_string(), AccentColor::Amber => "Amber".to_string(), _ => "Blue".to_string() },
