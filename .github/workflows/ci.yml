@@ -1,0 +1,80 @@
+# Checks every pull request and every push to main (REQUIREMENTS.md 11.1 and R-703).
+
+name: CI ✅
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Lint and test 🦀
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v7
+
+      - name: Setup Rust 🦀
+        run: |
+          rustup component add clippy
+          rustup target add wasm32-unknown-unknown
+
+      - name: Linux libraries (desktop renderer) 🐧
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libglib2.0-dev libayatana-appindicator3-dev
+
+      - name: Clippy 📎
+        # unreachable_code: emitted inside the dioxus-router `Routable` derive, not by our code.
+        run: cargo clippy --workspace --all-targets -- -D warnings -A unreachable-code
+
+      - name: Clippy for the web build 📎
+        run: cargo clippy -p theo-app --target wasm32-unknown-unknown -- -D warnings -A unreachable-code
+
+      - name: Desktop build compiles 🖥️
+        run: cargo check -p theo-app --no-default-features --features desktop
+
+      - name: Tests (includes the UI consistency rules) 🧪
+        run: cargo test --workspace
+
+  css:
+    name: Stylesheet is up to date 🎨
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v7
+
+      - name: Build the stylesheet 🎨
+        run: ./theo-ui/scripts/build-css.sh
+
+      - name: No changes ✅
+        run: |
+          git diff --exit-code -- theo-ui/assets/theo-ui.css || {
+            echo "::error::theo-ui/assets/theo-ui.css is out of date. Run theo-ui/scripts/build-css.(sh|ps1) and commit the result."
+            exit 1
+          }
+
+  secrets:
+    name: No secrets 🔐
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks 🔎
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

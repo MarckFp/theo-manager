@@ -1,0 +1,30 @@
+# Build output
+/target/
+**/target/
+/dist/
+**/dist/
+
+# Downloaded tools (Tailwind CSS standalone binary, see theo-ui/scripts/build-css.*)
+/theo-ui/tools/
+
+# Secrets and local data must never be committed (REQUIREMENTS.md 11.2)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+*.sqlite*
+*.db
+secrets/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,32 @@
+# Theo Manager: one repository, one Cargo workspace (decision D-25).
+#   theo-ui   design system (components, styles, icons)
+#   theo-app  the app for web, desktop and mobile
+# Planned crates (theo-core, theo-crypto, theo-db) join this workspace when they are written.
+
+[workspace]
+resolver = "3"
+members = ["theo-ui", "theo-app"]
+
+# Profiles live here: Cargo ignores profiles in member crates.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Web release: `strip` removes the custom sections wasm-bindgen needs, so it stays off here.
+# dx runs wasm-opt afterwards, which removes debug data anyway.
+[profile.wasm-release]
+inherits = "release"
+strip = false
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

@@ -1,0 +1,379 @@
+//! App state for the scaffold.
+//!
+//! ⚠️ MOCK: everything lives in memory and is lost on reload. Passwords are compared in plain
+//! text. This module is a stand-in for `theo-core` (session, keyring, unlock) and `theo-db`
+//! (storage), which replace it in phase 1. Screens talk only to [`AppState`], so swapping the
+//! implementation does not change them.
+
+use dioxus::prelude::*;
+use std::collections::HashMap;
+use crate::people::Directory;
+use crate::prefs::{Overrides, Preferences};
+use theo_ui::{FilterSelection, Icon, Theme, WidgetLayout};
+
+/// Where an account lives.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AccountKind {
+    /// A profile on this device (Local congregations only).
+    Device,
+    /// An account on a SurrealDB server.
+    Cloud { server: String },
+}
+
+/// A user account.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Account {
+    pub username: String,
+    pub display_name: String,
+    pub kind: AccountKind,
+    /// Display preferences that override the congregation defaults (R-062).
+    pub overrides: Overrides,
+    password: String, // MOCK ONLY
+}
+
+/// Where a congregation's data lives (REQUIREMENTS.md 1.2).
+#[derive(Clone, Debug, PartialEq)]
+pub enum StorageMode {
+    Local,
+    Cloud { server: String },
+}
+
+impl StorageMode {
+    pub fn icon(&self) -> Icon {
+        match self {
+            StorageMode::Local => Icon::Local,
+            StorageMode::Cloud { .. } => Icon::Cloud,
+        }
+    }
+
+    pub fn label(&self) -> String {
+        match self {
+            StorageMode::Local => "On this device".into(),
+            StorageMode::Cloud { .. } => "Cloud".into(),
+        }
+    }
+}
+
+/// A weekly meeting slot.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MeetingSlot {
+    pub day: String,
+    pub time: String,
+}
+
+/// The minimum data of a congregation (see the data-modeling questions in the README).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Congregation {
+    pub id: String,
+    pub name: String,
+    pub number: String,
+    pub language: String,
+    pub time_zone: String,
+    pub midweek: MeetingSlot,
+    pub weekend: MeetingSlot,
+    pub mode: StorageMode,
+    pub owner: String,
+    pub biometric: bool,
+    /// Default display preferences for everyone in the congregation (R-062).
+    pub defaults: Preferences,
+    password: String, // MOCK ONLY: the real app never stores it (R-124)
+}
+
+/// New congregation input from the wizard.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CongregationDraft {
+    pub name: String,
+    pub number: String,
+    pub language: String,
+    pub time_zone: String,
+    pub midweek: MeetingSlot,
+    pub weekend: MeetingSlot,
+    pub mode: StorageMode,
+    pub password: String,
+}
+
+/// Errors shown to the user.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AuthError {
+    WrongCredentials,
+    UsernameTaken,
+    WrongPassword,
+}
+
+impl std::fmt::Display for AuthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            AuthError::WrongCredentials => "Username or password is not correct.",
+            AuthError::UsernameTaken => "This username is already taken.",
+            AuthError::WrongPassword => "This password does not unlock the congregation.",
+        })
+    }
+}
+
+/// Global app state, provided once in `App`.
+#[derive(Clone, Copy)]
+pub struct AppState {
+    accounts: Signal<Vec<Account>>,
+    congregations: Signal<Vec<Congregation>>,
+    /// Username of the signed-in account.
+    pub session: Signal<Option<String>>,
+    /// Id of the unlocked congregation.
+    pub unlocked: Signal<Option<String>>,
+    /// Congregation to preselect on the unlock screen.
+    pub preselect: Signal<Option<String>>,
+    pub theme: Signal<Theme>,
+    layouts: Signal<HashMap<String, Vec<WidgetLayout>>>,
+    /// People, families and groups per congregation (MOCK of M-01 / M-09).
+    directories: Signal<HashMap<String, Directory>>,
+    /// Search and filters of the All users list. Kept while you open a person and come back.
+    pub user_query: Signal<String>,
+    pub user_filters: Signal<FilterSelection>,
+    next_id: Signal<u64>,
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        Self {
+            accounts: Signal::new(Vec::new()),
+            congregations: Signal::new(Vec::new()),
+            session: Signal::new(None),
+            unlocked: Signal::new(None),
+            preselect: Signal::new(None),
+            theme: Signal::new(Theme::System),
+            layouts: Signal::new(HashMap::new()),
+            directories: Signal::new(HashMap::new()),
+            user_query: Signal::new(String::new()),
+            user_filters: Signal::new(crate::people::default_filters()),
+            next_id: Signal::new(1),
+        }
+    }
+
+    // ----- accounts -----
+
+    pub fn sign_up(
+        &mut self,
+        username: &str,
+        display_name: &str,
+        password: &str,
+        kind: AccountKind,
+    ) -> Result<(), AuthError> {
+        let username = username.trim().to_lowercase();
+        if self.accounts.read().iter().any(|a| a.username == username) {
+            return Err(AuthError::UsernameTaken);
+        }
+        self.accounts.write().push(Account {
+            username: username.clone(),
+            display_name: display_name.trim().to_string(),
+            kind,
+            overrides: Overrides::default(),
+            password: password.to_string(),
+        });
+        self.session.set(Some(username));
+        self.unlocked.set(None);
+        Ok(())
+    }
+
+    pub fn sign_in(&mut self, username: &str, password: &str) -> Result<(), AuthError> {
+        let username = username.trim().to_lowercase();
+        let ok = self.accounts.read().iter().any(|a| a.username == username && a.password == password);
+        if !ok {
+            return Err(AuthError::WrongCredentials);
+        }
+        self.session.set(Some(username));
+        self.unlocked.set(None);
+        Ok(())
+    }
+
+    pub fn sign_out(&mut self) {
+        self.unlocked.set(None);
+        self.session.set(None);
+        self.preselect.set(None);
+    }
+
+    pub fn account(&self) -> Option<Account> {
+        let user = self.session.read().clone()?;
+        self.accounts.read().iter().find(|a| a.username == user).cloned()
+    }
+
+    // ----- congregations -----
+
+    /// Congregations of the signed-in account.
+    pub fn my_congregations(&self) -> Vec<Congregation> {
+        let Some(user) = self.session.read().clone() else { return Vec::new() };
+        self.congregations.read().iter().filter(|c| c.owner == user).cloned().collect()
+    }
+
+    pub fn active_congregation(&self) -> Option<Congregation> {
+        let id = self.unlocked.read().clone()?;
+        self.congregations.read().iter().find(|c| c.id == id).cloned()
+    }
+
+    pub fn create_congregation(&mut self, new: CongregationDraft) -> String {
+        let n = *self.next_id.peek();
+        self.next_id.set(n + 1);
+        let id = format!("c{n}");
+        let owner = self.session.read().clone().unwrap_or_default();
+        self.congregations.write().push(Congregation {
+            id: id.clone(),
+            name: new.name.trim().to_string(),
+            number: new.number.trim().to_string(),
+            language: new.language,
+            time_zone: new.time_zone,
+            midweek: new.midweek,
+            weekend: new.weekend,
+            mode: new.mode,
+            owner,
+            biometric: false,
+            defaults: Preferences::default(),
+            password: new.password,
+        });
+        self.directories.write().insert(id.clone(), Directory::default());
+        self.set_unlocked(&id);
+        id
+    }
+
+    pub fn unlock(&mut self, id: &str, password: &str, remember_biometric: bool) -> Result<(), AuthError> {
+        let mut list = self.congregations.write();
+        let Some(c) = list.iter_mut().find(|c| c.id == id) else { return Err(AuthError::WrongPassword) };
+        if c.password != password {
+            return Err(AuthError::WrongPassword);
+        }
+        if remember_biometric {
+            c.biometric = true;
+        }
+        drop(list);
+        self.set_unlocked(id);
+        Ok(())
+    }
+
+    /// MOCK: a real implementation asks the platform for a biometric check (see `platform.rs`).
+    pub fn unlock_with_biometrics(&mut self, id: &str) -> bool {
+        let enabled = self.congregations.read().iter().any(|c| c.id == id && c.biometric);
+        if enabled {
+            self.set_unlocked(id);
+        }
+        enabled
+    }
+
+    /// Opens a congregation. Lists start without filters (group ids differ per congregation).
+    fn set_unlocked(&mut self, id: &str) {
+        if self.unlocked.peek().as_deref() != Some(id) {
+            self.user_query.set(String::new());
+            self.user_filters.set(crate::people::default_filters());
+        }
+        self.unlocked.set(Some(id.to_string()));
+        // Retention (m01-people.md): people who moved away more than a year ago are removed for
+        // good when a device with access opens the congregation.
+        let today = crate::people::today_iso();
+        self.update_directory(|d| d.purge_expired(&today));
+    }
+
+    pub fn set_biometric(&mut self, id: &str, on: bool) {
+        if let Some(c) = self.congregations.write().iter_mut().find(|c| c.id == id) {
+            c.biometric = on;
+        }
+    }
+
+    pub fn lock(&mut self) {
+        let current = self.unlocked.read().clone();
+        self.preselect.set(current);
+        self.unlocked.set(None);
+    }
+
+    // ----- display preferences (R-062) -----
+
+    /// Effective preferences: the user's overrides on top of the active congregation's defaults.
+    pub fn preferences(&self) -> Preferences {
+        let base = self.active_congregation().map(|c| c.defaults).unwrap_or_default();
+        match self.account() {
+            Some(a) => base.with(&a.overrides),
+            None => base,
+        }
+    }
+
+    pub fn update_overrides(&mut self, f: impl FnOnce(&mut Overrides)) {
+        let Some(user) = self.session.read().clone() else { return };
+        if let Some(a) = self.accounts.write().iter_mut().find(|a| a.username == user) {
+            f(&mut a.overrides);
+        }
+    }
+
+    pub fn update_congregation_defaults(&mut self, f: impl FnOnce(&mut Preferences)) {
+        let Some(id) = self.unlocked.read().clone() else { return };
+        if let Some(c) = self.congregations.write().iter_mut().find(|c| c.id == id) {
+            f(&mut c.defaults);
+        }
+    }
+
+    // ----- people (MOCK of M-01 / M-09) -----
+
+    /// People, families and groups of the unlocked congregation.
+    pub fn directory(&self) -> Directory {
+        let id = self.unlocked.read().clone().unwrap_or_default();
+        self.directories.read().get(&id).cloned().unwrap_or_default()
+    }
+
+    pub fn update_directory<R>(&mut self, f: impl FnOnce(&mut Directory) -> R) -> R {
+        let id = self.unlocked.read().clone().unwrap_or_default();
+        f(self.directories.write().entry(id).or_default())
+    }
+
+    // ----- dashboard layout (per congregation) -----
+
+    pub fn layout(&self) -> Vec<WidgetLayout> {
+        let id = self.unlocked.read().clone().unwrap_or_default();
+        self.layouts.read().get(&id).cloned().unwrap_or_else(crate::mock::default_layout)
+    }
+
+    pub fn set_layout(&mut self, layout: Vec<WidgetLayout>) {
+        let id = self.unlocked.read().clone().unwrap_or_default();
+        self.layouts.write().insert(id, layout);
+    }
+
+    pub fn reset_layout(&mut self) {
+        let id = self.unlocked.read().clone().unwrap_or_default();
+        self.layouts.write().remove(&id);
+    }
+
+    // ----- demo -----
+
+    /// Creates the demo account with two congregations and signs in.
+    pub fn start_demo(&mut self) {
+        if !self.accounts.read().iter().any(|a| a.username == crate::mock::DEMO_USER) {
+            self.accounts.write().push(Account {
+                username: crate::mock::DEMO_USER.into(),
+                display_name: "Demo User".into(),
+                kind: AccountKind::Device,
+                overrides: Overrides::default(),
+                password: crate::mock::DEMO_PASSWORD.into(),
+            });
+            for (id, name, mode) in [
+                ("demo-1", "Riverside", StorageMode::Local),
+                ("demo-2", "Hillcrest", StorageMode::Cloud { server: "https://db.example.org".into() }),
+            ] {
+                self.congregations.write().push(Congregation {
+                    id: id.into(),
+                    name: name.into(),
+                    number: String::new(),
+                    language: "en".into(),
+                    time_zone: "Europe/London".into(),
+                    midweek: MeetingSlot { day: "Thursday".into(), time: "19:00".into() },
+                    weekend: MeetingSlot { day: "Sunday".into(), time: "10:00".into() },
+                    mode,
+                    owner: crate::mock::DEMO_USER.into(),
+                    biometric: false,
+                    defaults: Preferences::default(),
+                    password: crate::mock::DEMO_CONGREGATION_PASSWORD.into(),
+                });
+                let size = if id == "demo-1" { 36 } else { 14 };
+                self.directories.write().insert(id.into(), crate::mock::demo_directory(size));
+            }
+        }
+        self.session.set(Some(crate::mock::DEMO_USER.into()));
+        self.unlocked.set(None);
+    }
+}
+
+pub fn use_app_state() -> AppState {
+    use_context::<AppState>()
+}

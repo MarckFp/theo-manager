@@ -1,0 +1,13 @@
+[application]
+name = "theo-app"
+
+[web.app]
+title = "Theo Manager"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "../theo-ui/src", "../theo-ui/assets"]
+
+[bundle]
+identifier = "app.theomanager"
+publisher = "Theo Manager"

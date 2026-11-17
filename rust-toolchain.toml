@@ -1,0 +1,5 @@
+# The same Rust version locally and in CI (REQUIREMENTS.md R-506).
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]

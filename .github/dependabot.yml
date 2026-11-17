@@ -1,0 +1,20 @@
+# Dependency updates (REQUIREMENTS.md R-505). Shared crates are grouped so they move together.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dioxus:
+        patterns: ["dioxus*", "manganis*"]
+      rust-dependencies:
+        patterns: ["*"]
+        exclude-patterns: ["dioxus*", "manganis*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
