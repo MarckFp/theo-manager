@@ -4,13 +4,22 @@ use crate::icon::{Icon, IconSize, IconView};
 use dioxus::prelude::*;
 
 /// A form. Enter submits; the page never reloads. `actions` is rendered in the standard
-/// place: bottom right on desktop, full width on phones (R-424).
+/// place: bottom right on larger screens (wide buttons), full width on phones (R-424).
+///
+/// With `floating_save`, phones get a round floating Save button instead of the actions, and the
+/// page's sticky back arrow is the way to cancel (edit pages, R-424).
 #[component]
 pub fn Form(
     onsubmit: EventHandler<()>,
     #[props(default)] actions: Option<Element>,
+    #[props(default)] floating_save: bool,
     children: Element,
 ) -> Element {
+    let actions_class = if floating_save {
+        "hidden gap-2 pt-2 md:flex md:justify-end md:[&>*]:min-w-40"
+    } else {
+        "flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto sm:[&>*]:min-w-40"
+    };
     rsx! {
         form {
             class: "flex flex-col gap-5",
@@ -21,8 +30,16 @@ pub fn Form(
             },
             div { class: "flex flex-col gap-4", {children} }
             if let Some(a) = actions {
-                div { class: "flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto",
-                    {a}
+                div { class: actions_class, {a} }
+            }
+            if floating_save {
+                button {
+                    r#type: "submit",
+                    class: "btn btn-primary btn-circle btn-lg fixed right-4 z-40 shadow-xl shadow-primary/30 transition-transform active:scale-90 md:hidden",
+                    style: "bottom: calc(6.25rem + env(safe-area-inset-bottom));",
+                    "aria-label": "Save",
+                    title: "Save",
+                    IconView { icon: Icon::Check, size: IconSize::Lg }
                 }
             }
         }

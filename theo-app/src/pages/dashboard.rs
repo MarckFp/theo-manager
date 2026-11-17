@@ -16,7 +16,7 @@ pub fn Dashboard() -> Element {
     rsx! {
         Page {
             title: "Welcome back, {first}",
-            subtitle: "{congregation} · Sample data until the modules are built",
+            subtitle: "{congregation} · Some widgets still show sample data",
             actions: rsx! {
                 if editing() {
                     ActionButton { action: Action::ResetLayout, onclick: move |_| state.reset_layout() }
@@ -62,12 +62,14 @@ fn widget(id: &str, state: &crate::state::AppState) -> Element {
                 Text { tone: TextTone::Muted, "{names}" }
             }
         },
-        "publishers" => rsx! {
-            StatTile { label: "This month", value: "84", icon: Icon::Users, delta: "+3", trend: Trend::Up }
-        },
-        "reports" => rsx! {
-            StatTile { label: "Received", value: "71 / 84", icon: Icon::Footprints, delta: "13 missing", trend: Trend::Flat }
-        },
+        "publishers" => {
+            let (value, delta) = super::reports::publishers_widget_values(&state.directory());
+            rsx! { StatTile { label: "Publishers", value, icon: Icon::Users, delta, trend: Trend::Flat } }
+        }
+        "reports" => {
+            let (label, value, delta, done) = super::reports::reports_widget_values(&state.directory());
+            rsx! { StatTile { label, value, icon: Icon::Footprints, delta, trend: if done { Trend::Up } else { Trend::Down } } }
+        }
         "assignments" => rsx! { ItemList { items: mock::my_assignments() } },
         "attendance" => rsx! { BarChart { data: mock::attendance(), highlight_last: true } },
         "territories" => rsx! {

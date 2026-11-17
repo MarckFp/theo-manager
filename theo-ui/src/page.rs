@@ -15,10 +15,34 @@ pub fn Page(
     back: Option<(String, EventHandler<()>)>,
     children: Element,
 ) -> Element {
+    let detail = back.is_some();
+    // Detail pages on phones: the title moves into a sticky bar with a back arrow, so you always
+    // see what you are editing, and the arrow is the way to leave without saving.
+    let title_class = if detail { "hidden min-w-0 flex-col gap-1 md:flex" } else { "flex min-w-0 flex-col gap-1" };
     rsx! {
         div { class: "flex flex-col gap-6",
-            div { class: "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
-                div { class: "flex min-w-0 flex-col gap-1",
+            if let Some((label, onclick)) = back.clone() {
+                div { class: "sticky z-20 -mx-4 -mt-6 flex items-center gap-2 border-b border-base-300 bg-base-100/90 px-2 py-2 backdrop-blur sm:-mx-6 sm:px-4 md:hidden",
+                    // Just under the phone top bar: 61 px + its top padding (which grows with the notch).
+                    style: "top: calc(3.8125rem + max(0.625rem, env(safe-area-inset-top)));",
+                    button {
+                        r#type: "button",
+                        class: "btn btn-ghost btn-square btn-sm",
+                        "aria-label": "{label}",
+                        title: "{label}",
+                        onclick: move |_| onclick.call(()),
+                        IconView { icon: Icon::ArrowLeft, size: IconSize::Md }
+                    }
+                    div { class: "flex min-w-0 flex-col",
+                        span { class: "truncate text-base font-semibold leading-tight", "{title}" }
+                        if let Some(s) = subtitle.clone() {
+                            span { class: "truncate text-xs text-base-content/60", "{s}" }
+                        }
+                    }
+                }
+            }
+            div { class: if detail { "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between max-md:empty:hidden" } else { "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between" },
+                div { class: title_class,
                     if let Some((label, onclick)) = back {
                         div { class: "mb-1",
                             TextLink { onclick: move |_| onclick.call(()), icon: Icon::ArrowLeft, "{label}" }

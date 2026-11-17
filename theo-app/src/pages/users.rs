@@ -18,7 +18,7 @@ use theo_ui::Action; // explicit: dioxus::prelude also exports an `Action`
 // ---------------------------------------------------------------------------------------------
 
 /// Labels on a person's card.
-fn tags(p: &Person) -> Vec<Tag> {
+fn tags(dir: &Directory, p: &Person) -> Vec<Tag> {
     let ty = p.publisher_type;
     let mut t = vec![Tag::new(ty.label(), if ty.is_pioneer() { Tone::Info } else { Tone::Neutral })];
     if p.moved_away.is_some() {
@@ -34,7 +34,7 @@ fn tags(p: &Person) -> Vec<Tag> {
     if p.infirm {
         t.push(Tag::new("Infirm", Tone::Neutral).with_icon(Icon::Infirm));
     }
-    match p.activity() {
+    match dir.activity(p) {
         Some(Activity::Irregular) => t.push(Tag::new("Irregular", Tone::Warning).with_icon(Icon::Warning)),
         Some(Activity::Inactive) => t.push(Tag::new("Inactive", Tone::Error).with_icon(Icon::Error)),
         _ => {}
@@ -114,7 +114,7 @@ fn export_table(dir: &Directory, list: &[Person], prefs: &Preferences, format: F
                     s(&p.notes),
                     group_names(dir, p.id),
                     head,
-                    p.activity().map(|a| a.label().to_string()).unwrap_or_default(),
+                    dir.activity(p).map(|a| a.label().to_string()).unwrap_or_default(),
                     s(&p.moved_away),
                 ]
             })
@@ -188,7 +188,7 @@ pub fn UserList() -> Element {
     let total = dir.people.len();
     let summary = format!("{} of {total} users", list.len());
     let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> =
-        list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(p))).collect();
+        list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(&dir, p))).collect();
 
     let on_export = {
         let (dir, list, prefs, congregation) = (dir.clone(), list.clone(), prefs.clone(), congregation.clone());
@@ -278,7 +278,7 @@ pub fn MovedAway() -> Element {
     let mut list: Vec<&Person> = people::filtered(&dir, &query(), &only_moved, &prefs);
     list.sort_by(|a, b| b.moved_away.cmp(&a.moved_away));
     let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> =
-        list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(p))).collect();
+        list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(&dir, p))).collect();
     rsx! {
         Page {
             title: "Moved away",
@@ -334,13 +334,6 @@ pub fn UserDetail(id: u32) -> Element {
 
 fn options(pairs: &[(&str, &str)]) -> Vec<SelectOption> {
     pairs.iter().map(|(v, l)| SelectOption::new(*v, *l)).collect()
-}
-
-/// The last 6 complete months, oldest first: short labels.
-fn last_six_months() -> Vec<String> {
-    const NAMES: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let (_, m, _) = prefs::today();
-    (1..=6).rev().map(|back| NAMES[((m as i32 - 1 - back).rem_euclid(12)) as usize].to_string()).collect()
 }
 
 #[component]
@@ -469,6 +462,7 @@ fn PersonEditor(id: Option<u32>) -> Element {
                 main: rsx! {
                     Form {
                         onsubmit: save,
+                        floating_save: true,
                         actions: rsx! {
                             ActionButton { action: Action::Cancel, onclick: move |_| { navigator.push(Route::UserList {}); } }
                             ActionButton { action: Action::Save, kind: ButtonKind::Submit }
@@ -592,7 +586,7 @@ fn PersonEditor(id: Option<u32>) -> Element {
                 side: rsx! {
                     if let Some(p) = existing.clone() {
                         if p.publisher_type.is_publisher() && p.moved_away.is_none() {
-                            ActivityCard { person: p.clone() }
+                            super::reports::PersonReportsCard { person: p.id }
                         }
                         FamilyCard { id: p.id }
                         if cloud && p.moved_away.is_none() {
@@ -697,25 +691,6 @@ fn PersonEditor(id: Option<u32>) -> Element {
                 }
                 Text { tone: TextTone::Small, "The link works once and expires after 7 days. It does not contain the congregation password (R-252)." }
             }
-        }
-    }
-}
-
-/// Reports of the last 6 months and the activity status.
-#[component]
-fn ActivityCard(person: Person) -> Element {
-    let months: Vec<MonthMark> =
-        last_six_months().into_iter().zip(person.reports).map(|(label, done)| MonthMark { label, done }).collect();
-    let (tone, label) = match person.activity() {
-        Some(Activity::Active) => (Tone::Success, "Active"),
-        Some(Activity::Irregular) => (Tone::Warning, "Irregular"),
-        Some(Activity::Inactive) => (Tone::Error, "Inactive"),
-        None => (Tone::Neutral, "No reports yet"),
-    };
-    rsx! {
-        Card { title: "Activity", icon: Icon::Report, actions: rsx! { Badge { tone, "{label}" } },
-            MonthStrip { months }
-            Text { tone: TextTone::Small, "Field service reports of the last 6 complete months. Months before the first report do not count." }
         }
     }
 }

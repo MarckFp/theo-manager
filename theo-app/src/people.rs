@@ -279,9 +279,6 @@ pub struct Person {
     pub consent_date: Option<String>,
     pub notes: Option<String>,
     pub account: AccountLink,
-    /// MOCK of M-10: a report for each of the last 6 complete months, oldest first.
-    /// `None` = before the first report (does not count).
-    pub reports: [Option<bool>; 6],
     /// The date the person moved away (`YYYY-MM-DD`), or `None` for current members.
     pub moved_away: Option<String>,
 }
@@ -294,23 +291,6 @@ impl Person {
     /// Only current baptised brothers can be a group overseer or assistant (M-09).
     pub fn may_lead(&self) -> bool {
         self.publisher_type.is_baptised() && self.gender == Gender::Male && self.moved_away.is_none()
-    }
-
-    /// Activity status (docs/model/m01-people.md, "Activity status").
-    pub fn activity(&self) -> Option<Activity> {
-        if !self.publisher_type.is_publisher() || self.moved_away.is_some() {
-            return None;
-        }
-        let counted: Vec<bool> = self.reports.iter().flatten().copied().collect();
-        if counted.is_empty() {
-            None
-        } else if counted.iter().all(|r| *r) {
-            Some(Activity::Active)
-        } else if counted.iter().any(|r| *r) {
-            Some(Activity::Irregular)
-        } else {
-            Some(Activity::Inactive)
-        }
     }
 }
 
@@ -373,6 +353,12 @@ pub struct Directory {
     pub people: Vec<Person>,
     pub families: Vec<Family>,
     pub groups: Vec<Group>,
+    /// Field service reports (M-10, `src/reports.rs`).
+    pub reports: Vec<crate::reports::Report>,
+    /// Months with a 15-hour auxiliary pioneer goal (M-10, "Goals").
+    pub aux_short_months: std::collections::BTreeSet<crate::reports::Ym>,
+    /// Months a baptised publisher is auxiliary pioneer, planned ahead or set later (M-10).
+    pub aux_plans: std::collections::BTreeSet<(u32, crate::reports::Ym)>,
 }
 
 impl Directory {
@@ -602,7 +588,6 @@ impl Directory {
             consent_date: opt(&d.consent_date),
             notes: opt(&d.notes),
             account: existing.as_ref().map(|p| p.account.clone()).unwrap_or_default(),
-            reports: existing.as_ref().map(|p| p.reports).unwrap_or([None; 6]),
             moved_away: existing.as_ref().and_then(|p| p.moved_away.clone()),
         };
         let moved = person.moved_away.is_some();
@@ -821,7 +806,7 @@ impl Directory {
     pub fn group_activity(&self, id: u32) -> GroupActivity {
         let mut a = GroupActivity::default();
         for (n, _) in self.group_members(id, &Preferences::default()) {
-            match self.person(n).and_then(Person::activity) {
+            match self.person(n).and_then(|p| self.activity(p)) {
                 Some(Activity::Active) => a.active += 1,
                 Some(Activity::Irregular) => a.irregular += 1,
                 Some(Activity::Inactive) => a.inactive += 1,
@@ -1233,7 +1218,7 @@ fn values(dir: &Directory, p: &Person, facet: &str) -> Vec<String> {
         FACET_ANOINTED => yes_no(p.anointed),
         FACET_GENDER => vec![p.gender.value().into()],
         FACET_CONSENT => yes_no(p.consent_date.is_some()),
-        FACET_ACTIVITY => p.activity().map(|a| vec![a.value().to_string()]).unwrap_or_default(),
+        FACET_ACTIVITY => dir.activity(p).map(|a| vec![a.value().to_string()]).unwrap_or_default(),
         FACET_GROUP => {
             let gs: Vec<String> = dir.groups_of(p.id).iter().map(|(g, _)| g.id.to_string()).collect();
             if gs.is_empty() { vec!["none".into()] } else { gs }
@@ -1356,16 +1341,27 @@ mod tests {
 
     #[test]
     fn activity_ignores_months_before_first_report() {
-        let mut p = dir().people[0].clone();
-        p.publisher_type = PublisherType::UnbaptisedPublisher;
-        p.reports = [None, None, None, Some(true), Some(true), Some(true)];
-        assert_eq!(p.activity(), Some(Activity::Active));
-        p.reports = [Some(false); 6];
-        assert_eq!(p.activity(), Some(Activity::Inactive));
-        p.reports[2] = Some(true);
-        assert_eq!(p.activity(), Some(Activity::Irregular));
-        p.publisher_type = PublisherType::Student;
-        assert_eq!(p.activity(), None);
+        use crate::reports::{reporting_month, shift, ReportDraft};
+        let mut d = Directory::default();
+        let draft = PersonDraft { first_name: "Ann".into(), last_name: "Test".into(), gender: "female".into(), publisher_type: PublisherType::UnbaptisedPublisher.value().into(), ..Default::default() };
+        let n = d.save(None, &draft).unwrap_or(0);
+        let p = d.person(n).cloned().unwrap_or_else(|| d.people[0].clone());
+        assert_eq!(d.activity(&p), None, "no report yet");
+        let yes = ReportDraft { took_part: "yes".into(), studies: "0".into(), ..Default::default() };
+        let no = ReportDraft { took_part: "no".into(), ..yes.clone() };
+        // A new publisher reporting the last 3 months is active.
+        for i in 0..3 {
+            assert!(d.save_report(n, shift(reporting_month(), -i), &yes).is_ok());
+        }
+        assert_eq!(d.activity(&p), Some(Activity::Active));
+        // A month with "did not take part" makes them irregular.
+        assert!(d.save_report(n, reporting_month(), &no).is_ok());
+        assert_eq!(d.activity(&p), Some(Activity::Irregular));
+        // Six months without taking part: inactive.
+        for i in 0..6 {
+            assert!(d.save_report(n, shift(reporting_month(), -i), &no).is_ok());
+        }
+        assert_eq!(d.activity(&p), Some(Activity::Inactive));
     }
 
     #[test]
@@ -1413,7 +1409,7 @@ mod tests {
         d.move_away(1, "2026-11-01", false);
         assert_eq!(d.family_of(2).map(|f| f.head), Some(2));
         assert!(d.groups[0].overseer.is_none());
-        assert!(d.person(1).is_some_and(|p| p.moved_away.is_some() && p.activity().is_none()));
+        assert!(d.person(1).is_some_and(|p| p.moved_away.is_some() && d.activity(p).is_none()));
         // The Garcias (7, 8, 9) move together: the family stays.
         d.move_away(7, "2026-11-01", true);
         assert!(d.family_of(7).is_some_and(|f| f.members.len() == 3));

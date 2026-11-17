@@ -128,6 +128,11 @@ pub struct AppState {
     /// Search and filters of the All users list. Kept while you open a person and come back.
     pub user_query: Signal<String>,
     pub user_filters: Signal<FilterSelection>,
+    /// Field service reports page: tab, month (None = the reporting month), search and filters.
+    pub report_tab: Signal<String>,
+    pub report_month: Signal<Option<crate::reports::Ym>>,
+    pub report_query: Signal<String>,
+    pub report_filters: Signal<FilterSelection>,
     next_id: Signal<u64>,
 }
 
@@ -144,6 +149,10 @@ impl AppState {
             directories: Signal::new(HashMap::new()),
             user_query: Signal::new(String::new()),
             user_filters: Signal::new(crate::people::default_filters()),
+            report_tab: Signal::new("month".into()),
+            report_month: Signal::new(None),
+            report_query: Signal::new(String::new()),
+            report_filters: Signal::new(FilterSelection::new()),
             next_id: Signal::new(1),
         }
     }
@@ -260,6 +269,9 @@ impl AppState {
         if self.unlocked.peek().as_deref() != Some(id) {
             self.user_query.set(String::new());
             self.user_filters.set(crate::people::default_filters());
+            self.report_month.set(None);
+            self.report_query.set(String::new());
+            self.report_filters.set(FilterSelection::new());
         }
         self.unlocked.set(Some(id.to_string()));
         // Retention (m01-people.md): people who moved away more than a year ago are removed for

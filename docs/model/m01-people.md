@@ -89,14 +89,15 @@ cleared before the user saves:
 ### Activity status (derived)
 
 The activity status is computed from field service reports (M-10). It is never stored. It looks
-at the **last 6 complete months**: in November 2026, that is May to October 2026. Months before
-the person's first report do not count, so a new publisher is not irregular.
+at the **last 6 complete months**: in November 2026, that is May to October 2026. A month counts
+when the person reported that they took part in the ministry. Months before the person's first
+report do not count, so a new publisher is not irregular.
 
 | Status | Rule |
 |---|---|
-| Active | A report for every counted month. |
-| Irregular | At least one counted month without a report, and at least one with a report. |
-| Inactive | No report in any of the 6 months. |
+| Active | Took part in every counted month. |
+| Irregular | At least one counted month without taking part (or without a report), and at least one with. |
+| Inactive | Did not take part in any of the 6 months. |
 | (none) | Students and visitors, publishers with no report yet, and people who moved away. |
 
 Reports are in the `reports` key domain. A user who does not hold that key cannot compute the

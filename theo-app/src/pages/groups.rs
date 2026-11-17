@@ -33,8 +33,8 @@ fn leaders_line(dir: &Directory, id: u32, prefs: &Preferences) -> String {
 }
 
 /// "Regular pioneer · Irregular" under a member's name.
-fn member_subtitle(p: &Person) -> String {
-    match p.activity() {
+fn member_subtitle(dir: &Directory, p: &Person) -> String {
+    match dir.activity(p) {
         Some(a @ (people::Activity::Irregular | people::Activity::Inactive)) => format!("{} · {}", p.publisher_type.label(), a.label()),
         _ => p.publisher_type.label().to_string(),
     }
@@ -261,7 +261,7 @@ fn GroupEditor(id: Option<u32>) -> Element {
         .iter()
         .filter_map(|(n, role)| {
             let p = dir.person(*n)?;
-            let row = Row::new(n.to_string(), p.display_name(&prefs)).with_subtitle(member_subtitle(p));
+            let row = Row::new(n.to_string(), p.display_name(&prefs)).with_subtitle(member_subtitle(&dir, p));
             Some(match role {
                 GroupRole::Overseer => row.with_tag(Tag::new("Overseer", Tone::Info)),
                 GroupRole::Assistant => row.with_tag(Tag::new("Assistant", Tone::Info)),
@@ -313,6 +313,7 @@ fn GroupEditor(id: Option<u32>) -> Element {
                 main: rsx! {
                     Form {
                         onsubmit: save,
+                        floating_save: true,
                         actions: rsx! {
                             ActionButton { action: Action::Cancel, onclick: move |_| { navigator.push(Route::GroupList {}); } }
                             ActionButton { action: Action::Save, kind: ButtonKind::Submit }

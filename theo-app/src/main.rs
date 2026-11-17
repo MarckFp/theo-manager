@@ -11,6 +11,7 @@ mod password;
 mod people;
 mod platform;
 mod prefs;
+mod reports;
 mod state;
 
 use dioxus::prelude::*;
@@ -56,6 +57,9 @@ pub enum Route {
             #[route("/users/moved-away")]
             MovedAway {},
             /// Users › Field service groups (docs/model/m09-field-service-groups.md).
+            /// Users › Field service reports (docs/model/m10-field-service-reports.md).
+            #[route("/users/reports")]
+            ReportsPage {},
             #[route("/users/groups")]
             GroupList {},
             #[route("/users/groups/new")]
@@ -125,6 +129,7 @@ pub fn route_for(id: &str) -> Route {
         Some(("users", "all")) => Route::UserList {},
         Some(("users", "moved-away")) => Route::MovedAway {},
         Some(("users", "groups")) => Route::GroupList {},
+        Some(("users", "reports")) => Route::ReportsPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },
         None => match id {
             "home" => Route::Dashboard {},

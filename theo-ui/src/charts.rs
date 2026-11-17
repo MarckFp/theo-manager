@@ -35,7 +35,7 @@ pub fn BarChart(
     let bar_w = slot * 0.72;
     rsx! {
         div { class: "flex h-full min-h-28 flex-col gap-1.5", role: "img", "aria-label": "Bar chart",
-            svg { view_box: "0 0 100 100", preserve_aspect_ratio: "none", class: "min-h-0 w-full flex-1 overflow-visible",
+            svg { view_box: "0 0 100 100", preserve_aspect_ratio: "none", class: "min-h-0 max-h-64 w-full flex-1 overflow-visible",
                 for (i, d) in data.iter().enumerate() {
                     {
                         let h = (d.value / max * 100.0).max(2.0);
@@ -96,8 +96,8 @@ pub fn StatTile(
                 span { class: "text-sm", "{label}" }
                 IconView { icon, size: IconSize::Sm }
             }
-            div { class: "flex items-end gap-2",
-                span { class: "text-3xl font-semibold tracking-tight", "{value}" }
+            div { class: "flex flex-wrap items-end gap-x-2",
+                span { class: "whitespace-nowrap text-2xl font-semibold tracking-tight sm:text-3xl", "{value}" }
                 if let Some(d) = delta {
                     span { class: "pb-1 text-xs font-medium {delta_class}", "{d}" }
                 }
@@ -157,6 +157,61 @@ pub fn MonthStrip(months: Vec<MonthMark>) -> Element {
                         }
                     }
                     span { class: "text-[11px] text-base-content/60", "{m.label}" }
+                }
+            }
+        }
+    }
+}
+
+/// Progress towards a goal: a label, the numbers, a bar, and an optional marker for where the
+/// value should be by now (for example the hours expected so far in the service year).
+#[component]
+pub fn ProgressRow(
+    label: String,
+    /// Short text on the right, for example "312 / 600 h".
+    detail: String,
+    value: f64,
+    max: f64,
+    /// Expected value by now; drawn as a thin line on the bar.
+    #[props(default)]
+    marker: Option<f64>,
+    /// Second line under the label, for example "On track" or "18 h behind".
+    #[props(default)]
+    note: Option<String>,
+    #[props(default)] tone: crate::feedback::Tone,
+) -> Element {
+    use crate::feedback::Tone;
+    let pct = if max > 0.0 { (value / max * 100.0).clamp(0.0, 100.0) } else { 0.0 };
+    let marker_pct = marker.map(|m| if max > 0.0 { (m / max * 100.0).clamp(0.0, 100.0) } else { 0.0 });
+    let bar = match tone {
+        Tone::Success => "bg-success",
+        Tone::Warning => "bg-warning",
+        Tone::Error => "bg-error",
+        Tone::Info => "bg-info",
+        Tone::Neutral => "bg-primary",
+    };
+    let note_class = match tone {
+        Tone::Success => "text-xs text-success",
+        Tone::Warning => "text-xs text-warning",
+        Tone::Error => "text-xs text-error",
+        _ => "text-xs text-base-content/60",
+    };
+    rsx! {
+        div { class: "flex flex-col gap-1.5",
+            div { class: "flex items-baseline justify-between gap-3",
+                span { class: "flex min-w-0 flex-col",
+                    span { class: "truncate text-sm font-medium", "{label}" }
+                    if let Some(n) = note {
+                        span { class: note_class, "{n}" }
+                    }
+                }
+                span { class: "shrink-0 text-xs tabular-nums text-base-content/70", "{detail}" }
+            }
+            div { class: "relative h-2 overflow-hidden rounded-full bg-base-300", role: "progressbar",
+                "aria-valuenow": "{value}", "aria-valuemax": "{max}", "aria-label": "{label}",
+                div { class: "h-full rounded-full {bar} transition-[width] duration-700 ease-[var(--ease-out-soft)]", style: "width: {pct:.1}%;" }
+                if let Some(m) = marker_pct {
+                    div { class: "absolute inset-y-0 w-0.5 bg-base-content/60", style: "left: calc({m:.1}% - 1px);", title: "Expected by now" }
                 }
             }
         }

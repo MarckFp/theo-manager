@@ -27,6 +27,7 @@ mod layout;
 mod menu;
 mod overlay;
 mod page;
+mod period;
 mod rows;
 mod shell;
 mod typography;
@@ -34,7 +35,7 @@ mod typography;
 pub use action::{Action, ActionButton};
 pub use button::{Button, ButtonKind, ButtonSize, ButtonVariant, IconButton};
 pub use card::{Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, RecordCard, Tag};
-pub use charts::{BarChart, ChartPoint, MonthMark, MonthStrip, Sparkline, StatTile, Trend};
+pub use charts::{BarChart, ChartPoint, MonthMark, MonthStrip, ProgressRow, Sparkline, StatTile, Trend};
 pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};
 pub use filter::{Facet, FacetOption, FilterBar, FilterSelection};
@@ -50,6 +51,7 @@ pub use menu::{
     MenuButton, MenuItem, Placement, Popover, Segment, Segmented, SwitcherItem, WorkspaceSwitcher,
 };
 pub use overlay::{ConfirmDialog, Dialog};
+pub use period::{month_name, MonthPicker, YearMonth};
 pub use rows::{PickList, Row, RowList};
 pub use page::{AuthLayout, Page, TextLink, WizardLayout};
 pub use shell::{AppShell, NavEntry, NavHub};

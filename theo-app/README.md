@@ -43,6 +43,9 @@ The debug web build is large (about 70 MB of WebAssembly) and loads slowly. Use
    one publisher has no group, so you see the warnings. Add members, change the overseer.
 9. **Users › Moved away**: people who moved away, with the date they are removed. One demo person
    moved away more than a year ago, so the app removes him when you unlock *Riverside*.
+10. **Users › Field service reports**: 14 months of invented reports. Change the month (arrows,
+   or tap the month to jump), open a card to enter a report, see the statistics and set the
+   15-hour months in **Goals**.
 
 ## Routes
 
@@ -57,6 +60,7 @@ The debug web build is large (about 70 MB of WebAssembly) and loads slowly. Use
 | `/app/users/all/new`, `/app/users/all/<number>` | Person page: new or edit, family, activity, invite (Cloud) | Same |
 | `/app/users/groups` | Field service groups: search, cards, export | Same |
 | `/app/users/groups/new`, `/app/users/groups/<id>` | Group page: name, overseer, assistant, members, activity | Same |
+| `/app/users/reports` | Field service reports: month, statistics, goals | Same |
 | `/app/users/moved-away` | People who moved away (kept 1 year) | Same |
 | `/app/<section>` | Section hub: large tiles for its pages | Same |
 | `/app/<section>/<page>` | A page (placeholders until phase 3; `congregation/settings` is real) | Same |

@@ -31,6 +31,8 @@ The full design, with every decision and its reasons, is in [`REQUIREMENTS.md`](
   congregation, with personal overrides.
 - **Users:** all users with search and filters, the person page (family, activity, invite), people
   who moved away (kept for one year), field service groups, export to PDF, Word and CSV.
+- **Field service reports:** monthly reports with the rules per kind of publisher, pioneers' goals
+  and pace, statistics per service year and per group.
 
 The demo account has invented people only (`Try the demo` on the log-in page).
 

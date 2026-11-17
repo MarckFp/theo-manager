@@ -8,6 +8,7 @@ do not exist yet.
 |---|---|---|
 | M-01 People (persons and families) | [m01-people.md](m01-people.md) | Reviewed 2026-11-17, 2 open questions |
 | M-09 Field service groups | [m09-field-service-groups.md](m09-field-service-groups.md) | Reviewed 2026-11-17, all decided |
+| M-10 Field service reports | [m10-field-service-reports.md](m10-field-service-reports.md) | Reviewed 2026-11-17, all decided |
 | Other modules | Written in each module's modeling session | Not started |
 
 ## Conventions for every module

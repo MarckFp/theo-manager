@@ -63,8 +63,8 @@ pub fn strength(pw: &str) -> u8 {
 pub fn default_layout() -> Vec<WidgetLayout> {
     vec![
         WidgetLayout::new("next-meeting", "Next meeting", Icon::Meetings, 2, 1),
-        WidgetLayout::new("publishers", "Active publishers", Icon::Users, 1, 1),
-        WidgetLayout::new("reports", "Reports this month", Icon::Footprints, 1, 1),
+        WidgetLayout::new("publishers", "Publishers", Icon::Users, 1, 1),
+        WidgetLayout::new("reports", "Field service reports", Icon::Footprints, 1, 1),
         WidgetLayout::new("assignments", "My assignments", Icon::Assignment, 1, 2),
         WidgetLayout::new("attendance", "Meeting attendance", Icon::Chart, 2, 1),
         WidgetLayout::new("territories", "Territories", Icon::Map, 1, 1),
@@ -117,6 +117,8 @@ fn entry(icon: Icon, title: &str, subtitle: &str, meta: &str) -> ListEntry {
 // Synthetic people for the demo (R-022: invented names, reserved phone numbers, example.org).
 // ---------------------------------------------------------------------------------------------
 
+use crate::reports::{reporting_month, shift, Kind, Report, Ym, AUX_GOAL, AUX_GOAL_SHORT};
+use std::collections::BTreeSet;
 use crate::people::{
     AccountLink, Appointment, Directory, Family, Gender, Group, Person, PublisherType, RelationKind, Relationship,
 };
@@ -184,6 +186,8 @@ pub fn demo_directory(size: usize) -> Directory {
         ("Marta", "Kovac", Gender::Female, "1987-03-29", T::RegularPioneer, None, false, false, None, NONE),
         ("Henry", "Doyle", Gender::Male, "1962-12-01", T::BaptisedPublisher, None, false, false, None, NONE),
     ];
+    // (person, type, activity pattern of the last 6 months) for the demo reports.
+    let mut patterns: Vec<(u32, PublisherType, [Option<bool>; 6])> = Vec::new();
     let mut pioneer_numbers = ["4410023", "4410187", "4410254", "4410391", "4410402", "4410566", "4410671", "4410733"].iter();
     let people: Vec<Person> = rows
         .into_iter()
@@ -191,6 +195,9 @@ pub fn demo_directory(size: usize) -> Directory {
         .enumerate()
         .map(|(i, (first, last, gender, birthday, ty, appointment, anointed, infirm, consent, reports))| {
             let n = i as u32 + 1;
+            if MOVED_AWAY.iter().all(|(id, _)| *id != n) {
+                patterns.push((n, ty, reports));
+            }
             let local = fold_ascii(&format!("{first}.{last}"));
             let born: i32 = birthday[..4].parse().unwrap_or(1990);
             Person {
@@ -219,7 +226,6 @@ pub fn demo_directory(size: usize) -> Directory {
                     2 => AccountLink::Invited { link: format!("https://app.example.org/join#t={}", token()) },
                     _ => AccountLink::None,
                 },
-                reports,
                 moved_away: MOVED_AWAY.iter().find(|(id, _)| *id == n).map(|(_, d)| d.to_string()),
             }
         })
@@ -256,7 +262,89 @@ pub fn demo_directory(size: usize) -> Directory {
         // No assistant yet: shows the warnings on the groups page.
         Group { id: 4, name: "Town centre".into(), overseer: lead(25), assistant: None, members: keep(vec![26]) },
     ];
-    Directory { people, families, groups }
+    let (reports, aux_short_months) = demo_reports(&patterns);
+    let mut aux_plans: BTreeSet<(u32, Ym)> = reports.iter().filter(|r| r.auxiliary).map(|r| (r.person, r.month)).collect();
+    // Planned ahead: George (29) this month, Olivia (18) the month after.
+    for (person, ahead) in [(29, 1), (18, 2)] {
+        if (person as usize) <= size {
+            aux_plans.insert((person, shift(reporting_month(), ahead)));
+        }
+    }
+    Directory { people, families, groups, reports, aux_short_months, aux_plans }
+}
+
+/// Field service reports for the last 14 months, relative to today, so the demo always looks
+/// current. The last 6 months follow each person's activity pattern.
+fn demo_reports(patterns: &[(u32, PublisherType, [Option<bool>; 6])]) -> (Vec<Report>, BTreeSet<Ym>) {
+    let last = reporting_month();
+    // 15-hour auxiliary goal months: Memorial (March), regional convention (July) and the
+    // circuit overseer's visit (December).
+    let short: BTreeSet<Ym> = (last.0 - 2..=last.0 + 1).flat_map(|y| [(y, 3), (y, 7), (y, 12)]).collect();
+    let goal = |ym: Ym| if short.contains(&ym) { AUX_GOAL_SHORT } else { AUX_GOAL };
+    let wobble = |id: u32, m: u32, span: u32| ((id * 7 + m * 13) % span) as i32 - (span / 2) as i32;
+    let pioneer_base = |id: u32| match id {
+        9 => 56,
+        13 => 43, // behind on the yearly goal
+        19 => 55,
+        28 => 47,
+        _ => 51,
+    };
+    let mut out = Vec::new();
+    for (id, ty, pattern) in patterns.iter().copied() {
+        if !ty.is_publisher() {
+            continue;
+        }
+        let inactive = pattern.iter().all(|p| *p == Some(false));
+        for back in (0..14).rev() {
+            let ym = shift(last, -back);
+            let took: Option<bool> = if back <= 5 {
+                match pattern[(5 - back) as usize] {
+                    None => None,
+                    Some(true) => Some(true),
+                    // Inactive: James (17) reports "did not take part"; others send nothing.
+                    Some(false) if inactive && id == 17 => Some(false),
+                    Some(false) => None,
+                }
+            } else if pattern[0].is_none() {
+                None // new publisher: no reports before
+            } else {
+                Some(true)
+            };
+            // Not in yet for the reporting month.
+            let took = if back == 0 && (id == 15 || id == 27) { None } else { took };
+            let Some(took_part) = took else { continue };
+            let auxiliary = ty == PublisherType::BaptisedPublisher && took_part && ((id == 18 && ym.1 == 3) || (id == 21 && ym.1 == 12));
+            let kind = Kind::of(ty, auxiliary);
+            let hours = match kind {
+                Kind::Pioneer => Some((pioneer_base(id) + wobble(id, ym.1, 11)).max(0) as u32),
+                Kind::ContinuousAuxiliary => Some((goal(ym) as i32 + wobble(id, ym.1, 7)).max(0) as u32),
+                Kind::AuxiliaryMonth => Some(goal(ym) + 2),
+                Kind::Publisher => None,
+            };
+            let credit = match (id, ym.1) {
+                (14, m) if m % 3 == 0 => Some(8),
+                (25, 12) => Some(12),
+                _ => None,
+            };
+            let studies = match kind {
+                Kind::Pioneer => 1 + (id + ym.1) % 4,
+                Kind::ContinuousAuxiliary | Kind::AuxiliaryMonth => 1,
+                Kind::Publisher if took_part => u32::from((id + ym.1).is_multiple_of(3)),
+                Kind::Publisher => 0,
+            };
+            out.push(Report {
+                person: id,
+                month: ym,
+                took_part,
+                hours,
+                credit: if kind.has_credit() { credit } else { None },
+                studies,
+                auxiliary,
+                notes: (id == 16 && back == 2).then(|| "Witnessed by letter while recovering from surgery.".to_string()),
+            });
+        }
+    }
+    (out, short)
 }
 
 fn fold_ascii(s: &str) -> String {

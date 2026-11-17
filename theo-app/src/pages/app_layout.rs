@@ -8,6 +8,7 @@ fn active_of(route: &Route) -> (String, Option<String>) {
     match route {
         Route::Me {} => ("me".into(), None),
         Route::UserList {} | Route::UserNew {} | Route::UserDetail { .. } => ("users".into(), Some("all".into())),
+        Route::ReportsPage {} => ("users".into(), Some("reports".into())),
         Route::MovedAway {} => ("users".into(), Some("moved-away".into())),
         Route::GroupList {} | Route::GroupNew {} | Route::GroupDetail { .. } => ("users".into(), Some("groups".into())),
         Route::SectionHub { section } => (section.clone(), None),

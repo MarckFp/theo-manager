@@ -102,12 +102,16 @@ pub fn Cluster(
 pub fn Grid(
     #[props(default = 3)] cols: u8,
     #[props(default)] gap: Gap,
+    /// Two columns already on phones (for small tiles such as statistics).
+    #[props(default)]
+    compact: bool,
     children: Element,
 ) -> Element {
-    let cols_class = match cols {
-        1 => "grid-cols-1",
-        2 => "grid-cols-1 md:grid-cols-2",
-        3 => "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+    let cols_class = match (cols, compact) {
+        (1, _) => "grid-cols-1",
+        (_, true) => "grid-cols-2 lg:grid-cols-4",
+        (2, _) => "grid-cols-1 md:grid-cols-2",
+        (3, _) => "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
         _ => "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
     };
     rsx! {
