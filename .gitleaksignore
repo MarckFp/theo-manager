@@ -1,3 +1,8 @@
-# False positives reviewed by hand. Each line is the fingerprint of one finding in one commit.
-# REQUIREMENTS.md described an encryption suite as "domain key: XChaCha20-Poly1305" (not a secret).
+# False positives, reviewed by hand. Each line is the fingerprint of one finding in one commit,
+# so a real secret anywhere else is still reported.
+#
+# REQUIREMENTS.md section 6.4 named an encryption cipher right after the word for key, which the
+# generic-api-key rule matched. The first two lines are that text and its quote in this file.
+# Do not quote a finding in this comment: the scanner reads this file too.
 4198d42393c33bcc2f1c386ef6d7a3bda850d926:REQUIREMENTS.md:generic-api-key:637
+eab197abe9a0c265bea124d373faa68f24451d1e:.gitleaksignore:generic-api-key:2
