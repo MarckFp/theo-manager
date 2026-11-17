@@ -1189,9 +1189,29 @@ pub const FACET_CONSENT: &str = "consent";
 pub const FACET_ACTIVITY: &str = "activity";
 
 /// (id, label, icon, values) of one filter.
-type FacetDef = (&'static str, &'static str, Icon, Vec<(String, String)>);
+pub type FacetDef = (&'static str, &'static str, Icon, Vec<(String, String)>);
 
-/// Every filter, in display order.
+/// The values a person has for a filter.
+pub type FacetValues<'a> = Box<dyn Fn(&Person) -> Vec<String> + 'a>;
+
+/// A filter a screen adds to the people filters, with the values of each person.
+pub struct ExtraFacet<'a> {
+    pub def: FacetDef,
+    pub values: FacetValues<'a>,
+}
+
+/// The people filters of *All users*, in display order.
+pub const ALL_FACETS: [&str; 8] =
+    [FACET_STATUS, FACET_TYPE, FACET_APPOINTMENT, FACET_GROUP, FACET_ACTIVITY, FACET_GENDER, FACET_ANOINTED, FACET_CONSENT];
+
+/// The standard people filters listed in `ids`, in that order (the same filter looks and works
+/// the same on every list).
+pub fn standard_facets(dir: &Directory, ids: &[&str]) -> Vec<FacetDef> {
+    let all = facet_defs(dir);
+    ids.iter().filter_map(|id| all.iter().find(|d| d.0 == *id).cloned()).collect()
+}
+
+/// Every people filter, in display order.
 fn facet_defs(dir: &Directory) -> Vec<FacetDef> {
     let v = |a: &str, b: &str| (a.to_string(), b.to_string());
     let mut groups: Vec<(String, String)> = dir.groups.iter().map(|g| (g.id.to_string(), g.name.clone())).collect();
@@ -1232,11 +1252,55 @@ fn matches_query(p: &Person, tokens: &[String]) -> bool {
     tokens.iter().all(|t| hay.contains(t.as_str()))
 }
 
-fn matches(dir: &Directory, p: &Person, tokens: &[String], sel: &FilterSelection, skip: Option<&str>) -> bool {
+fn values_with(dir: &Directory, extra: &[ExtraFacet], p: &Person, facet: &str) -> Vec<String> {
+    match extra.iter().find(|e| e.def.0 == facet) {
+        Some(e) => (e.values)(p),
+        None => values(dir, p, facet),
+    }
+}
+
+fn matches(dir: &Directory, extra: &[ExtraFacet], p: &Person, tokens: &[String], sel: &FilterSelection, skip: Option<&str>) -> bool {
     matches_query(p, tokens)
         && sel.iter().all(|(facet, chosen)| {
-            Some(facet.as_str()) == skip || chosen.is_empty() || values(dir, p, facet).iter().any(|v| chosen.contains(v))
+            Some(facet.as_str()) == skip || chosen.is_empty() || values_with(dir, extra, p, facet).iter().any(|v| chosen.contains(v))
         })
+}
+
+/// The people of `pool` that match the search and the filters, sorted by the name as shown.
+pub fn filter_pool<'a>(
+    dir: &Directory,
+    pool: &[&'a Person],
+    query: &str,
+    sel: &FilterSelection,
+    extra: &[ExtraFacet],
+    prefs: &Preferences,
+) -> Vec<&'a Person> {
+    let t = tokens(query);
+    let mut out: Vec<&Person> = pool.iter().copied().filter(|p| matches(dir, extra, p, &t, sel, None)).collect();
+    out.sort_by_cached_key(|p| fold(&p.display_name(prefs)));
+    out
+}
+
+/// Filters for `pool`: the extra ones first, then `defs`. Each value shows how many people it
+/// gives with the other filters applied.
+pub fn facets_for(dir: &Directory, pool: &[&Person], query: &str, sel: &FilterSelection, defs: Vec<FacetDef>, extra: &[ExtraFacet]) -> Vec<Facet> {
+    let t = tokens(query);
+    extra
+        .iter()
+        .map(|e| e.def.clone())
+        .chain(defs)
+        .map(|(id, label, icon, opts)| {
+            let pool: Vec<&Person> = pool.iter().copied().filter(|p| matches(dir, extra, p, &t, sel, Some(id))).collect();
+            let options = opts
+                .into_iter()
+                .map(|(value, label)| {
+                    let count = pool.iter().filter(|p| values_with(dir, extra, p, id).contains(&value)).count();
+                    FacetOption { value, label, count }
+                })
+                .collect();
+            Facet { id: id.into(), label: label.into(), icon, options }
+        })
+        .collect()
 }
 
 fn tokens(query: &str) -> Vec<String> {
@@ -1245,29 +1309,14 @@ fn tokens(query: &str) -> Vec<String> {
 
 /// The people that match, sorted by the name as shown.
 pub fn filtered<'a>(dir: &'a Directory, query: &str, sel: &FilterSelection, prefs: &Preferences) -> Vec<&'a Person> {
-    let t = tokens(query);
-    let mut out: Vec<&Person> = dir.people.iter().filter(|p| matches(dir, p, &t, sel, None)).collect();
-    out.sort_by_cached_key(|p| fold(&p.display_name(prefs)));
-    out
+    let pool: Vec<&Person> = dir.people.iter().collect();
+    filter_pool(dir, &pool, query, sel, &[], prefs)
 }
 
-/// The filters with their values and counts (each count applies the other filters).
+/// The filters of *All users* with their values and counts.
 pub fn facets(dir: &Directory, query: &str, sel: &FilterSelection) -> Vec<Facet> {
-    let t = tokens(query);
-    facet_defs(dir)
-        .into_iter()
-        .map(|(id, label, icon, opts)| {
-            let pool: Vec<&Person> = dir.people.iter().filter(|p| matches(dir, p, &t, sel, Some(id))).collect();
-            let options = opts
-                .into_iter()
-                .map(|(value, label)| {
-                    let count = pool.iter().filter(|p| values(dir, p, id).contains(&value)).count();
-                    FacetOption { value, label, count }
-                })
-                .collect();
-            Facet { id: id.into(), label: label.into(), icon, options }
-        })
-        .collect()
+    let pool: Vec<&Person> = dir.people.iter().collect();
+    facets_for(dir, &pool, query, sel, standard_facets(dir, &ALL_FACETS), &[])
 }
 
 /// The list shows current members only, until the user changes the Status filter.

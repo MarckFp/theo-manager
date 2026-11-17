@@ -95,6 +95,7 @@ pub enum Icon {
     Family,
     MovedAway,
     MoveBack,
+    Save,
 }
 
 /// Icon sizes, in pixels.
@@ -217,6 +218,7 @@ pub fn IconView(
         Icon::Family => rsx!(Svg { icon: ld::LdHeart, width: px, height: px, title: label }),
         Icon::MovedAway => rsx!(Svg { icon: ld::LdTruck, width: px, height: px, title: label }),
         Icon::MoveBack => rsx!(Svg { icon: ld::LdUndo2, width: px, height: px, title: label }),
+        Icon::Save => rsx!(Svg { icon: ld::LdSave, width: px, height: px, title: label }),
     };
     rsx! {
         span { class: "inline-flex shrink-0 items-center justify-center", "aria-hidden": hidden, {svg} }

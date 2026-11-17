@@ -272,10 +272,16 @@ pub fn MovedAway() -> Element {
     let prefs = state.preferences();
     let dir = state.directory();
     let mut query = use_signal(String::new);
-    let total = people::moved_away(&dir).len();
-    let mut only_moved = FilterSelection::new();
-    only_moved.insert(people::FACET_STATUS.into(), std::iter::once("moved-away".to_string()).collect());
-    let mut list: Vec<&Person> = people::filtered(&dir, &query(), &only_moved, &prefs);
+    let mut sel = use_signal(FilterSelection::new);
+    let pool = people::moved_away(&dir);
+    let total = pool.len();
+    // The All users filters that still mean something after a move (no status, group or activity).
+    let defs = people::standard_facets(
+        &dir,
+        &[people::FACET_TYPE, people::FACET_APPOINTMENT, people::FACET_GENDER, people::FACET_ANOINTED, people::FACET_CONSENT],
+    );
+    let facets = people::facets_for(&dir, &pool, &query(), &sel(), defs, &[]);
+    let mut list: Vec<&Person> = people::filter_pool(&dir, &pool, &query(), &sel(), &[], &prefs);
     list.sort_by(|a, b| b.moved_away.cmp(&a.moved_away));
     let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> =
         list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(&dir, p))).collect();
@@ -294,9 +300,9 @@ pub fn MovedAway() -> Element {
                     query: query(),
                     on_query: move |v| query.set(v),
                     search_placeholder: "Search by name",
-                    facets: Vec::new(),
-                    selected: FilterSelection::new(),
-                    on_select: move |_| {},
+                    facets,
+                    selected: sel(),
+                    on_select: move |v| sel.set(v),
                     summary: format!("{} of {total} people", cards.len()),
                 }
                 Grid { cols: 3, gap: Gap::Sm,

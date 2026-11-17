@@ -87,9 +87,9 @@ than 0 hours). Months before the person's first report do not count.
 
 | Tab | What it shows |
 |---|---|
-| **Month** | A month picker (previous, next, and a popover to jump to any month and year; starts at the reporting month). Totals: reports received, publishers who took part, hours, Bible studies. Search and filters (status: received, not in yet, missing, late; kind; group). One card per publisher with their report, or its status (see above). A card opens the report form. Export of the month as PDF, DOCX or CSV. |
-| **Statistics** | A service year. Averages and totals for the congregation and for each field service group, publishers who took part per month, and the goals of all pioneers with their pace. |
-| **Goals** | The 15-hour months of the service year, and the goals per kind of pioneer. |
+| **Month** | A month picker across the full width (previous, next, and a popover to jump to any month and year; starts at the reporting month). Totals: reports received, publishers who took part, hours, Bible studies. Search and filters: **Report status** (received, not in yet, missing, late) and the *All users* filters except status and consent (type, appointment, group, activity, gender, anointed). One card per publisher with their report, or its status. A card opens the report form. Export of the month as PDF, DOCX or CSV. |
+| **Statistics** | A service year. Averages and totals for the congregation and for each field service group, and publishers who took part per month. |
+| **Goals** | A service year and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. **Goal settings** (next to the service year) opens a dialog with the 15-hour months of that year and the goal of each kind. |
 
 The person page shows the person's last 6 months, their recent reports, their goal progress, and
 a button to enter the report of the reporting month. The dashboard widget shows how many reports

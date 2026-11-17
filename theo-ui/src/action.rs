@@ -39,6 +39,7 @@ pub enum Action {
     MoveBack,
     View,
     AddMembers,
+    Settings,
 }
 
 impl Action {
@@ -76,13 +77,16 @@ impl Action {
             Action::MoveBack => "Move back",
             Action::View => "Show",
             Action::AddMembers => "Add members",
+            Action::Settings => "Settings",
         }
     }
 
     /// The icon of the action, if it has one.
     pub fn icon(self) -> Option<Icon> {
         match self {
-            Action::Save | Action::Done => Some(Icon::Check),
+            Action::Save => Some(Icon::Save),
+            Action::Done => Some(Icon::Check),
+            Action::Settings => Some(Icon::Settings),
             Action::Next => Some(Icon::ArrowRight),
             Action::Finish => Some(Icon::Check),
             Action::Edit => Some(Icon::Edit),
@@ -124,7 +128,8 @@ impl Action {
             | Action::Add
             | Action::AddMembers
             | Action::Done => ButtonVariant::Primary,
-            Action::Delete => ButtonVariant::Destructive,
+            // Sign out ends the session, so it uses the same red style as other leaving actions.
+            Action::Delete | Action::SignOut => ButtonVariant::Destructive,
             Action::Cancel
             | Action::Back
             | Action::ResetLayout

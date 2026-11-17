@@ -79,22 +79,12 @@ pub fn ReportsPage() -> Element {
     }
 }
 
-const F_STATUS: &str = "status";
-const F_KIND: &str = "kind";
-const F_GROUP: &str = "group";
+/// The report status filter (the other filters are the standard people filters).
+const F_REPORT_STATUS: &str = "report-status";
 
-/// Filter values of a reporter for one facet.
-fn facet_values(dir: &Directory, p: &Person, ym: Ym, facet: &str) -> Vec<String> {
-    match facet {
-        F_STATUS => vec![dir.report_status(p.id, ym).value().to_string()],
-        F_KIND => vec![dir.kind_for(p, ym).value().to_string()],
-        F_GROUP => match dir.home_group(p.id) {
-            Some(g) => vec![g.id.to_string()],
-            None => vec!["none".into()],
-        },
-        _ => Vec::new(),
-    }
-}
+/// The people filters the reports list shares with *All users* (not status or consent).
+const PEOPLE_FACETS: [&str; 6] =
+    [people::FACET_TYPE, people::FACET_APPOINTMENT, people::FACET_GROUP, people::FACET_ACTIVITY, people::FACET_GENDER, people::FACET_ANOINTED];
 
 #[component]
 fn MonthTab() -> Element {
@@ -110,43 +100,24 @@ fn MonthTab() -> Element {
     let sel = (state.report_filters)();
 
     let s = dir.month_summary(ym);
-    let tokens: Vec<String> = people::fold(&query).split_whitespace().map(str::to_string).collect();
-    let mut reporters: Vec<&Person> = dir.reporters();
-    reporters.sort_by_cached_key(|p| people::fold(&p.display_name(&prefs)));
-    let matches = |p: &Person, skip: Option<&str>| {
-        let hay = people::fold(&format!("{} {}", p.first_name, p.last_name));
-        tokens.iter().all(|t| hay.contains(t.as_str()))
-            && sel.iter().all(|(f, chosen)| Some(f.as_str()) == skip || chosen.is_empty() || facet_values(&dir, p, ym, f).iter().any(|v| chosen.contains(v)))
-    };
-    let mut groups: Vec<(String, String)> = dir.groups_sorted().iter().map(|g| (g.id.to_string(), g.name.clone())).collect();
-    groups.push(("none".into(), "No group".into()));
-    type Def<'a> = (&'a str, &'a str, Icon, Vec<(String, String)>);
-    let defs: Vec<Def> = vec![
-        (F_STATUS, "Status", Icon::Report, vec![
-            ("received".into(), "Received".into()),
-            ("not-yet".into(), "Not in yet".into()),
-            ("missing".into(), "Missing".into()),
-            ("late".into(), "Late".into()),
-        ]),
-        (F_KIND, "Kind", Icon::Users, vec![("publisher".into(), "Publishers".into()), ("auxiliary".into(), "Auxiliary pioneers".into()), ("pioneer".into(), "Pioneers".into())]),
-        (F_GROUP, "Group", Icon::Group, groups),
-    ];
-    let facets: Vec<Facet> = defs
-        .into_iter()
-        .map(|(id, label, icon, opts)| Facet {
-            id: id.into(),
-            label: label.into(),
-            icon,
-            options: opts
-                .into_iter()
-                .map(|(value, label)| {
-                    let count = reporters.iter().filter(|p| matches(p, Some(id)) && facet_values(&dir, p, ym, id).contains(&value)).count();
-                    FacetOption { value, label, count }
-                })
-                .collect(),
-        })
-        .collect();
-    let shown: Vec<&Person> = reporters.iter().copied().filter(|p| matches(p, None)).collect();
+    let reporters: Vec<&Person> = dir.reporters();
+    let status_dir = dir.clone();
+    let extra = [people::ExtraFacet {
+        def: (
+            F_REPORT_STATUS,
+            "Report status",
+            Icon::Report,
+            vec![
+                ("received".into(), "Received".into()),
+                ("not-yet".into(), "Not in yet".into()),
+                ("missing".into(), "Missing".into()),
+                ("late".into(), "Late".into()),
+            ],
+        ),
+        values: Box::new(move |p: &Person| vec![status_dir.report_status(p.id, ym).value().to_string()]),
+    }];
+    let facets = people::facets_for(&dir, &reporters, &query, &sel, people::standard_facets(&dir, &PEOPLE_FACETS), &extra);
+    let shown: Vec<&Person> = people::filter_pool(&dir, &reporters, &query, &sel, &extra, &prefs);
     let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> = shown
         .iter()
         .map(|p| {
@@ -244,12 +215,16 @@ fn MonthTab() -> Element {
     };
 
     rsx! {
+        MonthPicker { value: ym, min, max, full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
         Cluster { justify: Justify::Between,
-            MonthPicker { value: ym, min, max, onchange: move |v| state.report_month.set(Some(v)) }
+            Text { tone: TextTone::Muted,
+                if ym == reporting_month() {
+                    "Publishers report {month_label(ym)} now. Reports are due by the {WARN_DAY}th; after the {LATE_DAY}th they are late."
+                } else {
+                    "Reports for {month_label(ym)}."
+                }
+            }
             ExportMenu { csv_description: "Every field, for spreadsheets", onselect: on_export }
-        }
-        if ym == reporting_month() {
-            Text { tone: TextTone::Muted, "Publishers report {month_label(ym)} now. Reports are due by the {WARN_DAY}th; after the {LATE_DAY}th they are late." }
         }
         Grid { cols: 4, gap: Gap::Sm, compact: true,
             Card { StatTile {
@@ -300,10 +275,10 @@ fn ServiceYearSelect(value: i32, onchange: EventHandler<i32>) -> Element {
     let (min, max) = state.directory().report_range();
     let options: Vec<SelectOption> = (service_year(min)..=service_year(max))
         .rev()
-        .map(|y| SelectOption::new(y.to_string(), format!("Service year {}", service_year_label(y))))
+        .map(|y| SelectOption::new(y.to_string(), service_year_label(y)))
         .collect();
     rsx! {
-        Field { label: "Service year", help: "September to August.",
+        Field { label: "Service year (September to August)",
             Select { value: value.to_string(), options, onchange: move |v: String| if let Ok(y) = v.parse() { onchange.call(y) } }
         }
     }
@@ -312,7 +287,6 @@ fn ServiceYearSelect(value: i32, onchange: EventHandler<i32>) -> Element {
 #[component]
 fn StatisticsTab() -> Element {
     let state = use_app_state();
-    let prefs = state.preferences();
     let dir = state.directory();
     let mut year = use_signal(|| service_year(reporting_month()));
     let months: Vec<Ym> = service_year_months(year()).into_iter().filter(|m| *m <= reporting_month()).collect();
@@ -369,72 +343,64 @@ fn StatisticsTab() -> Element {
                     }).collect(),
                 }
             }
-            Card { title: "Pioneers and goals", icon: Icon::Privilege,
-                if goals.is_empty() {
-                    Text { tone: TextTone::Muted, "Nobody has a goal in this service year." }
-                } else {
-                    Grid { cols: 2, gap: Gap::Lg,
-                        for g in goals.iter() {
-                            {
-                                let (note, tone) = goal_note(g);
-                                let name = dir.person(g.person).map(|p| p.display_name(&prefs)).unwrap_or_default();
-                                let kind = match (g.kind, dir.person(g.person)) {
-                                    (Kind::Pioneer, Some(p)) => p.publisher_type.label(),
-                                    (k, _) => kind_label(k),
-                                };
-                                let label = format!("{name} · {kind}");
-                                rsx! {
-                                    ProgressRow {
-                                        key: "{g.person}",
-                                        label,
-                                        detail: format!("{} / {} h", g.hours, g.goal),
-                                        value: f64::from(g.hours),
-                                        max: f64::from(g.goal),
-                                        marker: (g.kind == Kind::Pioneer).then_some(f64::from(g.expected)),
-                                        note,
-                                        tone,
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
 #[component]
 fn GoalsTab() -> Element {
-    let mut state = use_app_state();
-    let toaster = use_toaster();
+    let state = use_app_state();
+    let prefs = state.preferences();
     let dir = state.directory();
     let mut year = use_signal(|| service_year(reporting_month()));
-    let months = service_year_months(year());
+    let mut settings = use_signal(|| false);
+    let goals = dir.goals(year());
+    // One section per kind of publisher, in this order; empty sections are not shown.
+    let sections: Vec<(&str, Vec<&GoalProgress>)> = [
+        ("Regular pioneers", Some(PublisherType::RegularPioneer)),
+        ("Special pioneers", Some(PublisherType::SpecialPioneer)),
+        ("Missionaries", Some(PublisherType::Missionary)),
+        ("Continuous auxiliary pioneers", Some(PublisherType::ContinuousAuxiliaryPioneer)),
+        ("Auxiliary pioneers (single months)", None),
+    ]
+    .into_iter()
+    .map(|(title, ty)| {
+        let list: Vec<&GoalProgress> = goals
+            .iter()
+            .filter(|g| match ty {
+                Some(t) => g.kind != Kind::AuxiliaryMonth && dir.person(g.person).is_some_and(|p| p.publisher_type == t),
+                None => g.kind == Kind::AuxiliaryMonth,
+            })
+            .collect();
+        (title, list)
+    })
+    .filter(|(_, l)| !l.is_empty())
+    .collect();
     rsx! {
-        Grid { cols: 3,
+        Cluster { align: Align::End,
             ServiceYearSelect { value: year(), onchange: move |y| year.set(y) }
+            ActionButton { action: Action::Settings, label: "Goal settings", onclick: move |_| settings.set(true) }
         }
-        Card { title: "Auxiliary pioneer goal per month", icon: Icon::Calendar,
-            Text { tone: TextTone::Muted,
-                "Every month has a {AUX_GOAL}-hour goal. Choose {AUX_GOAL_SHORT} hours for months like the Memorial campaign, the regional convention campaign or the circuit overseer's visit. It applies to continuous and monthly auxiliary pioneers."
-            }
-            Grid { cols: 3,
-                for m in months {
-                    {
-                        let short = dir.aux_goal(m) == AUX_GOAL_SHORT;
-                        rsx! {
-                            Field { key: "{m.0}-{m.1}", label: month_label(m),
-                                Segmented {
-                                    value: if short { "short" } else { "full" },
-                                    options: vec![
-                                        Segment { value: "full".into(), label: format!("{AUX_GOAL} h"), icon: None },
-                                        Segment { value: "short".into(), label: format!("{AUX_GOAL_SHORT} h"), icon: None },
-                                    ],
-                                    onchange: move |v: String| {
-                                        state.update_directory(|d| d.set_aux_goal(m, v == "short"));
-                                        toaster.success(format!("Goal for {} saved.", month_label(m)));
-                                    },
+        if sections.is_empty() {
+            EmptyState { icon: Icon::Privilege, title: "Nobody has a goal in this service year" }
+        }
+        for (title, list) in sections {
+            Card { key: "{title}", title: "{title}", icon: Icon::Privilege, actions: rsx! { Badge { tone: Tone::Neutral, "{list.len()}" } },
+                Grid { cols: 2, gap: Gap::Lg,
+                    for g in list {
+                        {
+                            let (note, tone) = goal_note(g);
+                            let name = dir.person(g.person).map(|p| p.display_name(&prefs)).unwrap_or_default();
+                            rsx! {
+                                ProgressRow {
+                                    key: "{g.person}",
+                                    label: name,
+                                    detail: format!("{} / {} h", g.hours, g.goal),
+                                    value: f64::from(g.hours),
+                                    max: f64::from(g.goal),
+                                    marker: (g.kind == Kind::Pioneer).then_some(f64::from(g.expected)),
+                                    note,
+                                    tone,
                                 }
                             }
                         }
@@ -442,15 +408,53 @@ fn GoalsTab() -> Element {
                 }
             }
         }
-        Card { title: "Goals per kind of publisher", icon: Icon::Privilege,
-            ItemList {
-                items: vec![
-                    ListEntry { icon: Icon::Privilege, title: "Regular pioneer".into(), subtitle: "Per service year".into(), meta: format!("{YEARLY_GOAL} h") },
-                    ListEntry { icon: Icon::Privilege, title: "Special pioneer".into(), subtitle: "Per service year".into(), meta: format!("{YEARLY_GOAL} h") },
-                    ListEntry { icon: Icon::Privilege, title: "Missionary".into(), subtitle: "Per service year".into(), meta: format!("{YEARLY_GOAL} h") },
-                    ListEntry { icon: Icon::Clock, title: "Auxiliary pioneer (continuous or for one month)".into(), subtitle: "Per month, as set above".into(), meta: format!("{AUX_GOAL} or {AUX_GOAL_SHORT} h") },
-                    ListEntry { icon: Icon::Clock, title: "Credit hours".into(), subtitle: "Pioneers only; count towards the goal".into(), meta: format!("max {CREDIT_MAX} h / month") },
-                ],
+        if settings() {
+            GoalSettingsDialog { year: year(), onclose: move |_| settings.set(false) }
+        }
+    }
+}
+
+/// The goals of a service year: 30 or 15 hours per month for auxiliary pioneers, and the goal of
+/// each kind of publisher. Changes apply at once.
+#[component]
+fn GoalSettingsDialog(year: i32, onclose: EventHandler<()>) -> Element {
+    let mut state = use_app_state();
+    let dir = state.directory();
+    let months = service_year_months(year);
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: "Goal settings · {service_year_label(year)}",
+            description: "Every month has a {AUX_GOAL}-hour goal for auxiliary pioneers. Choose {AUX_GOAL_SHORT} hours for months like the Memorial campaign, the regional convention campaign or the circuit overseer's visit.",
+            actions: rsx! { ActionButton { action: Action::Done, onclick: move |_| onclose.call(()) } },
+            Stack { gap: Gap::Lg,
+                Grid { cols: 2, gap: Gap::Sm,
+                    for m in months {
+                        {
+                            let short = dir.aux_goal(m) == AUX_GOAL_SHORT;
+                            rsx! {
+                                Field { key: "{m.0}-{m.1}", label: month_label(m),
+                                    Segmented {
+                                        value: if short { "short" } else { "full" },
+                                        options: vec![
+                                            Segment { value: "full".into(), label: format!("{AUX_GOAL} h"), icon: None },
+                                            Segment { value: "short".into(), label: format!("{AUX_GOAL_SHORT} h"), icon: None },
+                                        ],
+                                        onchange: move |v: String| state.update_directory(|d| d.set_aux_goal(m, v == "short")),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ItemList {
+                    items: vec![
+                        ListEntry { icon: Icon::Privilege, title: "Regular and special pioneers, missionaries".into(), subtitle: "Per service year".into(), meta: format!("{YEARLY_GOAL} h") },
+                        ListEntry { icon: Icon::Clock, title: "Auxiliary pioneers".into(), subtitle: "Per month, as set above".into(), meta: format!("{AUX_GOAL} or {AUX_GOAL_SHORT} h") },
+                        ListEntry { icon: Icon::Clock, title: "Credit hours".into(), subtitle: "Pioneers only; they count towards the goal".into(), meta: format!("max {CREDIT_MAX} h / month") },
+                    ],
+                }
             }
         }
     }

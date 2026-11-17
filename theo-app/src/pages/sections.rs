@@ -232,7 +232,7 @@ pub fn Me() -> Element {
         Page { title: name.clone(), subtitle: "@{username}",
             actions: rsx! {
                 ActionButton { action: Action::Lock, onclick: move |_| { state.lock(); navigator.replace(Route::Unlock {}); } }
-                ActionButton { action: Action::SignOut, variant: ButtonVariant::Ghost, onclick: move |_| { state.sign_out(); navigator.replace(Route::Landing {}); } }
+                ActionButton { action: Action::SignOut, onclick: move |_| { state.sign_out(); navigator.replace(Route::Landing {}); } }
             },
             Card { title: "Preferences", icon: Icon::Language,
                 Stack {

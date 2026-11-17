@@ -166,7 +166,7 @@ the app removes them for good.
 |---|---|
 | Mark as moved away | `moved_away_date` is set. The person leaves their field service group, and stops being its overseer or assistant (M-09). In Cloud mode their membership ends and open invites are cancelled (R-246). |
 | Family | If the rest of the family moves too, the user says so in the same step: everyone gets the date and the family stays a family. A person who moves alone leaves the family, as in "Remove a person from a family". |
-| While moved away | The person is on *Users › Moved away*, and in *All users* only when the Status filter includes "Moved away". The page shows the date of removal. They can still be edited, moved back or deleted. They have no activity status, and they cannot be assigned. |
+| While moved away | The person is on *Users › Moved away* (with search and the type, appointment, gender, anointed and consent filters), and in *All users* only when the Status filter includes "Moved away". The page shows the date of removal. They can still be edited, moved back or deleted. They have no activity status, and they cannot be assigned. |
 | Move back | `moved_away_date` is cleared. The person is current again, without a field service group. |
 | After 1 year | The app **purges** the person (R-021): the record, their relationships and their history. Past assignments then show "Former member". The purge runs on the first device with access to the `people` key that opens the congregation after the date, and the activity log records it (without the name). |
 

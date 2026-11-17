@@ -39,7 +39,7 @@ pub fn Form(
                     style: "bottom: calc(6.25rem + env(safe-area-inset-bottom));",
                     "aria-label": "Save",
                     title: "Save",
-                    IconView { icon: Icon::Check, size: IconSize::Lg }
+                    IconView { icon: Icon::Save, size: IconSize::Lg }
                 }
             }
         }

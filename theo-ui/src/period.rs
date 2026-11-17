@@ -22,7 +22,15 @@ pub fn month_name(m: u32) -> &'static str {
 /// `‹  October 2026 ▾  ›`. The label opens a year switcher and a grid of months.
 /// Months outside `min..=max` cannot be chosen.
 #[component]
-pub fn MonthPicker(value: YearMonth, min: YearMonth, max: YearMonth, onchange: EventHandler<YearMonth>) -> Element {
+pub fn MonthPicker(
+    value: YearMonth,
+    min: YearMonth,
+    max: YearMonth,
+    onchange: EventHandler<YearMonth>,
+    /// Use the whole width: arrows at the edges, the month in the middle (easier to tap).
+    #[props(default)]
+    full_width: bool,
+) -> Element {
     let mut open = use_signal(|| false);
     let mut year = use_signal(|| value.0);
     let prev = shift(value, -1);
@@ -46,10 +54,10 @@ pub fn MonthPicker(value: YearMonth, min: YearMonth, max: YearMonth, onchange: E
         }
     };
     rsx! {
-        div { class: "inline-flex items-center gap-1 rounded-box border border-base-300 bg-base-100 p-1",
+        div { class: if full_width { "flex w-full items-center justify-between gap-1 rounded-box border border-base-300 bg-base-100 p-1" } else { "inline-flex items-center gap-1 rounded-box border border-base-300 bg-base-100 p-1" },
             button {
                 r#type: "button",
-                class: "btn btn-ghost btn-square btn-sm",
+                class: if full_width { "btn btn-ghost btn-square" } else { "btn btn-ghost btn-square btn-sm" },
                 "aria-label": "Previous month",
                 disabled: !can_prev,
                 onclick: move |_| onchange.call(prev),
@@ -105,7 +113,7 @@ pub fn MonthPicker(value: YearMonth, min: YearMonth, max: YearMonth, onchange: E
             }
             button {
                 r#type: "button",
-                class: "btn btn-ghost btn-square btn-sm",
+                class: if full_width { "btn btn-ghost btn-square" } else { "btn btn-ghost btn-square btn-sm" },
                 "aria-label": "Next month",
                 disabled: !can_next,
                 onclick: move |_| onchange.call(next),

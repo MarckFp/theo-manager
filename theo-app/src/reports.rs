@@ -307,11 +307,12 @@ impl Directory {
         self.reports.iter().filter(|r| r.person == person).map(|r| r.month).min()
     }
 
-    /// The months that have at least one report, oldest and newest (for month pickers).
+    /// From the first month with a report to the reporting month (for month pickers and service
+    /// year lists). Earlier months would only show every publisher as late.
     pub fn report_range(&self) -> (Ym, Ym) {
         let last = reporting_month();
         let first = self.reports.iter().map(|r| r.month).min().unwrap_or(last).min(last);
-        (shift(first, -12).max((first.0 - 1, 9)), last)
+        (first, last)
     }
 
     pub fn save_report(&mut self, person: u32, ym: Ym, d: &ReportDraft) -> Result<(), Vec<(&'static str, String)>> {
