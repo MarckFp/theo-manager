@@ -1,0 +1,3 @@
+# False positives reviewed by hand. Each line is the fingerprint of one finding in one commit.
+# REQUIREMENTS.md described an encryption suite as "domain key: XChaCha20-Poly1305" (not a secret).
+4198d42393c33bcc2f1c386ef6d7a3bda850d926:REQUIREMENTS.md:generic-api-key:637
