@@ -84,11 +84,19 @@ pub fn WorkspaceSwitcher(
     let current = items.iter().find(|i| Some(&i.id) == active.as_ref()).cloned();
     let name = current.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "Choose congregation".into());
     let kind = current.as_ref().map(|c| (c.kind_icon, c.kind_label.clone()));
-    let label_class = if compact { "hidden" } else { "flex md:max-lg:hidden" };
+    // Only the sidebar (Placement::Side) becomes an icon rail on tablets; anywhere else, for
+    // example on the unlock screen, the switcher keeps its name at every width.
+    let rail = placement == Placement::Side;
+    let label_class = if compact { "hidden" } else if rail { "flex md:max-lg:hidden" } else { "flex" };
+    let trigger_class = if rail {
+        "flex w-full items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 text-left transition-colors hover:bg-base-200 md:max-lg:justify-center md:max-lg:border-transparent"
+    } else {
+        "flex w-full items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 text-left transition-colors hover:bg-base-200"
+    };
     let trigger = rsx! {
         button {
             r#type: "button",
-            class: "flex w-full items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 text-left transition-colors hover:bg-base-200 md:max-lg:justify-center md:max-lg:border-transparent",
+            class: trigger_class,
             "aria-haspopup": "listbox",
             "aria-expanded": if open() { "true" } else { "false" },
             title: "{name}",
