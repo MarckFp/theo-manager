@@ -126,7 +126,7 @@ fn TaskDialog(id: Option<u32>, onclose: EventHandler<()>) -> Element {
             description: "A task with no page of its own, and the people who do it.",
             actions: rsx! {
                 if existing.is_some() {
-                    ActionButton { action: Action::Delete, variant: ButtonVariant::Ghost, onclick: move |_| confirm.set(true) }
+                    ActionButton { action: Action::Delete, onclick: move |_| confirm.set(true) }
                 }
                 ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
                 ActionButton { action: Action::Save, onclick: save }

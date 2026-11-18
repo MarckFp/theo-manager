@@ -17,7 +17,8 @@ source="$root/theo-app/icons/icon.svg"
 out="$root/theo-app/icons/gen"
 
 rm -rf "$out"
-cargo tauri icon "$source" --output "$out"
+# iOS icons cannot be transparent: the corners get the brand colour (iOS masks them anyway).
+cargo tauri icon "$source" --output "$out" --ios-color "#3756d6"
 
 # Android adaptive icon: the background behind the (full-bleed) foreground, in the brand colour.
 sed -i.bak 's/#FFFFFF/#3756D6/' "$out/android/values/ic_launcher_background.xml"

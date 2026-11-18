@@ -28,7 +28,10 @@ concurrency:
 env:
   DX_VERSION: "0.7.10"
   # Android NDK: https://developer.android.com/ndk/downloads
-  NDK_VERSION: "29.0.14206865"
+  NDK_VERSION: "30.0.16248370"
+  # Java only runs Gradle (the app is compiled for Java 17). Stay on 21 (LTS) until dx's Android
+  # template moves past AGP 8.7.0 and Kotlin 2.0.20, which predate Java 25; Gradle 9.1 alone is fine.
+  JAVA_VERSION: "21"
   # Only its `icon` command is used: https://v2.tauri.app/reference/cli/#icon
   TAURI_CLI_VERSION: "2.12.6"
   CARGO_TERM_COLOR: always
@@ -171,7 +174,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: corretto
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
 
       - name: Setup Android 🤖
         if: matrix.platform == 'android'

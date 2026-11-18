@@ -358,17 +358,23 @@ fn demo_absences(count: u32) -> Vec<crate::absences::Absence> {
         let (yy, mm, dd) = crate::prefs::ymd_from_days(base);
         format!("{yy:04}-{mm:02}-{dd:02}")
     };
-    let a = |id: u32, person: u32, from: i64, to: i64, note: &str| crate::absences::Absence {
+    let a = |id: u32, person: Option<u32>, from: i64, to: i64, notes: &str| crate::absences::Absence {
         id,
         person,
         from: day(from),
         to: day(to),
-        note: (!note.is_empty()).then(|| note.to_string()),
+        notes: (!notes.is_empty()).then(|| notes.to_string()),
     };
-    vec![a(1, 5, -2, 5, "Holiday"), a(2, 13, 10, 24, "Visiting family abroad"), a(3, 9, 3, 4, "Pioneer school"), a(4, 21, -30, -20, "Work trip")]
-        .into_iter()
-        .filter(|x| x.person <= count)
-        .collect()
+    vec![
+        a(1, Some(5), -2, 5, "Holiday"),
+        a(2, Some(13), 10, 24, "Visiting family abroad"),
+        a(3, Some(9), 3, 4, "Pioneer school"),
+        a(4, Some(21), -30, -20, "Work trip"),
+        a(5, None, 40, 42, "Regional convention"),
+    ]
+    .into_iter()
+    .filter(|x| x.person.is_none_or(|p| p <= count))
+    .collect()
 }
 
 /// Plausible privileges: elders take most parts, ministerial servants readings and duties,

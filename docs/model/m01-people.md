@@ -261,7 +261,8 @@ zero, one or more.
 | `notes` | `Option<text>` | For example how they are related. |
 
 The person page has an *Emergency contacts* card: open a contact to change or delete it, or add
-one. All users has an *Emergency contacts* filter (has some, has none), and the CSV export has a
+one. When adding, a family member can be chosen to fill in their details; any other person is
+typed in, because most emergency contacts are outside the congregation. All users has an *Emergency contacts* filter (has some, has none), and the CSV export has a
 column with the names and phone numbers.
 
 ## Labels
@@ -273,7 +274,8 @@ Collection `label`: `name` (required, unique in the congregation, ignoring case)
 
 - *Labels* (a button on All users, and on the *Labels* card of the person page) adds, renames,
   recolours and deletes labels. Deleting a label takes it off everyone.
-- On the person page, tap a label to put it on or take it off. It applies at once.
+- On the person page, tap a label pill (in its colour) to put it on or take it off. It applies at once.
+- The colour is chosen with colour circles, with a preview of the label.
 - Labels show as coloured tags on the person cards.
 - Filter *Labels*: each label, and "No label". It is on All users, Privileges and Moved away.
 
@@ -282,12 +284,21 @@ Collection `label`: `name` (required, unique in the congregation, ignoring case)
 *Users › Absences* records when a person is away, so schedules (later) do not assign them on those
 days.
 
-Collection `absence`: `person` (a current person), `from` and `to` (dates, both included, `to` not
-before `from`) and an optional short `note` (for example "Holiday"). A person can have several
-absences; they may overlap.
+Collection `absence`: `person` (a current person, or none: **the whole congregation**, for example
+at a convention), `from` and `to` (dates, both included, `to` not before `from`) and optional
+`notes`. A person can have several absences; they may overlap. A person is away when they have an
+absence on that day or the whole congregation has one.
 
-The page lists the absences as cards (name, dates, number of days, note) with search by name and a
-*When* filter: away now, coming up, past. It starts with "away now" and "coming up".
+- **Adding** an absence for someone in a family asks whether other family members are away too:
+  choose them (the same absence is added for each), or continue with only that person.
+- **Deleting** an absence when family members have the same absence (same days) asks whose to
+  delete too.
+
+The page lists the absences as cards (name or "Whole congregation", dates, number of days). Notes
+show only when an absence is opened. Search by name, and the same filters as All users: *When*
+(away now, coming up, past; it starts with "away now" and "coming up"), *Who* (one person, whole
+congregation), labels, type, appointment, group and gender. An absence of the whole congregation
+matches every people filter.
 
 ## Custom tasks
 
@@ -314,6 +325,13 @@ The family page:
 | Add family (on the list) | Two people without a family and how they are related; the first one is the head. |
 
 Relationships between members other than the head are changed on the person page (*Family* card).
+
+## Saving the person page
+
+The person page of an existing person saves as you type, like its cards (labels, family, emergency
+contacts, privileges). Invalid values are marked and not saved until fixed. A change that also
+removes something (privileges, group roles, values that no longer apply) is shown first and waits
+for **Apply** (or **Undo**). A new person is saved with **Save**.
 
 ## Deleting a person
 

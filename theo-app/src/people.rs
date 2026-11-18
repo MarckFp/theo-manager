@@ -543,6 +543,11 @@ impl Directory {
         out
     }
 
+    /// What `other` is for `person` ("Father", "Spouse"…), if they have a direct relationship.
+    pub fn relation_label(&self, person: u32, other: u32) -> Option<String> {
+        self.relatives(person).into_iter().find(|r| r.id == other).and_then(|r| r.kind).map(|k| k.label().to_string())
+    }
+
     fn spouse_of(&self, n: u32) -> Option<u32> {
         self.relatives(n).into_iter().find(|r| r.kind == Some(RelationKind::Spouse)).map(|r| r.id)
     }
@@ -1483,6 +1488,11 @@ fn facet_defs(dir: &Directory) -> Vec<FacetDef> {
             l
         }),
     ]
+}
+
+/// The values a person has for a filter (for lists of other things about people, like absences).
+pub fn person_values(dir: &Directory, p: &Person, facet: &str) -> Vec<String> {
+    values(dir, p, facet)
 }
 
 /// The values a person has for a filter.

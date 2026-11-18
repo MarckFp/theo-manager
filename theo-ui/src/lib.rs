@@ -40,8 +40,8 @@ pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};
 pub use filter::{Facet, FacetOption, FilterBar, FilterSelection};
 pub use form::{
-    Checkbox, ChipToggle, Choice, ChoiceCards, Field, FileButton, Form, InputKind, PasswordInput, RuleChecklist, Select,
-    SelectOption, Switch, TextArea, TextInput,
+    Checkbox, ChipToggle, Choice, ChoiceCards, ColorPicker, Field, FileButton, Form, InputKind, PasswordInput, RuleChecklist, Select,
+    SelectOption, Switch, TagToggle, TextArea, TextInput,
 };
 pub use icon::{Icon, IconSize, IconView};
 pub use illustration::{Illustration, IllustrationKind};

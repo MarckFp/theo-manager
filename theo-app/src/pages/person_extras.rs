@@ -1,7 +1,7 @@
 //! Person page cards: emergency contacts and labels; and the dialog that manages the labels of
 //! the congregation. Rules: `docs/model/m01-people.md`, "Emergency contacts" and "Labels".
 
-use crate::people::LabelColor;
+use crate::people::{EmergencyContact, LabelColor};
 use crate::state::use_app_state;
 use dioxus::prelude::*;
 use theo_ui::*;
@@ -56,6 +56,34 @@ fn EmergencyContactDialog(person: u32, index: Option<usize>, onclose: EventHandl
         Err(e) => error.set(Some(e)),
     };
     let v = c();
+    // Suggest family members (a new contact only); anyone else can still be typed in.
+    let prefs = state.preferences();
+    let dir = state.directory();
+    let family: Vec<(u32, String)> = if index.is_none() {
+        dir.family_others(person).into_iter().filter_map(|m| dir.person(m).map(|p| (m, p.display_name(&prefs)))).collect()
+    } else {
+        Vec::new()
+    };
+    let mut suggested = use_signal(String::new);
+    let mut family_options = vec![SelectOption::new("", "Someone else (type below)")];
+    family_options.extend(family.iter().map(|(id, name)| SelectOption::new(id.to_string(), name.clone())));
+    let fill = move |v: String| {
+        suggested.set(v.clone());
+        let Some(p) = v.parse::<u32>().ok().and_then(|id| state.directory().person(id).cloned()) else { return };
+        let relation = state.directory().relation_label(person, p.id);
+        c.set(EmergencyContact {
+            first_name: p.first_name,
+            last_name: p.last_name,
+            telephone: p.telephone,
+            mobile_phone: p.mobile_phone,
+            address_line_1: p.address_line_1,
+            address_line_2: p.address_line_2,
+            postal_code: p.postal_code,
+            city: p.city,
+            notes: relation,
+        });
+        error.set(None);
+    };
     rsx! {
         Dialog {
             open: true,
@@ -64,12 +92,17 @@ fn EmergencyContactDialog(person: u32, index: Option<usize>, onclose: EventHandl
             description: "Someone to call when this person cannot be reached or needs help.",
             actions: rsx! {
                 if existing.is_some() {
-                    ActionButton { action: Action::Delete, variant: ButtonVariant::Ghost, onclick: move |_| confirm.set(true) }
+                    ActionButton { action: Action::Delete, onclick: move |_| confirm.set(true) }
                 }
                 ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
                 ActionButton { action: Action::Save, onclick: save }
             },
             Stack {
+                if !family.is_empty() {
+                    Field { label: "From the family", help: "Fills in their details. Most emergency contacts are outside the congregation: then type them below.",
+                        Select { value: suggested(), options: family_options, onchange: fill }
+                    }
+                }
                 Grid { cols: 2,
                     Field { label: "First name", required: true, error: error(),
                         TextInput { value: v.first_name.clone(), oninput: move |x| c.write().first_name = x }
@@ -132,9 +165,10 @@ pub(super) fn LabelsCard(person: u32) -> Element {
             } else {
                 Cluster { gap: Gap::Sm,
                     for l in dir.labels.iter().cloned() {
-                        ChipToggle {
+                        TagToggle {
                             key: "{l.id}",
                             label: l.name.clone(),
+                            tone: l.color.tone(),
                             selected: mine.contains(&l.id),
                             onclick: move |_| {
                                 let on = !state.directory().person(person).is_some_and(|p| p.labels.contains(&l.id));
@@ -189,7 +223,7 @@ pub(super) fn ManageLabelsDialog(onclose: EventHandler<()>) -> Element {
             Err(e) => error.set(Some(e)),
         }
     };
-    let color_options: Vec<SelectOption> = LabelColor::ALL.iter().map(|c| SelectOption::new(c.value(), c.label())).collect();
+    let color_options: Vec<(String, String, Tone)> = LabelColor::ALL.iter().map(|c| (c.value().to_string(), c.label().to_string(), c.tone())).collect();
     let preview = LabelColor::parse(&color());
     let preview_text = if name().trim().is_empty() { "Preview".to_string() } else { name() };
     rsx! {
@@ -221,7 +255,7 @@ pub(super) fn ManageLabelsDialog(onclose: EventHandler<()>) -> Element {
                             TextInput { value: name(), placeholder: "For example: Needs a ride", oninput: move |v| { name.set(v); error.set(None); } }
                         }
                         Field { label: "Colour",
-                            Select { value: color(), options: color_options, onchange: move |v| color.set(v) }
+                            ColorPicker { value: color(), options: color_options, onchange: move |v| color.set(v) }
                         }
                     }
                     Cluster { gap: Gap::Sm,
@@ -231,7 +265,7 @@ pub(super) fn ManageLabelsDialog(onclose: EventHandler<()>) -> Element {
                         ActionButton { action: if editing().is_some() { Action::Save } else { Action::Add }, variant: ButtonVariant::Secondary, label: if editing().is_some() { "Save label" } else { "Add label" }, onclick: save }
                         if editing().is_some() {
                             ActionButton { action: Action::Cancel, onclick: move |_| reset() }
-                            ActionButton { action: Action::Delete, variant: ButtonVariant::Ghost, onclick: move |_| confirm.set(true) }
+                            ActionButton { action: Action::Delete, onclick: move |_| confirm.set(true) }
                         }
                     }
                 }

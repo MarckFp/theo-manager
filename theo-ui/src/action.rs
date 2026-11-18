@@ -43,6 +43,8 @@ pub enum Action {
     CreateBackup,
     RestoreBackup,
     ManageLabels,
+    Apply,
+    Undo,
 }
 
 impl Action {
@@ -84,6 +86,8 @@ impl Action {
             Action::CreateBackup => "Create backup",
             Action::RestoreBackup => "Restore backup",
             Action::ManageLabels => "Labels",
+            Action::Apply => "Apply",
+            Action::Undo => "Undo",
         }
     }
 
@@ -96,6 +100,8 @@ impl Action {
             Action::CreateBackup => Some(Icon::Download),
             Action::RestoreBackup => Some(Icon::Upload),
             Action::ManageLabels => Some(Icon::Tag),
+            Action::Apply => Some(Icon::Check),
+            Action::Undo => Some(Icon::MoveBack),
             Action::Next => Some(Icon::ArrowRight),
             Action::Finish => Some(Icon::Check),
             Action::Edit => Some(Icon::Edit),
@@ -144,7 +150,8 @@ impl Action {
             | Action::ResetLayout
             | Action::Regenerate
             | Action::ClearFilters
-            | Action::Remove => {
+            | Action::Remove
+            | Action::Undo => {
                 ButtonVariant::Ghost
             }
             _ => ButtonVariant::Secondary,

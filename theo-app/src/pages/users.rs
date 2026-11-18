@@ -402,6 +402,36 @@ fn options(pairs: &[(&str, &str)]) -> Vec<SelectOption> {
     pairs.iter().map(|(v, l)| SelectOption::new(*v, *l)).collect()
 }
 
+/// What a save also changes (values that no longer apply, roles and privileges that are lost).
+/// "overseer of North" and the like: the group roles of a person.
+fn leads_of(dir: &Directory, id: Option<u32>) -> Vec<String> {
+    id
+        .map(|n| {
+            dir.groups_of(n)
+                .into_iter()
+                .filter_map(|(g, r)| match r {
+                    GroupRole::Overseer => Some(format!("overseer of {}", g.name)),
+                    GroupRole::Assistant => Some(format!("assistant of {}", g.name)),
+                    GroupRole::Member => None,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn cleanup_for(dir: &Directory, id: Option<u32>, d: &PersonDraft) -> Vec<String> {
+    let leads = leads_of(dir, id);
+    let mut cleanup = d.cleanup_notes(&leads);
+    if let (Some(n), Some(g)) = (id, people::Gender::parse(&d.gender)) {
+        let lost = dir.privileges_lost(n, d.ty(), g);
+        if !lost.is_empty() {
+            let names: Vec<String> = lost.iter().map(|x| x.full_label()).collect();
+            cleanup.push(format!("{} privileges will be removed: {}.", lost.len(), names.join(", ")));
+        }
+    }
+    cleanup
+}
+
 #[component]
 fn PersonEditor(id: Option<u32>) -> Element {
     let mut state = use_app_state();
@@ -435,29 +465,40 @@ fn PersonEditor(id: Option<u32>) -> Element {
         };
     }
 
+    // Existing people save as you type (like the cards next to the form). A change that also
+    // removes something (privileges, roles, values that no longer apply) waits for "Apply".
+    let mut saved = use_signal(|| draft.peek().clone());
+    use_effect(move || {
+        let d = draft();
+        let Some(n) = id else { return };
+        if d == *saved.peek() {
+            return;
+        }
+        // Check before writing: a write, even a failed save, would run this effect again.
+        let invalid = d.validate();
+        if !invalid.is_empty() {
+            errors.set(invalid);
+            return;
+        }
+        let dir = state.directory();
+        if !cleanup_for(&dir, id, &d).is_empty() {
+            return;
+        }
+        match state.update_directory(|dir| dir.save(Some(n), &d)) {
+            Ok(_) => {
+                errors.set(Vec::new());
+                saved.set(d);
+            }
+            Err(e) => errors.set(e),
+        }
+    });
+
     let d = draft();
     let ty = d.ty();
     let err = move |f: &str| errors.read().iter().find(|(k, _)| *k == f).map(|(_, m)| m.clone());
-    let leads: Vec<String> = id
-        .map(|n| {
-            dir.groups_of(n)
-                .into_iter()
-                .filter_map(|(g, r)| match r {
-                    GroupRole::Overseer => Some(format!("overseer of {}", g.name)),
-                    GroupRole::Assistant => Some(format!("assistant of {}", g.name)),
-                    GroupRole::Member => None,
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    let mut cleanup = d.cleanup_notes(&leads);
-    if let (Some(n), Some(g)) = (id, people::Gender::parse(&d.gender)) {
-        let lost = dir.privileges_lost(n, d.ty(), g);
-        if !lost.is_empty() {
-            let names: Vec<String> = lost.iter().map(|x| x.full_label()).collect();
-            cleanup.push(format!("{} privileges will be removed: {}.", lost.len(), names.join(", ")));
-        }
-    }
+    let cleanup = cleanup_for(&dir, id, &d);
+    let leads = leads_of(&dir, id);
+    let unsaved_errors = id.is_some() && !errors.read().is_empty();
     let name = existing.as_ref().map(|p| p.display_name(&prefs));
     let title = name.clone().unwrap_or_else(|| "New user".into());
     let subtitle = match &existing {
@@ -469,7 +510,7 @@ fn PersonEditor(id: Option<u32>) -> Element {
     let mut group_options = vec![SelectOption::new("", "No group")];
     group_options.extend(dir.groups.iter().map(|g| SelectOption::new(g.id.to_string(), g.name.clone())));
 
-    let save = move |_| {
+    let mut save = move |_: ()| {
         let d = draft();
         match state.update_directory(|dir| dir.save(id, &d)) {
             Ok(n) => {
@@ -481,7 +522,9 @@ fn PersonEditor(id: Option<u32>) -> Element {
                     toaster.success("Changes saved.");
                     let dir = state.directory();
                     if let Some(p) = dir.person(n) {
-                        draft.set(PersonDraft::from_person(p, &dir));
+                        let fresh = PersonDraft::from_person(p, &dir);
+                        saved.set(fresh.clone());
+                        draft.set(fresh);
                     }
                 }
             }
@@ -492,6 +535,16 @@ fn PersonEditor(id: Option<u32>) -> Element {
         }
     };
 
+    let form_actions = if id.is_none() {
+        rsx! {
+            ActionButton { action: Action::Cancel, onclick: move |_| { navigator.push(Route::UserList {}); } }
+            ActionButton { action: Action::Save, kind: ButtonKind::Submit }
+        }
+    } else {
+        rsx! {
+            Text { tone: TextTone::Small, "Changes are saved automatically." }
+        }
+    };
     let delete_consequences = id.map(|n| dir.delete_consequences(n, &prefs)).unwrap_or_default();
     let delete_name = name.clone().unwrap_or_default();
     let invite_name = name.clone().unwrap_or_default();
@@ -534,12 +587,9 @@ fn PersonEditor(id: Option<u32>) -> Element {
             Split {
                 main: rsx! {
                     Form {
-                        onsubmit: save,
-                        floating_save: true,
-                        actions: rsx! {
-                            ActionButton { action: Action::Cancel, onclick: move |_| { navigator.push(Route::UserList {}); } }
-                            ActionButton { action: Action::Save, kind: ButtonKind::Submit }
-                        },
+                        onsubmit: move |_| if id.is_none() { save(()) },
+                        floating_save: id.is_none(),
+                        actions: form_actions,
                         Card { title: "Personal", icon: Icon::User,
                             Grid { cols: 2,
                                 Field { label: "First name", required: true, error: err("first_name"),
@@ -646,12 +696,23 @@ fn PersonEditor(id: Option<u32>) -> Element {
                             }
                         }
                         if !cleanup.is_empty() {
-                            Alert { tone: Tone::Warning, title: "When you save",
+                            Alert { tone: Tone::Warning, title: if id.is_some() { "Not saved yet: this change also" } else { "When you save" },
                                 Stack { gap: Gap::Xs,
                                     for (i, c) in cleanup.iter().enumerate() {
                                         Text { key: "{i}", "{c}" }
                                     }
+                                    if id.is_some() {
+                                        Cluster { gap: Gap::Sm,
+                                            ActionButton { action: Action::Apply, onclick: move |_| save(()) }
+                                            ActionButton { action: Action::Undo, onclick: move |_| { errors.set(Vec::new()); draft.set(saved()); } }
+                                        }
+                                    }
                                 }
+                            }
+                        }
+                        if unsaved_errors {
+                            Alert { tone: Tone::Error, title: "Not saved",
+                                "Fix the fields marked in red to save your changes."
                             }
                         }
                     }

@@ -412,6 +412,80 @@ pub fn ChipToggle(
     }
 }
 
+/// The swatch colour of a tone (labels).
+fn tone_dot(tone: crate::feedback::Tone) -> &'static str {
+    use crate::feedback::Tone;
+    match tone {
+        Tone::Info => "bg-info",
+        Tone::Success => "bg-success",
+        Tone::Warning => "bg-warning",
+        Tone::Error => "bg-error",
+        Tone::Neutral => "bg-base-content/40",
+    }
+}
+
+/// A row of colour circles to choose one (for example the colour of a label). The chosen one has a
+/// ring and a check; its name is shown next to the circles.
+#[component]
+pub fn ColorPicker(value: String, options: Vec<(String, String, crate::feedback::Tone)>, onchange: EventHandler<String>) -> Element {
+    let chosen = options.iter().find(|o| o.0 == value).map(|o| o.1.clone()).unwrap_or_default();
+    rsx! {
+        div { class: "flex flex-wrap items-center gap-2", role: "radiogroup",
+            for (v, label, tone) in options.into_iter() {
+                {
+                    let selected = v == value;
+                    let ring = if selected { "ring-2 ring-base-content ring-offset-2 ring-offset-base-100" } else { "hover:scale-110" };
+                    rsx! {
+                        button {
+                            key: "{v}",
+                            r#type: "button",
+                            role: "radio",
+                            "aria-checked": if selected { "true" } else { "false" },
+                            "aria-label": "{label}",
+                            title: "{label}",
+                            class: "grid size-7 place-items-center rounded-full text-white transition-transform duration-150 {tone_dot(tone)} {ring}",
+                            onclick: move |_| onchange.call(v.clone()),
+                            if selected {
+                                IconView { icon: Icon::Check, size: IconSize::Xs }
+                            }
+                        }
+                    }
+                }
+            }
+            span { class: "ml-1 text-sm text-base-content/70", "{chosen}" }
+        }
+    }
+}
+
+/// A coloured pill to put on or take off (for example a label on a person). On: filled in its
+/// colour with a check. Off: an outline with a colour dot.
+#[component]
+pub fn TagToggle(label: String, tone: crate::feedback::Tone, selected: bool, onclick: EventHandler<()>) -> Element {
+    use crate::feedback::Tone;
+    let on = match tone {
+        Tone::Info => "border-info bg-info/15 text-info",
+        Tone::Success => "border-success bg-success/15 text-success",
+        Tone::Warning => "border-warning bg-warning/15 text-warning",
+        Tone::Error => "border-error bg-error/15 text-error",
+        Tone::Neutral => "border-base-content/40 bg-base-content/10 text-base-content",
+    };
+    let class = if selected { on } else { "border-dashed border-base-300 text-base-content/70 hover:bg-base-200" };
+    rsx! {
+        button {
+            r#type: "button",
+            class: "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors duration-150 {class}",
+            "aria-pressed": if selected { "true" } else { "false" },
+            onclick: move |_| onclick.call(()),
+            if selected {
+                IconView { icon: Icon::Check, size: IconSize::Xs }
+            } else {
+                span { class: "size-2.5 rounded-full {tone_dot(tone)}" }
+            }
+            "{label}"
+        }
+    }
+}
+
 /// Rules an input must meet, each marked as met or not (for example password rules).
 #[component]
 pub fn RuleChecklist(rules: Vec<(String, bool)>) -> Element {
