@@ -89,22 +89,48 @@ pub struct ListEntry {
 
 /// A compact list of entries (used inside cards and dashboard widgets).
 #[component]
-pub fn ItemList(items: Vec<ListEntry>) -> Element {
+pub fn ItemList(
+    items: Vec<ListEntry>,
+    /// When set, each row is a button and sends its index (for example to open a record).
+    #[props(default)]
+    on_select: Option<EventHandler<usize>>,
+) -> Element {
     rsx! {
         ul { class: "flex flex-col divide-y divide-base-300",
             for (i, it) in items.into_iter().enumerate() {
-                li { key: "{i}", class: "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
-                    span { class: "grid size-8 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/70",
-                        IconView { icon: it.icon, size: IconSize::Sm }
+                if let Some(h) = on_select {
+                    li { key: "{i}", class: "py-0.5 first:pt-0 last:pb-0",
+                        button {
+                            r#type: "button",
+                            class: "group -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-field px-2 py-2 text-left transition-colors hover:bg-base-200",
+                            onclick: move |_| h.call(i),
+                            ItemRow { entry: it }
+                            span { class: "shrink-0 text-base-content/30 transition-transform group-hover:translate-x-0.5",
+                                IconView { icon: Icon::ArrowRight, size: IconSize::Xs }
+                            }
+                        }
                     }
-                    span { class: "flex min-w-0 flex-1 flex-col",
-                        span { class: "truncate text-sm font-medium", "{it.title}" }
-                        span { class: "truncate text-xs text-base-content/60", "{it.subtitle}" }
+                } else {
+                    li { key: "{i}", class: "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
+                        ItemRow { entry: it }
                     }
-                    span { class: "shrink-0 text-xs text-base-content/60", "{it.meta}" }
                 }
             }
         }
+    }
+}
+
+#[component]
+fn ItemRow(entry: ListEntry) -> Element {
+    rsx! {
+        span { class: "grid size-8 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/70",
+            IconView { icon: entry.icon, size: IconSize::Sm }
+        }
+        span { class: "flex min-w-0 flex-1 flex-col",
+            span { class: "truncate text-sm font-medium", "{entry.title}" }
+            span { class: "truncate text-xs text-base-content/60", "{entry.subtitle}" }
+        }
+        span { class: "shrink-0 text-xs text-base-content/60", "{entry.meta}" }
     }
 }
 

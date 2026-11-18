@@ -96,6 +96,13 @@ pub enum Icon {
     MovedAway,
     MoveBack,
     Save,
+    Video,
+    Attendant,
+    Maintenance,
+    Upload,
+    Tag,
+    Absence,
+    Task,
 }
 
 /// Icon sizes, in pixels.
@@ -219,6 +226,13 @@ pub fn IconView(
         Icon::MovedAway => rsx!(Svg { icon: ld::LdTruck, width: px, height: px, title: label }),
         Icon::MoveBack => rsx!(Svg { icon: ld::LdUndo2, width: px, height: px, title: label }),
         Icon::Save => rsx!(Svg { icon: ld::LdSave, width: px, height: px, title: label }),
+        Icon::Video => rsx!(Svg { icon: ld::LdVideo, width: px, height: px, title: label }),
+        Icon::Attendant => rsx!(Svg { icon: ld::LdUserCheck, width: px, height: px, title: label }),
+        Icon::Maintenance => rsx!(Svg { icon: ld::LdWrench, width: px, height: px, title: label }),
+        Icon::Upload => rsx!(Svg { icon: ld::LdUpload, width: px, height: px, title: label }),
+        Icon::Tag => rsx!(Svg { icon: ld::LdTag, width: px, height: px, title: label }),
+        Icon::Absence => rsx!(Svg { icon: ld::LdCalendarX, width: px, height: px, title: label }),
+        Icon::Task => rsx!(Svg { icon: ld::LdClipboardList, width: px, height: px, title: label }),
     };
     rsx! {
         span { class: "inline-flex shrink-0 items-center justify-center", "aria-hidden": hidden, {svg} }

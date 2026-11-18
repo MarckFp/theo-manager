@@ -55,7 +55,7 @@ impl StorageMode {
 }
 
 /// A weekly meeting slot.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MeetingSlot {
     pub day: String,
     pub time: String,
@@ -128,6 +128,8 @@ pub struct AppState {
     /// Search and filters of the All users list. Kept while you open a person and come back.
     pub user_query: Signal<String>,
     pub user_filters: Signal<FilterSelection>,
+    /// The tab of All users: `"people"` or `"families"`.
+    pub users_tab: Signal<String>,
     /// Field service reports page: tab, month (None = the reporting month), search and filters.
     pub report_tab: Signal<String>,
     pub report_month: Signal<Option<crate::reports::Ym>>,
@@ -149,6 +151,7 @@ impl AppState {
             directories: Signal::new(HashMap::new()),
             user_query: Signal::new(String::new()),
             user_filters: Signal::new(crate::people::default_filters()),
+            users_tab: Signal::new("people".into()),
             report_tab: Signal::new("month".into()),
             report_month: Signal::new(None),
             report_query: Signal::new(String::new()),
@@ -269,6 +272,7 @@ impl AppState {
         if self.unlocked.peek().as_deref() != Some(id) {
             self.user_query.set(String::new());
             self.user_filters.set(crate::people::default_filters());
+            self.users_tab.set("people".into());
             self.report_month.set(None);
             self.report_query.set(String::new());
             self.report_filters.set(FilterSelection::new());
@@ -328,6 +332,55 @@ impl AppState {
     pub fn update_directory<R>(&mut self, f: impl FnOnce(&mut Directory) -> R) -> R {
         let id = self.unlocked.read().clone().unwrap_or_default();
         f(self.directories.write().entry(id).or_default())
+    }
+
+    // ----- backup (docs/design/local-sharing.md, "Backup") -----
+
+    /// MOCK: the real check unwraps the root key with the password (theo-crypto).
+    pub fn congregation_password_ok(&self, password: &str) -> bool {
+        self.active_congregation().is_some_and(|c| c.password == password)
+    }
+
+    pub fn backup(&self) -> Option<crate::backup::Backup> {
+        let c = self.active_congregation()?;
+        let details = crate::backup::Details {
+            name: c.name,
+            number: c.number,
+            language: c.language,
+            time_zone: c.time_zone,
+            midweek: c.midweek,
+            weekend: c.weekend,
+            defaults: c.defaults,
+        };
+        Some(crate::backup::Backup::new(details, self.directory()))
+    }
+
+    /// Replaces the details and all data of the open congregation with the backup. The storage
+    /// mode, the password and biometric unlock stay as they are.
+    pub fn restore(&mut self, b: crate::backup::Backup) {
+        let Some(id) = self.unlocked.read().clone() else { return };
+        if let Some(c) = self.congregations.write().iter_mut().find(|c| c.id == id) {
+            c.name = b.details.name;
+            c.number = b.details.number;
+            c.language = b.details.language;
+            c.time_zone = b.details.time_zone;
+            c.midweek = b.details.midweek;
+            c.weekend = b.details.weekend;
+            c.defaults = b.details.defaults;
+        }
+        self.directories.write().insert(id, b.directory);
+        self.user_query.set(String::new());
+        self.user_filters.set(crate::people::default_filters());
+        self.report_month.set(None);
+        self.report_query.set(String::new());
+        self.report_filters.set(FilterSelection::new());
+        self.log(&format!("Restored a backup made on {} UTC.", b.created));
+    }
+
+    /// Adds a line to the activity log, as the signed-in user.
+    pub fn log(&mut self, text: &str) {
+        let actor = self.account().map(|a| a.display_name).unwrap_or_default();
+        self.update_directory(|d| d.log.push(crate::access::LogEntry { at: crate::prefs::now_stamp(), actor, text: text.to_string() }));
     }
 
     // ----- dashboard layout (per congregation) -----

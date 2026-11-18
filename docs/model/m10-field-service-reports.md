@@ -83,7 +83,7 @@ than 0 hours). Months before the person's first report do not count.
 
 ## The Field service reports screen
 
-*Users › Field service reports* has three tabs.
+*Ministry › Field service reports* has three tabs. The tabs, and the month picker on the Month tab, stay at the top while the page scrolls.
 
 | Tab | What it shows |
 |---|---|
@@ -91,8 +91,9 @@ than 0 hours). Months before the person's first report do not count.
 | **Statistics** | A service year. Averages and totals for the congregation and for each field service group, and publishers who took part per month. |
 | **Goals** | A service year and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. **Goal settings** (next to the service year) opens a dialog with the 15-hour months of that year and the goal of each kind. |
 
-The person page shows the person's last 6 months, their recent reports, their goal progress, and
-a button to enter the report of the reporting month. The dashboard widget shows how many reports
+The person page shows the person's last 6 months, their goal progress, and every month from
+their first report to the reporting month (the last 6 first, all on request). Any month opens the
+report form, also months without a report. The dashboard widget shows how many reports
 of the reporting month are in.
 
 ## Decisions (2026-11-17)

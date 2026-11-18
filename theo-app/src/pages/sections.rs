@@ -23,9 +23,6 @@ pub fn SectionHub(section: String) -> Element {
 /// `/app/:section/:page`. Pages are built in phase 3; until then they show a placeholder.
 #[component]
 pub fn SectionPage(section: String, page: String) -> Element {
-    if section == "congregation" && page == "settings" {
-        return rsx! { CongregationSettings {} };
-    }
     let Some(p) = nav::page_of(&section, &page) else {
         return rsx! { NotFound { segments: vec!["app".to_string(), section, page] } };
     };
@@ -165,9 +162,10 @@ fn as_values(p: &Preferences) -> Overrides {
     }
 }
 
-/// `/app/congregation/settings`: details, meeting times and display defaults.
+/// `/app/settings`: details, meeting times, display defaults, backup and the activity log of the
+/// open congregation. Opened with the cog in the congregation switcher.
 #[component]
-fn CongregationSettings() -> Element {
+pub fn SettingsPage() -> Element {
     let mut state = use_app_state();
     let toaster = use_toaster();
     let Some(c) = state.active_congregation() else { return rsx! {} };
@@ -208,6 +206,169 @@ fn CongregationSettings() -> Element {
                         },
                     }
                     Text { tone: TextTone::Small, "Example: {preview(&c.defaults)}" }
+                }
+            }
+            BackupCard {}
+            {
+                let log = state.directory().log;
+                rsx! {
+                    Card { title: "Activity log", icon: Icon::History,
+                        if log.is_empty() {
+                            Text { tone: TextTone::Muted, "No changes recorded yet. Permission changes are recorded here; more kinds of changes follow." }
+                        } else {
+                            ItemList {
+                                items: log.iter().rev().map(|e| ListEntry {
+                                    icon: if e.text.starts_with("Permissions") { Icon::Permission } else { Icon::History },
+                                    title: e.text.clone(),
+                                    subtitle: format!("{} · {} UTC", e.actor, e.at),
+                                    meta: String::new(),
+                                }).collect(),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Create and restore an encrypted backup of the open congregation.
+#[component]
+fn BackupCard() -> Element {
+    let state = use_app_state();
+    let toaster = use_toaster();
+    let name = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let mut creating = use_signal(|| false);
+    let mut restoring = use_signal(|| false);
+    rsx! {
+        Card { title: "Backup", icon: Icon::Download,
+            Text { tone: TextTone::Muted,
+                "A backup is one file with all the data of {name}, encrypted with the congregation password. Keep it in a safe place. Without the password nobody can open it, not even you."
+            }
+            Cluster { gap: Gap::Sm,
+                ActionButton { action: Action::CreateBackup, variant: ButtonVariant::Secondary, onclick: move |_| creating.set(true) }
+                ActionButton { action: Action::RestoreBackup, variant: ButtonVariant::Ghost, onclick: move |_| restoring.set(true) }
+            }
+        }
+        if creating() {
+            CreateBackupDialog { onclose: move |_| creating.set(false) }
+        }
+        if restoring() {
+            RestoreBackupDialog {
+                onclose: move |_| restoring.set(false),
+                ondone: move |people: usize| {
+                    restoring.set(false);
+                    toaster.success(format!("Backup restored: {people} people."));
+                },
+            }
+        }
+    }
+}
+
+#[component]
+fn CreateBackupDialog(onclose: EventHandler<()>) -> Element {
+    let mut state = use_app_state();
+    let toaster = use_toaster();
+    let mut password = use_signal(String::new);
+    let mut error = use_signal(|| None::<String>);
+    let mut busy = use_signal(|| false);
+    let create = move |_| {
+        if !state.congregation_password_ok(&password()) {
+            error.set(Some("This is not the congregation password.".into()));
+            return;
+        }
+        let Some(backup) = state.backup() else { return };
+        busy.set(true);
+        spawn(async move {
+            // Let the spinner appear before the (deliberately slow) key derivation.
+            theo_ui::sleep(std::time::Duration::from_millis(60)).await;
+            match crate::backup::seal(&backup, &password(), theo_crypto::KdfParams::DEFAULT) {
+                Ok(bytes) => {
+                    let file = format!("{}-backup-{}.{}", crate::people::fold(&backup.details.name).replace(' ', "-"), &backup.created[..10], crate::backup::EXTENSION);
+                    match crate::platform::save_file(&file, "application/octet-stream", &bytes) {
+                        Ok(msg) => {
+                            state.log("Created a backup.");
+                            toaster.success(msg);
+                            onclose.call(());
+                        }
+                        Err(msg) => error.set(Some(msg)),
+                    }
+                }
+                Err(msg) => error.set(Some(msg)),
+            }
+            busy.set(false);
+        });
+    };
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: "Create backup",
+            description: "Everything in this congregation: people, families, groups, reports, privileges, permissions, settings and the activity log.",
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
+                ActionButton { action: Action::CreateBackup, loading: busy(), onclick: create }
+            },
+            Stack {
+                Field { label: "Congregation password", required: true, error: error(), help: "The backup is encrypted with it. You need the same password to restore it.",
+                    PasswordInput { value: password(), autocomplete: "current-password", invalid: error().is_some(), oninput: move |v| { password.set(v); error.set(None); } }
+                }
+                Text { tone: TextTone::Small, "Encrypting takes a few seconds on purpose: it makes guessing the password very slow." }
+            }
+        }
+    }
+}
+
+#[component]
+fn RestoreBackupDialog(onclose: EventHandler<()>, ondone: EventHandler<usize>) -> Element {
+    let mut state = use_app_state();
+    let name = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let mut file = use_signal(|| None::<(String, Vec<u8>)>);
+    let mut password = use_signal(String::new);
+    let mut error = use_signal(|| None::<String>);
+    let mut busy = use_signal(|| false);
+    let restore = move |_| {
+        let Some((_, bytes)) = file() else {
+            error.set(Some("Choose a backup file.".into()));
+            return;
+        };
+        busy.set(true);
+        spawn(async move {
+            theo_ui::sleep(std::time::Duration::from_millis(60)).await;
+            match crate::backup::open(&bytes, &password()) {
+                Ok(backup) => {
+                    let people = backup.directory.people.len();
+                    state.restore(backup);
+                    ondone.call(people);
+                }
+                Err(msg) => error.set(Some(msg)),
+            }
+            busy.set(false);
+        });
+    };
+    let chosen = file().map(|(n, b)| format!("{n} ({} KB)", b.len().div_ceil(1024))).unwrap_or_else(|| "No file chosen".into());
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: "Restore backup",
+            description: "Choose a backup file of this congregation and type the password it was made with.",
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
+                ActionButton { action: Action::RestoreBackup, variant: ButtonVariant::Destructive, label: "Restore and replace", loading: busy(), onclick: restore }
+            },
+            Stack {
+                Alert { tone: Tone::Warning, title: "This replaces all data of {name} on this device",
+                    "Everything that is not in the backup is lost. The congregation password and the storage mode stay as they are."
+                }
+                Field { label: "Backup file", required: true,
+                    Cluster { gap: Gap::Sm,
+                        FileButton { label: "Choose file", icon: Icon::Upload, accept: ".{crate::backup::EXTENSION}", on_file: move |f| { file.set(Some(f)); error.set(None); } }
+                        Text { tone: TextTone::Small, "{chosen}" }
+                    }
+                }
+                Field { label: "Password of the backup", required: true, error: error(),
+                    PasswordInput { value: password(), autocomplete: "current-password", invalid: error().is_some(), oninput: move |v| { password.set(v); error.set(None); } }
                 }
             }
         }

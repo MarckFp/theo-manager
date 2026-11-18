@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Theo Manager app icon: the only icon source. Every platform icon is generated from it
+       (scripts/icons.sh, run by the release workflow). Full bleed on purpose: iOS and Android
+       mask the corners themselves. Same mark as BrandMark in theo-ui/src/card.rs. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3756d6"/>
+      <stop offset="1" stop-color="#15ba81"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="60" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M325 379H699"/>
+    <path d="M512 379V699"/>
+    <path d="M405 699H619"/>
+  </g>
+</svg>

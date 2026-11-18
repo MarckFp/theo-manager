@@ -40,13 +40,13 @@ pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};
 pub use filter::{Facet, FacetOption, FilterBar, FilterSelection};
 pub use form::{
-    Checkbox, ChipToggle, Choice, ChoiceCards, Field, Form, InputKind, PasswordInput, RuleChecklist, Select,
+    Checkbox, ChipToggle, Choice, ChoiceCards, Field, FileButton, Form, InputKind, PasswordInput, RuleChecklist, Select,
     SelectOption, Switch, TextArea, TextInput,
 };
 pub use icon::{Icon, IconSize, IconView};
 pub use illustration::{Illustration, IllustrationKind};
 pub use landing::{CompareCard, FeatureCard, Hero, PublicLayout, Section, StepCard};
-pub use layout::{Align, Cluster, Container, Divider, Gap, Grid, Justify, Spacer, Split, Stack};
+pub use layout::{Align, Cluster, Container, Divider, Gap, Grid, Justify, Spacer, Split, Stack, StickyBar};
 pub use menu::{
     MenuButton, MenuItem, Placement, Popover, Segment, Segmented, SwitcherItem, WorkspaceSwitcher,
 };

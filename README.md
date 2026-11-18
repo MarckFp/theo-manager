@@ -31,6 +31,9 @@ The full design, with every decision and its reasons, is in [`REQUIREMENTS.md`](
   congregation, with personal overrides.
 - **Users:** all users with search and filters, the person page (family, activity, invite), people
   who moved away (kept for one year), field service groups, export to PDF, Word and CSV.
+- **Privileges and permissions:** who may take part in what, and what each account may do in the
+  app (with presets and an activity log).
+- **Encrypted backup** of a whole congregation, and restore.
 - **Field service reports:** monthly reports with the rules per kind of publisher, pioneers' goals
   and pace, statistics per service year and per group.
 
@@ -54,6 +57,7 @@ One repository, one Cargo workspace:
 
 | Path | What it is |
 |---|---|
+| [`theo-crypto/`](theo-crypto) | Cryptography: the encrypted backup envelope today; the key hierarchy later. |
 | [`theo-ui/`](theo-ui) | The design system: components, page templates, icons, the stylesheet. |
 | [`theo-app/`](theo-app) | The app: routes, screens and wiring for all platforms. |
 | [`docs/model/`](docs/model) | The data model, one file per module. |
@@ -61,7 +65,7 @@ One repository, one Cargo workspace:
 | `scripts/` | Build helpers used by the release workflow. |
 | `.github/` | CI, release workflow, issue and pull request templates. |
 
-Planned crates (`theo-core`, `theo-crypto`, `theo-db`) join the workspace when they are written.
+Planned crates (`theo-core`, `theo-db`) join the workspace when they are written.
 
 ## Run it
 

@@ -1,4 +1,4 @@
-//! *Users › Field service reports*: a month view (enter and check reports), statistics for a
+//! *Ministry › Field service reports*: a month view (enter and check reports), statistics for a
 //! service year, and the auxiliary pioneer goals. Also the report form and the reports card of
 //! the person page. Behaviour: `docs/model/m10-field-service-reports.md`.
 
@@ -51,24 +51,32 @@ fn goal_note(g: &GoalProgress) -> (String, Tone) {
 // Page and tabs
 // ---------------------------------------------------------------------------------------------
 
-/// `/app/users/reports`
+/// `/app/ministry/reports`
 #[component]
 pub fn ReportsPage() -> Element {
     let mut state = use_app_state();
     let congregation = state.active_congregation().map(|c| c.name).unwrap_or_default();
     let tab = (state.report_tab)();
+    let (min, max) = state.directory().report_range();
+    let ym = (state.report_month)().unwrap_or_else(reporting_month);
     rsx! {
         Page {
             title: "Field service reports",
             subtitle: "{congregation} · Reports, statistics and goals",
-            Segmented {
-                value: tab.clone(),
-                options: vec![
-                    Segment { value: "month".into(), label: "Month".into(), icon: Some(Icon::Calendar) },
-                    Segment { value: "statistics".into(), label: "Statistics".into(), icon: Some(Icon::Chart) },
-                    Segment { value: "goals".into(), label: "Goals".into(), icon: Some(Icon::Privilege) },
-                ],
-                onchange: move |v: String| state.report_tab.set(v),
+            // The tabs (and the month on the Month tab) stay in view while you scroll.
+            StickyBar {
+                Segmented {
+                    value: tab.clone(),
+                    options: vec![
+                        Segment { value: "month".into(), label: "Month".into(), icon: Some(Icon::Calendar) },
+                        Segment { value: "statistics".into(), label: "Statistics".into(), icon: Some(Icon::Chart) },
+                        Segment { value: "goals".into(), label: "Goals".into(), icon: Some(Icon::Privilege) },
+                    ],
+                    onchange: move |v: String| state.report_tab.set(v),
+                }
+                if tab == "month" {
+                    MonthPicker { value: ym, min, max, full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
+                }
             }
             match tab.as_str() {
                 "statistics" => rsx! { StatisticsTab {} },
@@ -94,7 +102,6 @@ fn MonthTab() -> Element {
     let dir = state.directory();
     let congregation = state.active_congregation().map(|c| c.name).unwrap_or_default();
     let ym = (state.report_month)().unwrap_or_else(reporting_month);
-    let (min, max) = dir.report_range();
     let mut editing = use_signal(|| None::<(u32, Ym)>);
     let query = (state.report_query)();
     let sel = (state.report_filters)();
@@ -215,7 +222,6 @@ fn MonthTab() -> Element {
     };
 
     rsx! {
-        MonthPicker { value: ym, min, max, full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
         Cluster { justify: Justify::Between,
             Text { tone: TextTone::Muted,
                 if ym == reporting_month() {
@@ -581,7 +587,8 @@ pub(super) fn PersonReportsCard(person: u32) -> Element {
     let state = use_app_state();
     let navigator = navigator();
     let dir = state.directory();
-    let mut editing = use_signal(|| false);
+    let mut editing = use_signal(|| None::<Ym>);
+    let mut show_all = use_signal(|| false);
     let Some(p) = dir.person(person).cloned() else { return rsx! {} };
     let now = reporting_month();
     let months: Vec<MonthMark> = (0..6)
@@ -596,19 +603,37 @@ pub(super) fn PersonReportsCard(person: u32) -> Element {
         None => (Tone::Neutral, "No reports yet"),
     };
     let goal = dir.goal_progress(person, service_year(now));
-    let mut recent: Vec<&Report> = dir.reports.iter().filter(|r| r.person == person).collect();
-    recent.sort_by_key(|r| std::cmp::Reverse(r.month));
-    let entries: Vec<ListEntry> = recent
+    // Every month from the first report (or the last 6 months) to the reporting month, newest
+    // first. Each one opens the report form, also months without a report.
+    let first = dir.reports.iter().filter(|r| r.person == person).map(|r| r.month).min().unwrap_or(reports::shift(now, -5)).min(now);
+    let mut all_months: Vec<Ym> = Vec::new();
+    let mut m = now;
+    while m >= first {
+        all_months.push(m);
+        m = reports::shift(m, -1);
+    }
+    let total_months = all_months.len();
+    let toggle_text = if show_all() { "Show the last 6 months".to_string() } else { format!("Show all {total_months} months") };
+    let shown_months: Vec<Ym> = if show_all() { all_months } else { all_months.into_iter().take(6).collect() };
+    let entries: Vec<ListEntry> = shown_months
         .iter()
-        .take(4)
-        .map(|r| ListEntry {
-            icon: if r.auxiliary { Icon::Privilege } else if r.participated() { Icon::Check } else { Icon::Close },
-            title: month_label(r.month),
-            subtitle: summary(r),
-            meta: if r.auxiliary { "Aux. pioneer".into() } else { String::new() },
+        .map(|m| match dir.report(person, *m) {
+            Some(r) => ListEntry {
+                icon: if r.auxiliary { Icon::Privilege } else if r.participated() { Icon::Check } else { Icon::Close },
+                title: month_label(*m),
+                subtitle: summary(r),
+                meta: if r.auxiliary { "Aux. pioneer".into() } else { String::new() },
+            },
+            None => {
+                let (icon, text) = match dir.report_status(person, *m) {
+                    ReportStatus::Late => (Icon::Error, "Late"),
+                    ReportStatus::Missing => (Icon::Warning, "Missing"),
+                    _ => (Icon::Clock, "Not in yet"),
+                };
+                ListEntry { icon, title: month_label(*m), subtitle: format!("{text} · tap to enter"), meta: String::new() }
+            }
         })
         .collect();
-    let has_now = dir.report(person, now).is_some();
     let mut planning = use_signal(|| false);
     let can_plan = p.publisher_type == PublisherType::BaptisedPublisher;
     let planned: Vec<String> = dir.planned_aux(person).into_iter().map(month_label).collect();
@@ -632,27 +657,29 @@ pub(super) fn PersonReportsCard(person: u32) -> Element {
                     }
                 }
             }
-            if !entries.is_empty() {
-                ItemList { items: entries }
+            ItemList {
+                items: entries,
+                on_select: move |i: usize| {
+                    if let Some(m) = shown_months.get(i) {
+                        editing.set(Some(*m));
+                    }
+                },
+            }
+            if total_months > 6 {
+                TextLink { onclick: move |_| show_all.set(!show_all()), icon: Icon::ChevronDown, "{toggle_text}" }
             }
             if can_plan {
                 Text { tone: TextTone::Small, "{planned_text}" }
             }
             Cluster { gap: Gap::Sm,
-                ActionButton {
-                    action: if has_now { Action::Edit } else { Action::Add },
-                    variant: ButtonVariant::Secondary,
-                    label: format!("{} report for {}", if has_now { "Edit" } else { "Enter" }, theo_ui::month_name(now.1)),
-                    onclick: move |_| editing.set(true),
-                }
                 if can_plan {
                     ActionButton { action: Action::Edit, variant: ButtonVariant::Secondary, label: "Auxiliary pioneering", onclick: move |_| planning.set(true) }
                 }
                 ActionButton { action: Action::View, label: "All reports", variant: ButtonVariant::Ghost, onclick: move |_| { navigator.push(Route::ReportsPage {}); } }
             }
         }
-        if editing() {
-            ReportDialog { key: "{person}", person, month: now, onclose: move |_| editing.set(false) }
+        if let Some(month) = editing() {
+            ReportDialog { key: "{person}-{month.0}-{month.1}", person, month, onclose: move |_| editing.set(None) }
         }
         if planning() {
             AuxPlanDialog { person, onclose: move |_| planning.set(false) }

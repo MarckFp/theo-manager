@@ -1,11 +1,12 @@
 # Theo Manager: one repository, one Cargo workspace (decision D-25).
 #   theo-ui   design system (components, styles, icons)
+#   theo-crypto  cryptography (backup envelopes now; key hierarchy later)
 #   theo-app  the app for web, desktop and mobile
-# Planned crates (theo-core, theo-crypto, theo-db) join this workspace when they are written.
+# Planned crates (theo-core, theo-db) join this workspace when they are written.
 
 [workspace]
 resolver = "3"
-members = ["theo-ui", "theo-app"]
+members = ["theo-crypto", "theo-ui", "theo-app"]
 
 # Profiles live here: Cargo ignores profiles in member crates.
 [profile.release]
@@ -30,3 +31,9 @@ inherits = "dev"
 
 [profile.android-dev]
 inherits = "dev"
+
+# Argon2 is far too slow without optimisation; keep it fast in debug builds too.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3

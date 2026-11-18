@@ -13,33 +13,35 @@ pub fn sections() -> Vec<NavEntry> {
     vec![
         NavEntry::new("home", "Home", Icon::Home),
         NavEntry::new("users", "Users", Icon::Users).with_description("People, accounts and what they may do").with_children(vec![
-            page("all", "All users", Icon::Contact, "Publishers and other members, contact details and households."),
-            page("groups", "Field service groups", Icon::Group, "Groups, overseers and assistants."),
-            page("reports", "Field service reports", Icon::Report, "Monthly reports, pioneers and missing reports."),
-            page("privileges", "Privileges", Icon::Privilege, "Elders, ministerial servants, pioneers and qualifications."),
-            page("permissions", "Permissions", Icon::Permission, "Roles and what each role may see and change."),
+            page("all", "All users", Icon::Contact, "Publishers and other members, contact details and families."),
+            page("privileges", "Privileges", Icon::Privilege, "What each person may take part in: meeting parts and duties."),
+            page("absences", "Absences", Icon::Absence, "Who is away when, so schedules leave them out."),
+            page("permissions", "Permissions", Icon::Permission, "What each account may see and change in the app."),
+            page("elderly-care", "Elderly care", Icon::Family, "Transport, visits and help for older ones."),
             page("moved-away", "Moved away", Icon::MovedAway, "People who moved away, kept for 1 year."),
         ]),
-        NavEntry::new("meetings", "Meetings", Icon::Meetings).with_description("Schedules for meetings and duties").with_children(vec![
+        NavEntry::new("meetings", "Meetings", Icon::Meetings).with_description("Meeting schedules, talks and attendance").with_children(vec![
             page("midweek", "Midweek meeting", Icon::BookOpen, "Life and Ministry meeting parts and students."),
             page("weekend", "Weekend meeting", Icon::Talk, "Chairman, public talk and Watchtower Study."),
             page("talks", "Public talks", Icon::PublicTalk, "Incoming speakers and the talk catalogue."),
             page("outgoing", "Outgoing talks", Icon::Outgoing, "Local speakers visiting other congregations."),
-            page("duties", "Duties", Icon::Audio, "Attendants, audio, video, stage, microphones and Zoom."),
-            page("cleaning", "Cleaning", Icon::Cleaning, "Cleaning groups and rota."),
-            page("attendance", "Attendance", Icon::Chart, "Attendance per meeting, in person and online."),
+            page("attendance", "Meeting attendance", Icon::Chart, "Attendance per meeting, in person and online."),
+            page("events", "Events", Icon::Calendar, "Circuit overseer visits, assemblies, Memorial."),
         ]),
         NavEntry::new("ministry", "Ministry", Icon::Ministry).with_description("Field service organisation").with_children(vec![
+            page("reports", "Field service reports", Icon::Report, "Monthly reports, pioneers and missing reports."),
+            page("groups", "Field service groups", Icon::Group, "Groups, overseers and assistants."),
             page("territories", "Territories", Icon::Map, "Territory cards, maps, check-out and coverage."),
             page("witnessing", "Public witnessing", Icon::PublicWitnessing, "Locations, carts and shifts."),
             page("service-meetings", "Meetings for field service", Icon::Footprints, "Who conducts, where and when."),
         ]),
-        NavEntry::new("congregation", "Congregation", Icon::Congregation).with_description("Settings and shared information").with_children(vec![
-            page("settings", "Settings", Icon::Settings, "Details, meeting times and default display settings."),
-            page("calendar", "Calendar and events", Icon::Calendar, "Circuit overseer visits, assemblies, Memorial."),
-            page("congregations", "Other congregations", Icon::Building, "Nearby congregations and their coordinators."),
-            page("data", "Import and export", Icon::Download, "Move data in and out, backups."),
-            page("audit", "Activity log", Icon::History, "Who changed what, and when."),
+        NavEntry::new("departments", "Departments", Icon::Building).with_description("Duties that keep the meetings and the Kingdom Hall running").with_children(vec![
+            page("audio-video", "Audio, video and stage", Icon::Video, "Sound, video, Zoom and the stage at each meeting."),
+            page("attendants", "Attendants", Icon::Attendant, "Attendants at the entrance and in the hall."),
+            page("microphones", "Microphones", Icon::Audio, "Roving microphones at each meeting."),
+            page("cleaning", "Cleaning", Icon::Cleaning, "Cleaning groups and rota."),
+            page("maintenance", "Maintenance", Icon::Maintenance, "Kingdom Hall maintenance tasks and who does them."),
+            page("custom-tasks", "Custom tasks", Icon::Task, "Any other task, like the literature desk, and who does it."),
         ]),
     ]
 }

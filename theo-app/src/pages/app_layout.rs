@@ -8,9 +8,14 @@ fn active_of(route: &Route) -> (String, Option<String>) {
     match route {
         Route::Me {} => ("me".into(), None),
         Route::UserList {} | Route::UserNew {} | Route::UserDetail { .. } => ("users".into(), Some("all".into())),
-        Route::ReportsPage {} => ("users".into(), Some("reports".into())),
+        Route::ReportsPage {} => ("ministry".into(), Some("reports".into())),
+        Route::PermissionsPage {} | Route::PermissionsDetail { .. } => ("users".into(), Some("permissions".into())),
+        Route::PrivilegesPage {} => ("users".into(), Some("privileges".into())),
+        Route::FamilyDetail { .. } => ("users".into(), Some("all".into())),
+        Route::AbsencesPage {} => ("users".into(), Some("absences".into())),
+        Route::CustomTasksPage {} => ("departments".into(), Some("custom-tasks".into())),
         Route::MovedAway {} => ("users".into(), Some("moved-away".into())),
-        Route::GroupList {} | Route::GroupNew {} | Route::GroupDetail { .. } => ("users".into(), Some("groups".into())),
+        Route::GroupList {} | Route::GroupNew {} | Route::GroupDetail { .. } => ("ministry".into(), Some("groups".into())),
         Route::SectionHub { section } => (section.clone(), None),
         Route::SectionPage { section, page } => (section.clone(), Some(page.clone())),
         _ => ("home".into(), None),
@@ -60,6 +65,7 @@ pub fn AppLayout() -> Element {
                 }
             },
             on_create_workspace: move |_| { navigator.push(Route::NewCongregation {}); },
+            on_workspace_settings: move |_| { navigator.push(Route::SettingsPage {}); },
             transition_key: route.to_string(),
             Outlet::<Route> {}
         }

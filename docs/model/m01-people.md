@@ -44,6 +44,8 @@ Collection `person`, key domain `people`.
 | `consent_date` | `Option<date>` | | The date the person agreed that the congregation keeps their data. Not in the future. |
 | `notes` | `Option<text>` | | Free text, at most 2,000 characters. |
 | `moved_away_date` | `Option<date>` | none | Set when the person moves away (see [Moving away](#moving-away)). Not in the future. |
+| `emergency_contacts` | list of [emergency contacts](#emergency-contacts) | empty | Zero, one or more. |
+| `labels` | set of [labels](#labels) | empty | Labels of the same congregation. |
 
 There is **no password field**. The request listed a nullable `password`, but a password in the
 person record would break the zero-knowledge model: anyone who can read people could read it, and
@@ -102,6 +104,73 @@ report do not count, so a new publisher is not irregular.
 
 Reports are in the `reports` key domain. A user who does not hold that key cannot compute the
 status, so the app hides the status and its filter for them.
+
+## Privileges
+
+A privilege says what a person **may take part in**: a meeting part or a duty. Privileges drive who
+the app offers when someone makes a schedule (R-010). They are not app permissions: permissions
+(M-02) say what an account may see and change in the app.
+
+A person has any number of privileges, stored on the person record as a set (key domain
+`people`). Each privilege has a rule; the app never gives a privilege to someone the rule does not
+allow, and **visitors have no privileges**.
+
+| Rule | Who |
+|---|---|
+| Baptised brothers | Male, and a baptised type (baptised publisher, any pioneer, missionary) |
+| Brothers, also Bible students | Male, any type except visitor |
+| Baptised publishers | Brothers and sisters of a baptised type |
+| Everyone except visitors | Any type except visitor |
+
+| Section | Privilege | Rule |
+|---|---|---|
+| Both meetings | Prayer | Baptised brothers |
+| Midweek | Chairman | Baptised brothers |
+| Midweek | Auxiliary classroom chairman | Baptised brothers |
+| Midweek | Treasures from God's Word | Baptised brothers |
+| Midweek | Spiritual gems | Baptised brothers |
+| Midweek | Bible reading | Brothers, also Bible students |
+| Midweek | Field ministry discussion | Baptised brothers |
+| Midweek | Starting a conversation | Everyone except visitors |
+| Midweek | Following up | Everyone except visitors |
+| Midweek | Making disciples | Everyone except visitors |
+| Midweek | Assistant | Everyone except visitors |
+| Midweek | Student talk | Baptised brothers |
+| Midweek | Living as Christians | Baptised brothers |
+| Midweek | Congregation Bible Study | Baptised brothers |
+| Midweek | Congregation Bible Study reader | Baptised brothers |
+| Weekend | Chairman | Baptised brothers |
+| Weekend | Public talk | Baptised brothers |
+| Weekend | Public talk in other congregations | Baptised brothers |
+| Weekend | Watchtower Study conductor | Baptised brothers |
+| Weekend | Watchtower Study reader | Baptised publishers |
+| Weekend | Interpreter | Baptised publishers |
+| Duties | Attendant | Baptised publishers |
+| Duties | Zoom attendant | Baptised publishers |
+| Duties | Entrance attendant | Baptised publishers |
+| Duties | Stage | Baptised publishers |
+| Duties | Audio | Baptised publishers |
+| Duties | Video | Baptised publishers |
+| Duties | Microphones | Baptised publishers |
+| Duties | Cleaning | Everyone except visitors |
+| Ministry and care | Hospitality | Baptised publishers |
+| Ministry and care | Meeting for field service | Baptised publishers |
+| Ministry and care | Public witnessing | Baptised publishers |
+| Ministry and care | Elderly care | Everyone except visitors |
+
+When a change of type or gender means a person no longer qualifies for some privileges, the person
+page lists them before saving, and saving removes them.
+
+**The Privileges screen** (*Users › Privileges*) has the *All users* filters that matter here
+(type, appointment, gender, group) plus a **Privilege** filter (people with any of the chosen
+privileges, or with none). It has two views:
+
+| View | What it does |
+|---|---|
+| By person | One card per person with their privileges; a card opens a dialog with the privileges they may have, by section, to switch on or off. |
+| By privilege | Choose one privilege (the list has sections); everyone in the filtered list who may have it is shown with a checkbox. Fast to set up a whole congregation. |
+
+The person page has a *Privileges* card with the same dialog.
 
 ## Family
 
@@ -173,6 +242,79 @@ the app removes them for good.
 The retention period is 1 year for now. It becomes a congregation setting with the other
 retention rules of R-021.
 
+## Emergency contacts
+
+People to call when a person cannot be reached or needs help. They are stored **inside the
+person** (not as persons of the congregation), because they are usually outside it. A person has
+zero, one or more.
+
+| Field | Type | Rules |
+|---|---|---|
+| `first_name` | text | Required. |
+| `last_name` | text | Required. |
+| `telephone` | `Option<text>` | Free text. |
+| `mobile_phone` | `Option<text>` | Free text. |
+| `address_line_1` | `Option<text>` | |
+| `address_line_2` | `Option<text>` | |
+| `postal_code` | `Option<text>` | |
+| `city` | `Option<text>` | |
+| `notes` | `Option<text>` | For example how they are related. |
+
+The person page has an *Emergency contacts* card: open a contact to change or delete it, or add
+one. All users has an *Emergency contacts* filter (has some, has none), and the CSV export has a
+column with the names and phone numbers.
+
+## Labels
+
+Labels are free tags the congregation defines, for example "Needs a ride" or "Speaks Spanish".
+
+Collection `label`: `name` (required, unique in the congregation, ignoring case) and `color`
+(gray, blue, green, yellow or red). A person has any number of labels.
+
+- *Labels* (a button on All users, and on the *Labels* card of the person page) adds, renames,
+  recolours and deletes labels. Deleting a label takes it off everyone.
+- On the person page, tap a label to put it on or take it off. It applies at once.
+- Labels show as coloured tags on the person cards.
+- Filter *Labels*: each label, and "No label". It is on All users, Privileges and Moved away.
+
+## Absences
+
+*Users › Absences* records when a person is away, so schedules (later) do not assign them on those
+days.
+
+Collection `absence`: `person` (a current person), `from` and `to` (dates, both included, `to` not
+before `from`) and an optional short `note` (for example "Holiday"). A person can have several
+absences; they may overlap.
+
+The page lists the absences as cards (name, dates, number of days, note) with search by name and a
+*When* filter: away now, coming up, past. It starts with "away now" and "coming up".
+
+## Custom tasks
+
+*Departments › Custom tasks* holds any task that has no page of its own, for example the
+literature desk or the accounts. Collection `custom_task`: `name` (required, unique ignoring case),
+an optional `description`, and the people who do it (current persons). The page lists the tasks as
+cards with search by task or person name.
+
+## The Families tab
+
+*Users › All users* has two tabs: **People** and **Families**. The tabs, the search and the filters
+stay at the top while the list scrolls. The Families tab every family as a card ("Family of `<head>`", the first names of the
+members, the number of members). Search finds a family by any member's name. Filters: status
+(current or moved away; the list starts with current families), number of members, and field
+service group (of any member).
+
+The family page:
+
+| Part | What it does |
+|---|---|
+| Family head | A list of the members; **Save** makes the chosen member the head. |
+| Members | Each member with their relationship to the head. Open a person, remove a member (not the head), or add a person who has no family, with their relationship to the head. |
+| Delete family | Asks first. The members stay, without a family. |
+| Add family (on the list) | Two people without a family and how they are related; the first one is the head. |
+
+Relationships between members other than the head are changed on the person page (*Family* card).
+
 ## Deleting a person
 
 Deleting is a soft delete (R-013). The person disappears from lists, filters and exports. Past
@@ -200,13 +342,15 @@ date.
 | Gender | Male, Female | `gender` |
 | Personal consent | Recorded, Not recorded | `consent_date` |
 | Activity | Active, Irregular, Inactive | Activity status (derived) |
+| Labels | Each label, No label | `labels` |
+| Emergency contacts | Has some, Has none | `emergency_contacts` |
 
 Each filter value shows how many persons it would add with the other filters applied, so users
 do not pick combinations with no result.
 
 **Cards, not a table.** Each person is a card with the name in the effective name format (R-062),
-the field service group, and labels for the type, the appointment, anointed, infirm and an activity
-status that needs attention (irregular or inactive). The list is sorted by the name as shown. The
+the field service group, and tags for the type, the appointment, anointed, infirm, an activity
+status that needs attention (irregular or inactive) and the person's labels. The list is sorted by the name as shown. The
 app shows no number or other identifier: the name is enough.
 
 **Export.** The export uses the filtered list, in the same order. It runs on the device. The file
@@ -224,10 +368,10 @@ is **not encrypted**, so the app warns before it saves it.
 | P1 | Does the user need a visible number? | No. Records have only the internal random `record_id`; the UI shows names. |
 | P2 | Can a person be in more than one family? | No. One family or none. |
 | P3 | Delete a person who moves away, or keep them? | Keep them for 1 year with a "moved away" state, then purge ([Moving away](#moving-away)). |
+| P5 | Emergency contacts: persons of the congregation, or separate fields? | Separate fields inside the person, one or more per person ([Emergency contacts](#emergency-contacts)). Decided 2026-11-18. |
 
 ## Open questions
 
 | # | Question | Proposal |
 |---|---|---|
 | P4 | Is `consent_date` enough, or do you also need what the consent covers (for example "may appear on printed schedules")? | The date only, for now. |
-| P5 | Should emergency contacts (listed in M-01 in `REQUIREMENTS.md` 1.3) be persons in the family, or separate fields? | A relationship of kind `Other` to a person, so they can be outside the congregation later. |

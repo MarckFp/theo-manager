@@ -6,7 +6,7 @@ use theo_ui::{ChartPoint, Icon, ListEntry, WidgetLayout};
 
 pub const DEMO_USER: &str = "demo";
 pub const DEMO_PASSWORD: &str = "demo-password";
-pub const DEMO_CONGREGATION_PASSWORD: &str = "demo congregation";
+pub const DEMO_CONGREGATION_PASSWORD: &str = "demo";
 
 /// A tiny word list. The real generator uses the EFF large list (7,776 words) and a CSPRNG (R-314).
 const WORDS: &[&str] = &[
@@ -117,8 +117,11 @@ fn entry(icon: Icon, title: &str, subtitle: &str, meta: &str) -> ListEntry {
 // Synthetic people for the demo (R-022: invented names, reserved phone numbers, example.org).
 // ---------------------------------------------------------------------------------------------
 
+use crate::access::{Access, Level};
 use crate::reports::{reporting_month, shift, Kind, Report, Ym, AUX_GOAL, AUX_GOAL_SHORT};
 use std::collections::BTreeSet;
+use crate::people::{EmergencyContact, Label, LabelColor};
+use crate::tasks::CustomTask;
 use crate::people::{
     AccountLink, Appointment, Directory, Family, Gender, Group, Person, PublisherType, RelationKind, Relationship,
 };
@@ -221,12 +224,27 @@ pub fn demo_directory(size: usize) -> Directory {
                 city: Some(if n.is_multiple_of(2) { "Riverside" } else { "Millbrook" }.into()),
                 consent_date: consent.map(str::to_string),
                 notes: (n == 15).then(|| "Prefers phone calls in the morning.".to_string()),
+                // Joined the app: the demo account (John, who created the congregation) and a few
+                // others. Mary has an open invite; everyone else is managed by others.
                 account: match n {
-                    1 => AccountLink::Linked { username: "jsmith".into() },
+                    1 => AccountLink::Linked { username: "demo".into() },
+                    5 => AccountLink::Linked { username: "mbrown".into() },
+                    7 => AccountLink::Linked { username: "lgarcia".into() },
+                    10 => AccountLink::Linked { username: "dclark".into() },
+                    12 => AccountLink::Linked { username: "pwalker".into() },
+                    13 => AccountLink::Linked { username: "alee".into() },
                     2 => AccountLink::Invited { link: format!("https://app.example.org/join#t={}", token()) },
                     _ => AccountLink::None,
                 },
                 moved_away: MOVED_AWAY.iter().find(|(id, _)| *id == n).map(|(_, d)| d.to_string()),
+                privileges: BTreeSet::new(),
+                emergency_contacts: demo_emergency_contacts(n),
+                labels: match n {
+                    15 | 16 | 27 => [1].into_iter().collect(),
+                    31 | 32 | 8 => [2].into_iter().collect(),
+                    20 | 21 => [3].into_iter().collect(),
+                    _ => BTreeSet::new(),
+                },
             }
         })
         .collect();
@@ -262,6 +280,8 @@ pub fn demo_directory(size: usize) -> Directory {
         // No assistant yet: shows the warnings on the groups page.
         Group { id: 4, name: "Town centre".into(), overseer: lead(25), assistant: None, members: keep(vec![26]) },
     ];
+    let mut people = people;
+    demo_privileges(&mut people);
     let (reports, aux_short_months) = demo_reports(&patterns);
     let mut aux_plans: BTreeSet<(u32, Ym)> = reports.iter().filter(|r| r.auxiliary).map(|r| (r.person, r.month)).collect();
     // Planned ahead: George (29) this month, Olivia (18) the month after.
@@ -270,7 +290,129 @@ pub fn demo_directory(size: usize) -> Directory {
             aux_plans.insert((person, shift(reporting_month(), ahead)));
         }
     }
-    Directory { people, families, groups, reports, aux_short_months, aux_plans }
+    let access = demo_access(count);
+    let labels = vec![
+        Label { id: 1, name: "Needs a ride".into(), color: LabelColor::Yellow },
+        Label { id: 2, name: "Speaks Spanish".into(), color: LabelColor::Blue },
+        Label { id: 3, name: "New here".into(), color: LabelColor::Green },
+    ];
+    let absences = demo_absences(count);
+    let custom_tasks = vec![
+        CustomTask { id: 1, name: "Literature desk".into(), description: Some("Hands out publications before and after the meetings.".into()), people: [8, 11, 18].into_iter().filter(|p| *p <= count).collect() },
+        CustomTask { id: 2, name: "Accounts".into(), description: Some("Counts the contributions and keeps the accounts.".into()), people: [7, 10].into_iter().filter(|p| *p <= count).collect() },
+        CustomTask { id: 3, name: "Garden".into(), description: Some("Keeps the Kingdom Hall garden tidy.".into()), people: vec![] },
+    ];
+    Directory { people, families, groups, reports, aux_short_months, aux_plans, access, owner: Some(1), log: Vec::new(), labels, absences, custom_tasks }
+}
+
+/// Permissions of the demo accounts: a secretary, a group overseer, an audio coordinator, and
+/// two publishers (one with nothing).
+fn demo_access(count: u32) -> std::collections::BTreeMap<u32, Access> {
+    let page = |pairs: &[(&str, Level)]| pairs.iter().map(|(p, l)| (p.to_string(), *l)).collect();
+    let mut out = std::collections::BTreeMap::new();
+    let mut add = |id: u32, a: Access| {
+        if id <= count {
+            out.insert(id, a);
+        }
+    };
+    // Luis (7): secretary.
+    add(7, Access {
+        pages: page(&[("users/all", Level::Write), ("users/privileges", Level::Write), ("ministry/reports", Level::Write), ("ministry/groups", Level::Write), ("users/families", Level::Read)]),
+        all_groups_read: true,
+        ..Default::default()
+    });
+    // Paul (12): overseer of East.
+    add(12, Access { own_group_reports: true, own_group_read: true, pages: page(&[("meetings/midweek", Level::Read), ("meetings/weekend", Level::Read)]), ..Default::default() });
+    // Michael (5): audio and video.
+    add(5, Access { pages: page(&[("departments/audio-video", Level::Write), ("departments/microphones", Level::Write), ("departments/attendants", Level::Read)]), ..Default::default() });
+    // David (10): reads the meeting schedules.
+    add(10, Access { pages: page(&[("meetings/midweek", Level::Read), ("meetings/weekend", Level::Read), ("meetings/events", Level::Read)]), ..Default::default() });
+    out
+}
+
+/// Emergency contacts for some people (invented, R-022).
+fn demo_emergency_contacts(n: u32) -> Vec<EmergencyContact> {
+    let c = |first: &str, last: &str, mobile: &str, city: &str, notes: Option<&str>| EmergencyContact {
+        first_name: first.into(),
+        last_name: last.into(),
+        mobile_phone: Some(mobile.into()),
+        city: Some(city.into()),
+        notes: notes.map(str::to_string),
+        ..Default::default()
+    };
+    match n {
+        15 | 16 => vec![c("Laura", "Novak", "+44 7700 900801", "Riverside", Some("Daughter. Lives nearby."))],
+        22 => vec![c("Marco", "Rossi", "+44 7700 900802", "Millbrook", Some("Brother")), c("Giulia", "Rossi", "+44 7700 900803", "Millbrook", None)],
+        27 => vec![c("Kevin", "Hughes", "+44 7700 900804", "Riverside", Some("Son"))],
+        4 => vec![c("Anna", "Smith", "+44 7700 900805", "Riverside", Some("Aunt, when the parents cannot be reached"))],
+        _ => Vec::new(),
+    }
+}
+
+/// A few absences, relative to today: now, coming up and past.
+fn demo_absences(count: u32) -> Vec<crate::absences::Absence> {
+    let (y, m, d) = crate::prefs::today();
+    let day = |offset: i64| {
+        // Simple date arithmetic through the Unix day number.
+        let base = crate::prefs::days_from_ymd((y, m, d)) + offset;
+        let (yy, mm, dd) = crate::prefs::ymd_from_days(base);
+        format!("{yy:04}-{mm:02}-{dd:02}")
+    };
+    let a = |id: u32, person: u32, from: i64, to: i64, note: &str| crate::absences::Absence {
+        id,
+        person,
+        from: day(from),
+        to: day(to),
+        note: (!note.is_empty()).then(|| note.to_string()),
+    };
+    vec![a(1, 5, -2, 5, "Holiday"), a(2, 13, 10, 24, "Visiting family abroad"), a(3, 9, 3, 4, "Pioneer school"), a(4, 21, -30, -20, "Work trip")]
+        .into_iter()
+        .filter(|x| x.person <= count)
+        .collect()
+}
+
+/// Plausible privileges: elders take most parts, ministerial servants readings and duties,
+/// sisters the student parts, and so on. Some are left out so the lists show variety.
+fn demo_privileges(people: &mut [Person]) {
+    use crate::privileges::Privilege as P;
+    for p in people.iter_mut().filter(|p| p.moved_away.is_none()) {
+        let elder = p.appointment == Some(Appointment::Elder);
+        let ms = p.appointment == Some(Appointment::MinisterialServant);
+        let brother = p.gender == Gender::Male;
+        let mut wanted: Vec<P> = vec![P::StartingConversation, P::FollowingUp, P::MakingDisciples, P::Assistant, P::Cleaning, P::BibleReading];
+        if p.publisher_type.is_baptised() {
+            wanted.extend([P::Attendant, P::ZoomAttendant, P::EntranceAttendant, P::Microphones, P::WatchtowerReader, P::PublicWitnessing, P::FieldServiceMeeting]);
+            if brother {
+                wanted.extend([P::Prayer, P::StudentTalk, P::Stage, P::Audio, P::Video, P::BibleStudyReader]);
+            } else {
+                wanted.push(P::Hospitality);
+            }
+        }
+        if elder {
+            wanted.extend([
+                P::MidweekChairman, P::AuxiliaryChairman, P::Treasures, P::SpiritualGems, P::FieldMinistryDiscussion, P::LivingAsChristians,
+                P::BibleStudyConductor, P::WeekendChairman, P::PublicTalk, P::PublicTalkAway, P::WatchtowerConductor,
+            ]);
+        }
+        if ms {
+            wanted.extend([P::SpiritualGems, P::FieldMinistryDiscussion, P::PublicTalk]);
+        }
+        if p.infirm {
+            wanted.retain(|x| matches!(x, P::Prayer | P::StartingConversation | P::FollowingUp));
+        }
+        if p.id % 4 == 0 {
+            wanted.push(P::ElderlyCare);
+        }
+        if p.id == 9 || p.id == 26 {
+            wanted.push(P::Interpreter);
+        }
+        // Leave a few out so not everyone has everything.
+        for (i, x) in wanted.into_iter().enumerate() {
+            if !(p.id as usize + i).is_multiple_of(7) && x.allowed_for(p.publisher_type, p.gender) {
+                p.privileges.insert(x);
+            }
+        }
+    }
 }
 
 /// Field service reports for the last 14 months, relative to today, so the demo always looks

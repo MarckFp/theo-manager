@@ -91,7 +91,7 @@ pub fn short_month((_, m): Ym) -> String {
 // Report
 // ---------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Report {
     pub person: u32,
     pub month: Ym,

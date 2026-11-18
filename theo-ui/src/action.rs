@@ -40,6 +40,9 @@ pub enum Action {
     View,
     AddMembers,
     Settings,
+    CreateBackup,
+    RestoreBackup,
+    ManageLabels,
 }
 
 impl Action {
@@ -78,6 +81,9 @@ impl Action {
             Action::View => "Show",
             Action::AddMembers => "Add members",
             Action::Settings => "Settings",
+            Action::CreateBackup => "Create backup",
+            Action::RestoreBackup => "Restore backup",
+            Action::ManageLabels => "Labels",
         }
     }
 
@@ -87,6 +93,9 @@ impl Action {
             Action::Save => Some(Icon::Save),
             Action::Done => Some(Icon::Check),
             Action::Settings => Some(Icon::Settings),
+            Action::CreateBackup => Some(Icon::Download),
+            Action::RestoreBackup => Some(Icon::Upload),
+            Action::ManageLabels => Some(Icon::Tag),
             Action::Next => Some(Icon::ArrowRight),
             Action::Finish => Some(Icon::Check),
             Action::Edit => Some(Icon::Edit),

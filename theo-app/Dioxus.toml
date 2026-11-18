@@ -11,3 +11,12 @@ watch_path = ["src", "../theo-ui/src", "../theo-ui/assets"]
 [bundle]
 identifier = "app.theomanager"
 publisher = "Theo Manager"
+# Generated from icons/icon.svg by scripts/icons.sh (run it before `dx bundle`; the release
+# workflow does). Windows uses the .ico, macOS the .icns, Linux the PNGs.
+icon = ["icons/gen/32x32.png", "icons/gen/128x128.png", "icons/gen/128x128@2x.png", "icons/gen/icon.png", "icons/gen/icon.icns", "icons/gen/icon.ico"]
+
+[bundle.windows]
+icon_path = "icons/gen/icon.ico"
+
+[bundle.windows.nsis]
+installer_icon = "icons/gen/icon.ico"

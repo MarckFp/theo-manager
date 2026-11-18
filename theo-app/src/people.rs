@@ -11,7 +11,7 @@ use theo_ui::{Facet, FacetOption, FilterSelection, Icon};
 // Value types
 // ---------------------------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Gender {
     Male,
     Female,
@@ -39,7 +39,7 @@ impl Gender {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PublisherType {
     #[default]
     Student,
@@ -112,7 +112,7 @@ impl PublisherType {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Appointment {
     Elder,
     MinisterialServant,
@@ -167,7 +167,7 @@ impl Activity {
 }
 
 /// Account state of a person (the account itself is M-02).
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum AccountLink {
     #[default]
     None,
@@ -175,7 +175,7 @@ pub enum AccountLink {
     Linked { username: String },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RelationKind {
     Father,
     Mother,
@@ -256,7 +256,7 @@ impl RelationKind {
 // ---------------------------------------------------------------------------------------------
 
 /// A person (M-01). `id` is internal (never shown); in `theo-core` it is the random record id.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Person {
     pub id: u32,
     pub first_name: String,
@@ -281,6 +281,79 @@ pub struct Person {
     pub account: AccountLink,
     /// The date the person moved away (`YYYY-MM-DD`), or `None` for current members.
     pub moved_away: Option<String>,
+    /// What the person may take part in (M-01, "Privileges").
+    pub privileges: std::collections::BTreeSet<crate::privileges::Privilege>,
+    /// People to call in an emergency (M-01, "Emergency contacts"). Not members themselves.
+    pub emergency_contacts: Vec<EmergencyContact>,
+    /// Labels of the congregation (ids into `Directory::labels`).
+    pub labels: std::collections::BTreeSet<u32>,
+}
+
+/// Someone to call in an emergency. Usually not a member of the congregation.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct EmergencyContact {
+    pub first_name: String,
+    pub last_name: String,
+    pub telephone: Option<String>,
+    pub mobile_phone: Option<String>,
+    pub address_line_1: Option<String>,
+    pub address_line_2: Option<String>,
+    pub postal_code: Option<String>,
+    pub city: Option<String>,
+    pub notes: Option<String>,
+}
+
+/// The colour of a label (the same colours as the other tags in the app).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LabelColor {
+    #[default]
+    Gray,
+    Blue,
+    Green,
+    Yellow,
+    Red,
+}
+
+impl LabelColor {
+    pub const ALL: [LabelColor; 5] = [LabelColor::Gray, LabelColor::Blue, LabelColor::Green, LabelColor::Yellow, LabelColor::Red];
+    pub fn value(self) -> &'static str {
+        match self {
+            LabelColor::Gray => "gray",
+            LabelColor::Blue => "blue",
+            LabelColor::Green => "green",
+            LabelColor::Yellow => "yellow",
+            LabelColor::Red => "red",
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            LabelColor::Gray => "Gray",
+            LabelColor::Blue => "Blue",
+            LabelColor::Green => "Green",
+            LabelColor::Yellow => "Yellow",
+            LabelColor::Red => "Red",
+        }
+    }
+    pub fn parse(s: &str) -> Self {
+        Self::ALL.into_iter().find(|c| c.value() == s).unwrap_or_default()
+    }
+    pub fn tone(self) -> theo_ui::Tone {
+        match self {
+            LabelColor::Gray => theo_ui::Tone::Neutral,
+            LabelColor::Blue => theo_ui::Tone::Info,
+            LabelColor::Green => theo_ui::Tone::Success,
+            LabelColor::Yellow => theo_ui::Tone::Warning,
+            LabelColor::Red => theo_ui::Tone::Error,
+        }
+    }
+}
+
+/// A label the congregation defines and puts on people (as many as needed).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Label {
+    pub id: u32,
+    pub name: String,
+    pub color: LabelColor,
 }
 
 impl Person {
@@ -294,7 +367,7 @@ impl Person {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Relationship {
     /// `from` is the `kind` of `to`.
     pub from: u32,
@@ -302,7 +375,7 @@ pub struct Relationship {
     pub kind: RelationKind,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Family {
     pub id: u32,
     pub head: u32,
@@ -310,7 +383,7 @@ pub struct Family {
     pub relationships: Vec<Relationship>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Group {
     pub id: u32,
     pub name: String,
@@ -348,7 +421,7 @@ pub struct Relative {
 // Directory: all people data of one congregation
 // ---------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Directory {
     pub people: Vec<Person>,
     pub families: Vec<Family>,
@@ -359,6 +432,18 @@ pub struct Directory {
     pub aux_short_months: std::collections::BTreeSet<crate::reports::Ym>,
     /// Months a baptised publisher is auxiliary pioneer, planned ahead or set later (M-10).
     pub aux_plans: std::collections::BTreeSet<(u32, crate::reports::Ym)>,
+    /// App permissions per person with a linked account (M-02, `src/access.rs`).
+    pub access: std::collections::BTreeMap<u32, crate::access::Access>,
+    /// The person who created the congregation: always an administrator.
+    pub owner: Option<u32>,
+    /// Activity log (shown in *Congregation › Settings*): permission changes for now.
+    pub log: Vec<crate::access::LogEntry>,
+    /// Labels of the congregation, in display order.
+    pub labels: Vec<Label>,
+    /// Absences: who is away when (M-01, "Absences").
+    pub absences: Vec<crate::absences::Absence>,
+    /// Custom tasks of the Departments section.
+    pub custom_tasks: Vec<crate::tasks::CustomTask>,
 }
 
 impl Directory {
@@ -589,6 +674,9 @@ impl Directory {
             notes: opt(&d.notes),
             account: existing.as_ref().map(|p| p.account.clone()).unwrap_or_default(),
             moved_away: existing.as_ref().and_then(|p| p.moved_away.clone()),
+            privileges: existing.as_ref().map(|p| p.privileges.clone()).unwrap_or_default(),
+            emergency_contacts: existing.as_ref().map(|p| p.emergency_contacts.clone()).unwrap_or_default(),
+            labels: existing.as_ref().map(|p| p.labels.clone()).unwrap_or_default(),
         };
         let moved = person.moved_away.is_some();
         match self.people.iter_mut().find(|p| p.id == n) {
@@ -600,6 +688,8 @@ impl Directory {
         } else {
             self.leave_groups(n);
         }
+        // Privileges the new type or gender does not allow are removed.
+        self.prune_privileges(n);
         // A leader who is no longer a baptised brother stops leading, and stays a plain member.
         if self.person(n).is_some_and(|p| !p.may_lead()) {
             let keep_in = self.groups.iter().find(|g| g.overseer == Some(n) || g.assistant == Some(n)).map(|g| g.id);
@@ -694,6 +784,7 @@ impl Directory {
                 p.moved_away = Some(date.to_string());
                 p.account = AccountLink::None;
             }
+            self.drop_access(m);
         }
     }
 
@@ -722,6 +813,7 @@ impl Directory {
     pub fn delete(&mut self, n: u32) {
         self.remove_from_family(n);
         self.leave_groups(n);
+        self.drop_access(n);
         self.people.retain(|p| p.id != n);
     }
 
@@ -938,6 +1030,161 @@ impl Directory {
 
     pub fn delete_group(&mut self, id: u32) {
         self.groups.retain(|g| g.id != id);
+    }
+}
+
+/// Who is in a field service group, by appointment and type, and their average age.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GroupComposition {
+    pub members: usize,
+    pub elders: usize,
+    pub ministerial_servants: usize,
+    /// Regular and special pioneers, and missionaries.
+    pub pioneers: usize,
+    pub continuous_auxiliary: usize,
+    /// Average age of the members with a birthday.
+    pub average_age: Option<f64>,
+    pub with_birthday: usize,
+}
+
+impl Directory {
+    pub fn group_composition(&self, id: u32) -> GroupComposition {
+        let mut c = GroupComposition::default();
+        let mut ages = Vec::new();
+        for (n, _) in self.group_members(id, &Preferences::default()) {
+            let Some(p) = self.person(n) else { continue };
+            c.members += 1;
+            match p.appointment {
+                Some(Appointment::Elder) => c.elders += 1,
+                Some(Appointment::MinisterialServant) => c.ministerial_servants += 1,
+                None => {}
+            }
+            if p.publisher_type.has_pioneer_number() {
+                c.pioneers += 1;
+            } else if p.publisher_type == PublisherType::ContinuousAuxiliaryPioneer {
+                c.continuous_auxiliary += 1;
+            }
+            if let Some(age) = p.birthday.as_deref().and_then(parse_date).and_then(prefs::years_since) {
+                ages.push(age);
+            }
+        }
+        c.with_birthday = ages.len();
+        c.average_age = (!ages.is_empty()).then(|| ages.iter().sum::<f64>() / ages.len() as f64);
+        c
+    }
+
+    // ----- families (list and page) -----
+
+    pub fn family(&self, id: u32) -> Option<&Family> {
+        self.families.iter().find(|f| f.id == id)
+    }
+
+    /// All members of the family moved away (they moved together).
+    pub fn family_moved_away(&self, f: &Family) -> bool {
+        f.members.iter().all(|m| self.person(*m).is_some_and(|p| p.moved_away.is_some()))
+    }
+
+    /// Current people who are in no family (they can join or start one).
+    pub fn without_family(&self) -> Vec<&Person> {
+        self.people.iter().filter(|p| p.moved_away.is_none() && self.family_of(p.id).is_none()).collect()
+    }
+
+    /// Removes the family. Its members stay, without a family.
+    pub fn delete_family(&mut self, id: u32) {
+        self.families.retain(|f| f.id != id);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Emergency contacts and labels
+// ---------------------------------------------------------------------------------------------
+
+impl EmergencyContact {
+    pub fn name(&self) -> String {
+        format!("{} {}", self.first_name, self.last_name).trim().to_string()
+    }
+}
+
+impl Directory {
+    /// Adds (`index` = None) or replaces an emergency contact. First and last name are required.
+    pub fn save_emergency_contact(&mut self, person: u32, index: Option<usize>, c: EmergencyContact) -> Result<(), String> {
+        if c.first_name.trim().is_empty() || c.last_name.trim().is_empty() {
+            return Err("Enter the first and last name.".into());
+        }
+        let trim = |o: Option<String>| o.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let c = EmergencyContact {
+            first_name: c.first_name.trim().into(),
+            last_name: c.last_name.trim().into(),
+            telephone: trim(c.telephone),
+            mobile_phone: trim(c.mobile_phone),
+            address_line_1: trim(c.address_line_1),
+            address_line_2: trim(c.address_line_2),
+            postal_code: trim(c.postal_code),
+            city: trim(c.city),
+            notes: trim(c.notes),
+        };
+        let p = self.people.iter_mut().find(|p| p.id == person).ok_or("Unknown person.")?;
+        match index.and_then(|i| p.emergency_contacts.get_mut(i)) {
+            Some(slot) => *slot = c,
+            None => p.emergency_contacts.push(c),
+        }
+        Ok(())
+    }
+
+    pub fn remove_emergency_contact(&mut self, person: u32, index: usize) {
+        if let Some(p) = self.people.iter_mut().find(|p| p.id == person)
+            && index < p.emergency_contacts.len()
+        {
+            p.emergency_contacts.remove(index);
+        }
+    }
+
+    pub fn label(&self, id: u32) -> Option<&Label> {
+        self.labels.iter().find(|l| l.id == id)
+    }
+
+    /// Adds (`id` = None) or renames and recolours a label. Names are unique.
+    pub fn save_label(&mut self, id: Option<u32>, name: &str, color: LabelColor) -> Result<u32, String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("Enter a name for the label.".into());
+        }
+        if self.labels.iter().any(|l| Some(l.id) != id && fold(&l.name) == fold(name)) {
+            return Err("There is already a label with this name.".into());
+        }
+        match id.and_then(|i| self.labels.iter_mut().find(|l| l.id == i)) {
+            Some(l) => {
+                l.name = name.into();
+                l.color = color;
+                Ok(l.id)
+            }
+            None => {
+                let new = self.labels.iter().map(|l| l.id).max().unwrap_or(0) + 1;
+                self.labels.push(Label { id: new, name: name.into(), color });
+                Ok(new)
+            }
+        }
+    }
+
+    /// Deletes a label and takes it off everyone.
+    pub fn delete_label(&mut self, id: u32) {
+        self.labels.retain(|l| l.id != id);
+        for p in &mut self.people {
+            p.labels.remove(&id);
+        }
+    }
+
+    pub fn set_label(&mut self, person: u32, label: u32, on: bool) {
+        if self.label(label).is_none() {
+            return;
+        }
+        if let Some(p) = self.people.iter_mut().find(|p| p.id == person) {
+            if on {
+                p.labels.insert(label);
+            } else {
+                p.labels.remove(&label);
+            }
+        }
     }
 }
 
@@ -1187,6 +1434,8 @@ pub const FACET_GROUP: &str = "group";
 pub const FACET_GENDER: &str = "gender";
 pub const FACET_CONSENT: &str = "consent";
 pub const FACET_ACTIVITY: &str = "activity";
+pub const FACET_EMERGENCY: &str = "emergency";
+pub const FACET_LABELS: &str = "labels";
 
 /// (id, label, icon, values) of one filter.
 pub type FacetDef = (&'static str, &'static str, Icon, Vec<(String, String)>);
@@ -1201,8 +1450,10 @@ pub struct ExtraFacet<'a> {
 }
 
 /// The people filters of *All users*, in display order.
-pub const ALL_FACETS: [&str; 8] =
-    [FACET_STATUS, FACET_TYPE, FACET_APPOINTMENT, FACET_GROUP, FACET_ACTIVITY, FACET_GENDER, FACET_ANOINTED, FACET_CONSENT];
+pub const ALL_FACETS: [&str; 10] = [
+    FACET_STATUS, FACET_LABELS, FACET_TYPE, FACET_APPOINTMENT, FACET_GROUP, FACET_ACTIVITY, FACET_GENDER, FACET_ANOINTED, FACET_CONSENT,
+    FACET_EMERGENCY,
+];
 
 /// The standard people filters listed in `ids`, in that order (the same filter looks and works
 /// the same on every list).
@@ -1225,6 +1476,12 @@ fn facet_defs(dir: &Directory) -> Vec<FacetDef> {
         (FACET_GENDER, "Gender", Icon::User, vec![v("male", "Male"), v("female", "Female")]),
         (FACET_ANOINTED, "Anointed", Icon::Sparkles, vec![v("yes", "Anointed"), v("no", "Not anointed")]),
         (FACET_CONSENT, "Consent", Icon::Shield, vec![v("yes", "Consent recorded"), v("no", "No consent recorded")]),
+        (FACET_EMERGENCY, "Emergency contact", Icon::Phone, vec![v("yes", "Has emergency contacts"), v("no", "No emergency contact")]),
+        (FACET_LABELS, "Labels", Icon::Tag, {
+            let mut l: Vec<(String, String)> = dir.labels.iter().map(|x| (x.id.to_string(), x.name.clone())).collect();
+            l.push(v("none", "No labels"));
+            l
+        }),
     ]
 }
 
@@ -1238,6 +1495,10 @@ fn values(dir: &Directory, p: &Person, facet: &str) -> Vec<String> {
         FACET_ANOINTED => yes_no(p.anointed),
         FACET_GENDER => vec![p.gender.value().into()],
         FACET_CONSENT => yes_no(p.consent_date.is_some()),
+        FACET_EMERGENCY => yes_no(!p.emergency_contacts.is_empty()),
+        FACET_LABELS => {
+            if p.labels.is_empty() { vec!["none".into()] } else { p.labels.iter().map(|l| l.to_string()).collect() }
+        }
         FACET_ACTIVITY => dir.activity(p).map(|a| vec![a.value().to_string()]).unwrap_or_default(),
         FACET_GROUP => {
             let gs: Vec<String> = dir.groups_of(p.id).iter().map(|(g, _)| g.id.to_string()).collect();
@@ -1521,6 +1782,28 @@ mod tests {
         assert!(d.save(Some(1), &draft).is_ok());
         assert_eq!(d.groups[0].overseer, None);
         assert_eq!(d.member_group(1), Some(1));
+    }
+
+    #[test]
+    fn group_composition_counts_appointments_pioneers_and_age() {
+        let d = dir();
+        // North (1): John elder (overseer), Michael MS (assistant), George elder; Mary and Elena
+        // regular pioneers; Sarah continuous auxiliary pioneer.
+        let c = d.group_composition(1);
+        assert_eq!((c.elders, c.ministerial_servants, c.pioneers, c.continuous_auxiliary), (2, 1, 2, 1));
+        assert_eq!(c.with_birthday, c.members);
+        assert!(c.average_age.is_some_and(|a| a > 18.0 && a < 90.0));
+    }
+
+    #[test]
+    fn deleting_a_family_keeps_its_members() {
+        let mut d = dir();
+        let before = d.people.len();
+        let id = d.family_of(1).map(|f| f.id).unwrap_or(0);
+        d.delete_family(id);
+        assert!(d.family_of(1).is_none() && d.family_of(2).is_none());
+        assert_eq!(d.people.len(), before);
+        assert!(d.without_family().iter().any(|p| p.id == 1));
     }
 
     #[test]

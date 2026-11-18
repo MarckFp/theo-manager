@@ -1,0 +1,25 @@
+[package]
+name = "theo-crypto"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Theo Manager cryptography: password-based backup envelopes (more of 6.2 follows)."
+publish = false
+
+[dependencies]
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+getrandom = "0.2"
+zeroize = "1"
+
+# Browsers: random numbers from the Web Crypto API.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

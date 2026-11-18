@@ -6,9 +6,11 @@ do not exist yet.
 
 | Module | File | Status |
 |---|---|---|
-| M-01 People (persons and families) | [m01-people.md](m01-people.md) | Reviewed 2026-11-17, 2 open questions |
+| M-01 People (persons and families) | [m01-people.md](m01-people.md) | Reviewed 2026-11-18, 1 open question |
+| M-02 Users and access | [m02-users-and-access.md](m02-users-and-access.md) | Reviewed 2026-11-18 |
 | M-09 Field service groups | [m09-field-service-groups.md](m09-field-service-groups.md) | Reviewed 2026-11-17, all decided |
 | M-10 Field service reports | [m10-field-service-reports.md](m10-field-service-reports.md) | Reviewed 2026-11-17, all decided |
+| M-14 Elderly care | [m14-elderly-care.md](m14-elderly-care.md) | Proposal, 6 open questions |
 | Other modules | Written in each module's modeling session | Not started |
 
 ## Conventions for every module

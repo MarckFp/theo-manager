@@ -1,4 +1,4 @@
-//! *Users › Field service groups*: the list, and the group page (new and edit).
+//! *Ministry › Field service groups*: the list, and the group page (new and edit).
 //! Same patterns as *All users* (R-436): card list + filter bar, then a page with the form on the
 //! left and related records on the right. Behaviour: `docs/model/m09-field-service-groups.md`.
 
@@ -70,7 +70,7 @@ fn export_table(dir: &Directory, groups: &[u32], prefs: &Preferences, congregati
 // List
 // ---------------------------------------------------------------------------------------------
 
-/// `/app/users/groups`
+/// `/app/ministry/groups`
 #[component]
 pub fn GroupList() -> Element {
     let mut state = use_app_state();
@@ -165,14 +165,16 @@ pub fn GroupList() -> Element {
                     action: rsx! { ActionButton { action: Action::Add, label: "Add group", onclick: move |_| { navigator.push(Route::GroupNew {}); } } },
                 }
             } else {
-                FilterBar {
-                    query: query(),
-                    on_query: move |v| query.set(v),
-                    search_placeholder: "Search by group or member name",
-                    facets: Vec::new(),
-                    selected: FilterSelection::new(),
-                    on_select: move |_| {},
-                    summary: format!("{} of {total} groups", cards.len()),
+                StickyBar {
+                    FilterBar {
+                        query: query(),
+                        on_query: move |v| query.set(v),
+                        search_placeholder: "Search by group or member name",
+                        facets: Vec::new(),
+                        selected: FilterSelection::new(),
+                        on_select: move |_| {},
+                        summary: format!("{} of {total} groups", cards.len()),
+                    }
                 }
                 if cards.is_empty() {
                     EmptyState { icon: Icon::Search, title: "No groups match", description: "Try another search." }
@@ -199,13 +201,13 @@ pub fn GroupList() -> Element {
 // Group page
 // ---------------------------------------------------------------------------------------------
 
-/// `/app/users/groups/new`
+/// `/app/ministry/groups/new`
 #[component]
 pub fn GroupNew() -> Element {
     rsx! { GroupEditor { id: None } }
 }
 
-/// `/app/users/groups/:id`
+/// `/app/ministry/groups/:id`
 #[component]
 pub fn GroupDetail(id: u32) -> Element {
     rsx! { GroupEditor { key: "{id}", id: Some(id) } }
@@ -379,6 +381,31 @@ fn GroupEditor(id: Option<u32>) -> Element {
                                 ],
                             }
                             Text { tone: TextTone::Small, "Field service reports of the last 6 complete months." }
+                        }
+                        {
+                            let c = dir.group_composition(gid);
+                            let age = match c.average_age {
+                                Some(a) => format!("{a:.1} years"),
+                                None => "–".into(),
+                            };
+                            let age_note = if c.with_birthday == c.members {
+                                "All members have a birthday".to_string()
+                            } else {
+                                format!("{} of {} members have a birthday", c.with_birthday, c.members)
+                            };
+                            rsx! {
+                                Card { title: "Members in numbers", icon: Icon::Users,
+                                    ItemList {
+                                        items: vec![
+                                            ListEntry { icon: Icon::Privilege, title: "Elders".into(), subtitle: "Appointed".into(), meta: c.elders.to_string() },
+                                            ListEntry { icon: Icon::Privilege, title: "Ministerial servants".into(), subtitle: "Appointed".into(), meta: c.ministerial_servants.to_string() },
+                                            ListEntry { icon: Icon::Clock, title: "Pioneers".into(), subtitle: "Regular and special pioneers, missionaries".into(), meta: c.pioneers.to_string() },
+                                            ListEntry { icon: Icon::Clock, title: "Continuous auxiliary pioneers".into(), subtitle: "Every month".into(), meta: c.continuous_auxiliary.to_string() },
+                                            ListEntry { icon: Icon::Birthday, title: "Average age".into(), subtitle: age_note, meta: age },
+                                        ],
+                                    }
+                                }
+                            }
                         }
                     } else {
                         Card { title: "After saving", icon: Icon::Info,

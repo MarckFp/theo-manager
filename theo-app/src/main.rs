@@ -3,6 +3,9 @@
 //! UI rule (REQUIREMENTS.md 8.4, R-431): this crate never writes markup or styles. Screens are
 //! built only from `theo-ui` components. `tests/ui_rules.rs` enforces it.
 
+mod absences;
+mod access;
+mod backup;
 mod export;
 mod mock;
 mod nav;
@@ -11,8 +14,10 @@ mod password;
 mod people;
 mod platform;
 mod prefs;
+mod privileges;
 mod reports;
 mod state;
+mod tasks;
 
 use dioxus::prelude::*;
 use dioxus_i18n::prelude::*;
@@ -47,6 +52,9 @@ pub enum Route {
             Dashboard {},
             #[route("/me")]
             Me {},
+            /// Settings of the open congregation (cog in the congregation switcher).
+            #[route("/settings")]
+            SettingsPage {},
             /// Users › All users: list, new person, one person (docs/model/m01-people.md).
             #[route("/users/all")]
             UserList {},
@@ -56,16 +64,33 @@ pub enum Route {
             UserDetail { id: u32 },
             #[route("/users/moved-away")]
             MovedAway {},
-            /// Users › Field service groups (docs/model/m09-field-service-groups.md).
-            /// Users › Field service reports (docs/model/m10-field-service-reports.md).
-            #[route("/users/reports")]
+            /// Users › Permissions (docs/model/m02-users-and-access.md).
+            #[route("/users/permissions")]
+            PermissionsPage {},
+            #[route("/users/permissions/:id")]
+            PermissionsDetail { id: u32 },
+            /// Users › Privileges (docs/model/m01-people.md, "Privileges").
+            #[route("/users/privileges")]
+            PrivilegesPage {},
+            /// Users › Absences (docs/model/m01-people.md, "Absences").
+            #[route("/users/absences")]
+            AbsencesPage {},
+            /// A family, opened from the Families tab of All users (docs/model/m01-people.md, "Family").
+            #[route("/users/families/:id")]
+            FamilyDetail { id: u32 },
+            /// Ministry › Field service reports (docs/model/m10-field-service-reports.md).
+            #[route("/ministry/reports")]
             ReportsPage {},
-            #[route("/users/groups")]
+            /// Ministry › Field service groups (docs/model/m09-field-service-groups.md).
+            #[route("/ministry/groups")]
             GroupList {},
-            #[route("/users/groups/new")]
+            #[route("/ministry/groups/new")]
             GroupNew {},
-            #[route("/users/groups/:id")]
+            #[route("/ministry/groups/:id")]
             GroupDetail { id: u32 },
+            /// Departments › Custom tasks (docs/model/m01-people.md, "Custom tasks").
+            #[route("/departments/custom-tasks")]
+            CustomTasksPage {},
             /// Section hub: big tiles for the section's pages.
             #[route("/:section")]
             SectionHub { section: String },
@@ -85,6 +110,10 @@ fn lang_id(code: &str) -> LanguageIdentifier {
     code.parse().unwrap_or_else(|_| unic_langid::langid!("en"))
 }
 
+/// The app icon (the only icon source; platform icons are generated from it: scripts/icons.sh).
+/// Through `asset!` the link gets the base path, so the favicon also works on GitHub Pages.
+const FAVICON: Asset = asset!("/icons/icon.svg");
+
 #[component]
 fn App() -> Element {
     let state = use_context_provider(AppState::new);
@@ -102,6 +131,7 @@ fn App() -> Element {
         platform::set_document_language(shown);
     });
     rsx! {
+        document::Link { rel: "icon", r#type: "image/svg+xml", href: FAVICON }
         ThemeRoot { theme: (state.theme)(),
             Router::<Route> {}
         }
@@ -128,12 +158,17 @@ pub fn route_for(id: &str) -> Route {
     match id.split_once('/') {
         Some(("users", "all")) => Route::UserList {},
         Some(("users", "moved-away")) => Route::MovedAway {},
-        Some(("users", "groups")) => Route::GroupList {},
-        Some(("users", "reports")) => Route::ReportsPage {},
+        Some(("users", "absences")) => Route::AbsencesPage {},
+        Some(("departments", "custom-tasks")) => Route::CustomTasksPage {},
+        Some(("users", "privileges")) => Route::PrivilegesPage {},
+        Some(("users", "permissions")) => Route::PermissionsPage {},
+        Some(("ministry", "groups")) => Route::GroupList {},
+        Some(("ministry", "reports")) => Route::ReportsPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },
         None => match id {
             "home" => Route::Dashboard {},
             "me" => Route::Me {},
+            "settings" => Route::SettingsPage {},
             section => Route::SectionHub { section: section.into() },
         },
     }

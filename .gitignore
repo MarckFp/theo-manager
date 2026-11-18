@@ -7,6 +7,9 @@
 # Downloaded tools (Tailwind CSS standalone binary, see theo-ui/scripts/build-css.*)
 /theo-ui/tools/
 
+# Platform icons generated from theo-app/icons/icon.svg (scripts/icons.sh)
+/theo-app/icons/gen/
+
 # Secrets and local data must never be committed (REQUIREMENTS.md 11.2)
 .env
 .env.*

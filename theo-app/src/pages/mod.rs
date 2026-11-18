@@ -1,23 +1,34 @@
 //! Screens. Each one is built from `theo-ui` page templates and components only.
 
+mod absences;
 mod app_layout;
 mod auth;
 mod dashboard;
+mod families;
 mod groups;
 mod landing;
+mod permissions;
+mod person_extras;
+mod privileges;
 mod reports;
 mod sections;
+mod tasks;
 mod unlock;
 mod users;
 mod wizard;
 
+pub use absences::AbsencesPage;
 pub use app_layout::AppLayout;
 pub use auth::{Login, Signup};
 pub use dashboard::Dashboard;
+pub use families::FamilyDetail;
 pub use groups::{GroupDetail, GroupList, GroupNew};
 pub use landing::Landing;
+pub use permissions::{PermissionsDetail, PermissionsPage};
+pub use privileges::PrivilegesPage;
 pub use reports::ReportsPage;
-pub use sections::{Me, NotFound, SectionHub, SectionPage};
+pub use tasks::CustomTasksPage;
+pub use sections::{Me, NotFound, SectionHub, SectionPage, SettingsPage};
 pub use unlock::Unlock;
 pub use users::{MovedAway, UserDetail, UserList, UserNew};
 pub use wizard::NewCongregation;

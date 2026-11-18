@@ -81,7 +81,7 @@ When a person moves to another group, the app updates the `scope_id` of their re
 
 ## The Field service groups screen
 
-*Users › Field service groups* uses the same patterns as *All users* (`REQUIREMENTS.md` R-436).
+*Ministry › Field service groups* uses the same patterns as *All users* (`REQUIREMENTS.md` R-436).
 
 | Part | What it shows |
 |---|---|
@@ -89,7 +89,7 @@ When a person moves to another group, the app updates the `scope_id` of their re
 | Search | Group name or the name of any member. |
 | Cards | Group name, overseer and assistant, the number of members, and warnings: no overseer, no assistant, how many members are irregular or inactive. Sorted by name. |
 | Export | **All groups only**, never a single group and never only the search result: PDF, DOCX or CSV with one row per person (group, name, role, mobile phone, e-mail). Same menu and warning as *All users* (R-066). |
-| Group page | Form: name, overseer, assistant, saved with **Save**. The overseer and assistant lists have sections: *Elders*, *Ministerial servants*, *Other baptised brothers*. Warnings from [Rules](#rules) under the form. Side cards: members (open a person, remove a member, add members) and the activity of the group. Member changes apply at once, like family changes on the person page. |
+| Group page | Form: name, overseer, assistant, saved with **Save**. The overseer and assistant lists have sections: *Elders*, *Ministerial servants*, *Other baptised brothers*. Warnings from [Rules](#rules) under the form. Side cards: members (open a person, remove a member, add members), the activity of the group, and the members in numbers (elders, ministerial servants, pioneers, continuous auxiliary pioneers, average age of the members with a birthday). Member changes apply at once, like family changes on the person page. |
 | Add members | A dialog with search and checkboxes. It lists **only current publishers without a group**. |
 | Delete | Asks first. Members keep their data and have no group afterwards, unless they lead another group. |
 

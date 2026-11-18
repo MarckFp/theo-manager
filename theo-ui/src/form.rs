@@ -427,3 +427,39 @@ pub fn RuleChecklist(rules: Vec<(String, bool)>) -> Element {
         }
     }
 }
+
+/// A button that opens the file chooser and sends the chosen file's name and bytes.
+#[component]
+pub fn FileButton(
+    label: String,
+    on_file: EventHandler<(String, Vec<u8>)>,
+    /// File types to offer, for example ".theobackup".
+    #[props(default)]
+    accept: Option<String>,
+    #[props(default)] icon: Option<Icon>,
+) -> Element {
+    rsx! {
+        label { class: "btn btn-soft gap-2 border-base-300 bg-base-100 font-medium hover:bg-base-200",
+            if let Some(icon) = icon {
+                IconView { icon, size: IconSize::Sm }
+            }
+            "{label}"
+            input {
+                r#type: "file",
+                class: "hidden",
+                accept,
+                onchange: move |e| {
+                    let files = e.files();
+                    spawn(async move {
+                        if let Some(f) = files.into_iter().next() {
+                            let name = f.name();
+                            if let Ok(bytes) = f.read_bytes().await {
+                                on_file.call((name, bytes.to_vec()));
+                            }
+                        }
+                    });
+                },
+            }
+        }
+    }
+}

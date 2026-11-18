@@ -79,6 +79,9 @@ pub fn WorkspaceSwitcher(
     #[props(default)]
     compact: bool,
     #[props(default)] placement: Placement,
+    /// When set, the open workspace has a cog that opens its settings.
+    #[props(default)]
+    on_settings: Option<EventHandler<()>>,
 ) -> Element {
     let mut open = use_signal(|| false);
     let current = items.iter().find(|i| Some(&i.id) == active.as_ref()).cloned();
@@ -127,12 +130,12 @@ pub fn WorkspaceSwitcher(
                         let selected = Some(&it.id) == active.as_ref();
                         let id = it.id.clone();
                         rsx! {
-                            li { key: "{it.id}",
+                            li { key: "{it.id}", class: "flex items-center gap-1",
                                 button {
                                     r#type: "button",
                                     role: "option",
                                     "aria-selected": if selected { "true" } else { "false" },
-                                    class: "flex w-full items-center gap-2.5 rounded-field px-2 py-2 text-left transition-colors hover:bg-base-200",
+                                    class: "flex min-w-0 flex-1 items-center gap-2.5 rounded-field px-2 py-2 text-left transition-colors hover:bg-base-200",
                                     onclick: move |_| {
                                         open.set(false);
                                         onselect.call(id.clone());
@@ -147,6 +150,19 @@ pub fn WorkspaceSwitcher(
                                     }
                                     if selected {
                                         span { class: "text-primary", IconView { icon: Icon::Check, size: IconSize::Sm } }
+                                    }
+                                }
+                                if let (true, Some(h)) = (selected, on_settings) {
+                                    button {
+                                        r#type: "button",
+                                        class: "btn btn-ghost btn-square btn-sm text-base-content/70",
+                                        "aria-label": "Settings of {it.name}",
+                                        title: "Settings of {it.name}",
+                                        onclick: move |_| {
+                                            open.set(false);
+                                            h.call(());
+                                        },
+                                        IconView { icon: Icon::Settings, size: IconSize::Sm }
                                     }
                                 }
                             }

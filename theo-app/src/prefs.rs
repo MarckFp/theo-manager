@@ -5,7 +5,7 @@
 //! is the user's override if set, otherwise the congregation default.
 
 /// How dates are written.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DateFormat {
     /// 2026-11-17
     Ymd,
@@ -16,7 +16,7 @@ pub enum DateFormat {
 }
 
 /// How times are written.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TimeFormat {
     /// 19:00
     H24,
@@ -25,14 +25,14 @@ pub enum TimeFormat {
 }
 
 /// First day of the week in calendars and schedules.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WeekStart {
     Monday,
     Sunday,
 }
 
 /// How a person's name is written.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NameOrder {
     /// John Smith
     FirstLast,
@@ -151,7 +151,7 @@ pub fn detected_language() -> String {
 }
 
 /// A complete set of preferences (congregation defaults, or the effective values).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Preferences {
     pub date: DateFormat,
     pub time: TimeFormat,
@@ -238,6 +238,24 @@ pub fn today() -> (i32, u32, u32) {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     civil_from_days((secs / 86_400) as i64)
+}
+
+/// Day number (days since 1970-01-01) of a date.
+pub fn days_from_ymd(d: (i32, u32, u32)) -> i64 {
+    days_from_civil(d)
+}
+
+/// The date of a day number.
+pub fn ymd_from_days(z: i64) -> (i32, u32, u32) {
+    civil_from_days(z)
+}
+
+/// Now in UTC as `YYYY-MM-DD HH:MM` (activity log).
+pub fn now_stamp() -> String {
+    let secs = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let (y, m, d) = civil_from_days((secs / 86_400) as i64);
+    let rest = secs % 86_400;
+    format!("{y:04}-{m:02}-{d:02} {:02}:{:02}", rest / 3600, rest % 3600 / 60)
 }
 
 /// (year, month, day) → days since 1970-01-01. Howard Hinnant's algorithm.

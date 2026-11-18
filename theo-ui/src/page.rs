@@ -16,6 +16,7 @@ pub fn Page(
     children: Element,
 ) -> Element {
     let detail = back.is_some();
+    let has_actions = actions.is_some();
     // Detail pages on phones: the title moves into a sticky bar with a back arrow, so you always
     // see what you are editing, and the arrow is the way to leave without saving.
     let title_class = if detail { "hidden min-w-0 flex-col gap-1 md:flex" } else { "flex min-w-0 flex-col gap-1" };
@@ -41,7 +42,12 @@ pub fn Page(
                     }
                 }
             }
-            div { class: if detail { "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between max-md:empty:hidden" } else { "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between" },
+            // On phones a detail page shows its title in the sticky bar; the header only holds the
+            // actions, so without actions it is not shown at all (no empty gap).
+            div { class: match (detail, has_actions) {
+                    (true, false) => "hidden md:flex md:flex-row md:items-end md:justify-between md:gap-3",
+                    _ => "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
+                },
                 div { class: title_class,
                     if let Some((label, onclick)) = back {
                         div { class: "mb-1",

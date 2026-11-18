@@ -39,7 +39,13 @@ fn tags(dir: &Directory, p: &Person) -> Vec<Tag> {
         Some(Activity::Inactive) => t.push(Tag::new("Inactive", Tone::Error).with_icon(Icon::Error)),
         _ => {}
     }
+    t.extend(label_tags(dir, p));
     t
+}
+
+/// The labels of a person as coloured tags.
+fn label_tags(dir: &Directory, p: &Person) -> Vec<Tag> {
+    p.labels.iter().filter_map(|id| dir.label(*id)).map(|l| Tag::new(l.name.clone(), l.color.tone()).with_icon(Icon::Tag)).collect()
 }
 
 /// "Age: 23.5 years" for a date field, or nothing when the date is empty or invalid.
@@ -86,7 +92,7 @@ fn export_table(dir: &Directory, list: &[Person], prefs: &Preferences, format: F
         let columns = [
             "First name", "Last name", "Gender", "Birthday", "E-mail", "Telephone", "Mobile phone", "Baptism date",
             "Type", "Infirm", "Pioneer number", "Appointment", "Anointed", "Address line 1", "Address line 2",
-            "Postal code", "City", "Consent date", "Notes", "Field service group", "Family head", "Activity", "Moved away",
+            "Postal code", "City", "Consent date", "Notes", "Field service group", "Family head", "Activity", "Moved away", "Labels", "Emergency contacts",
         ];
         let rows = list
             .iter()
@@ -116,6 +122,15 @@ fn export_table(dir: &Directory, list: &[Person], prefs: &Preferences, format: F
                     head,
                     dir.activity(p).map(|a| a.label().to_string()).unwrap_or_default(),
                     s(&p.moved_away),
+                    p.labels.iter().filter_map(|id| dir.label(*id)).map(|l| l.name.clone()).collect::<Vec<_>>().join(", "),
+                    p.emergency_contacts
+                        .iter()
+                        .map(|c| {
+                            let phone = c.mobile_phone.clone().or_else(|| c.telephone.clone()).unwrap_or_default();
+                            if phone.is_empty() { c.name() } else { format!("{} ({phone})", c.name()) }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; "),
                 ]
             })
             .collect();
@@ -172,9 +187,35 @@ pub(super) fn save_export(table: &Table, format: Format, congregation: &str, wha
     }
 }
 
-/// `/app/users/all`
+/// The tabs of All users: people and families.
+#[component]
+pub(super) fn UsersTabs() -> Element {
+    let mut state = use_app_state();
+    rsx! {
+        Segmented {
+            value: (state.users_tab)(),
+            options: vec![
+                Segment { value: "people".into(), label: "People".into(), icon: Some(Icon::Users) },
+                Segment { value: "families".into(), label: "Families".into(), icon: Some(Icon::Family) },
+            ],
+            onchange: move |v: String| state.users_tab.set(v),
+        }
+    }
+}
+
+/// `/app/users/all`: the People tab, or the Families tab.
 #[component]
 pub fn UserList() -> Element {
+    let state = use_app_state();
+    if (state.users_tab)() == "families" {
+        rsx! { super::families::FamiliesTab {} }
+    } else {
+        rsx! { PeopleTab {} }
+    }
+}
+
+#[component]
+fn PeopleTab() -> Element {
     let mut state = use_app_state();
     let navigator = navigator();
     let toaster = use_toaster();
@@ -189,6 +230,7 @@ pub fn UserList() -> Element {
     let summary = format!("{} of {total} users", list.len());
     let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> =
         list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(&dir, p))).collect();
+    let mut managing = use_signal(|| false);
 
     let on_export = {
         let (dir, list, prefs, congregation) = (dir.clone(), list.clone(), prefs.clone(), congregation.clone());
@@ -209,10 +251,12 @@ pub fn UserList() -> Element {
             title: "All users",
             subtitle: "{congregation} · Publishers, Bible students and visitors",
             actions: rsx! {
+                ActionButton { action: Action::ManageLabels, onclick: move |_| managing.set(true) }
                 ExportMenu { csv_description: "Every field, for spreadsheets", onselect: on_export }
                 ActionButton { action: Action::Add, label: "Add user", onclick: move |_| { navigator.push(Route::UserNew {}); } }
             },
             if total == 0 {
+                StickyBar { UsersTabs {} }
                 EmptyState {
                     icon: Icon::Users,
                     title: "No users yet",
@@ -220,15 +264,18 @@ pub fn UserList() -> Element {
                     action: rsx! { ActionButton { action: Action::Add, label: "Add user", onclick: move |_| { navigator.push(Route::UserNew {}); } } },
                 }
             } else {
-                FilterBar {
-                    query,
-                    on_query: move |v| state.user_query.set(v),
-                    search_placeholder: "Search by name",
-                    facets,
-                    selected: sel,
-                    on_select: move |s| state.user_filters.set(s),
-                    summary,
-                    defaults: people::default_filters(),
+                StickyBar {
+                    UsersTabs {}
+                    FilterBar {
+                        query,
+                        on_query: move |v| state.user_query.set(v),
+                        search_placeholder: "Search by name",
+                        facets,
+                        selected: sel,
+                        on_select: move |s| state.user_filters.set(s),
+                        summary,
+                        defaults: people::default_filters(),
+                    }
                 }
                 if cards.is_empty() {
                     EmptyState {
@@ -261,6 +308,9 @@ pub fn UserList() -> Element {
                 }
             }
         }
+        if managing() {
+            super::person_extras::ManageLabelsDialog { onclose: move |_| managing.set(false) }
+        }
     }
 }
 
@@ -278,7 +328,15 @@ pub fn MovedAway() -> Element {
     // The All users filters that still mean something after a move (no status, group or activity).
     let defs = people::standard_facets(
         &dir,
-        &[people::FACET_TYPE, people::FACET_APPOINTMENT, people::FACET_GENDER, people::FACET_ANOINTED, people::FACET_CONSENT],
+        &[
+            people::FACET_LABELS,
+            people::FACET_TYPE,
+            people::FACET_APPOINTMENT,
+            people::FACET_GENDER,
+            people::FACET_ANOINTED,
+            people::FACET_CONSENT,
+            people::FACET_EMERGENCY,
+        ],
     );
     let facets = people::facets_for(&dir, &pool, &query(), &sel(), defs, &[]);
     let mut list: Vec<&Person> = people::filter_pool(&dir, &pool, &query(), &sel(), &[], &prefs);
@@ -296,14 +354,16 @@ pub fn MovedAway() -> Element {
                     description: "When someone moves to another congregation, open their page and choose Moved away. They stay here for 1 year.",
                 }
             } else {
-                FilterBar {
-                    query: query(),
-                    on_query: move |v| query.set(v),
-                    search_placeholder: "Search by name",
-                    facets,
-                    selected: sel(),
-                    on_select: move |v| sel.set(v),
-                    summary: format!("{} of {total} people", cards.len()),
+                StickyBar {
+                    FilterBar {
+                        query: query(),
+                        on_query: move |v| query.set(v),
+                        search_placeholder: "Search by name",
+                        facets,
+                        selected: sel(),
+                        on_select: move |v| sel.set(v),
+                        summary: format!("{} of {total} people", cards.len()),
+                    }
                 }
                 Grid { cols: 3, gap: Gap::Sm,
                     for (n, name, subtitle, tags) in cards {
@@ -390,7 +450,14 @@ fn PersonEditor(id: Option<u32>) -> Element {
                 .collect()
         })
         .unwrap_or_default();
-    let cleanup = d.cleanup_notes(&leads);
+    let mut cleanup = d.cleanup_notes(&leads);
+    if let (Some(n), Some(g)) = (id, people::Gender::parse(&d.gender)) {
+        let lost = dir.privileges_lost(n, d.ty(), g);
+        if !lost.is_empty() {
+            let names: Vec<String> = lost.iter().map(|x| x.full_label()).collect();
+            cleanup.push(format!("{} privileges will be removed: {}.", lost.len(), names.join(", ")));
+        }
+    }
     let name = existing.as_ref().map(|p| p.display_name(&prefs));
     let title = name.clone().unwrap_or_else(|| "New user".into());
     let subtitle = match &existing {
@@ -594,14 +661,19 @@ fn PersonEditor(id: Option<u32>) -> Element {
                         if p.publisher_type.is_publisher() && p.moved_away.is_none() {
                             super::reports::PersonReportsCard { person: p.id }
                         }
+                        if p.moved_away.is_none() && p.publisher_type != PublisherType::Visitor {
+                            super::privileges::PersonPrivilegesCard { person: p.id }
+                        }
+                        super::person_extras::LabelsCard { person: p.id }
                         FamilyCard { id: p.id }
+                        super::person_extras::EmergencyContactsCard { person: p.id }
                         if cloud && p.moved_away.is_none() {
-                            AccountCard { account: p.account.clone(), on_invite: move |_| invite_open.set(true) }
+                            AccountCard { account: p.account.clone(), person: p.id, permissions: super::permissions::access_summary(&dir.access(p.id)), on_invite: move |_| invite_open.set(true) }
                         }
                     } else {
                         Card { title: "After saving", icon: Icon::Info,
                             Text { tone: TextTone::Muted,
-                                if cloud { "You can add family relationships, and invite this person so they can use the app." } else { "You can add family relationships." }
+                                if cloud { "You can add labels, family relationships and emergency contacts, and invite this person so they can use the app." } else { "You can add labels, family relationships and emergency contacts." }
                             }
                         }
                     }
@@ -798,7 +870,8 @@ fn FamilyCard(id: u32) -> Element {
 
 /// Account and invitation (Cloud congregations only).
 #[component]
-fn AccountCard(account: AccountLink, on_invite: EventHandler<()>) -> Element {
+fn AccountCard(account: AccountLink, person: u32, permissions: String, on_invite: EventHandler<()>) -> Element {
+    let navigator = navigator();
     rsx! {
         Card { title: "Account", icon: Icon::Key,
             match account {
@@ -813,7 +886,8 @@ fn AccountCard(account: AccountLink, on_invite: EventHandler<()>) -> Element {
                 },
                 AccountLink::Linked { username } => rsx! {
                     Cluster { gap: Gap::Sm, Badge { tone: Tone::Success, icon: Icon::Check, "Linked" } }
-                    Text { tone: TextTone::Muted, "Signs in as @{username}." }
+                    Text { tone: TextTone::Muted, "Signs in as @{username}. Permissions: {permissions}." }
+                    ActionButton { action: Action::Edit, variant: ButtonVariant::Secondary, label: "Edit permissions", onclick: move |_| { navigator.push(Route::PermissionsDetail { id: person }); } }
                 },
             }
         }

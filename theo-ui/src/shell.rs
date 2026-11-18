@@ -79,6 +79,9 @@ pub fn AppShell(
     on_switch_workspace: EventHandler<String>,
     /// Called when the user wants to create a congregation.
     on_create_workspace: EventHandler<()>,
+    /// Opens the settings of the open workspace (cog in the switcher).
+    #[props(default)]
+    on_workspace_settings: Option<EventHandler<()>>,
     /// Changes on every navigation, to replay the page transition.
     transition_key: String,
     children: Element,
@@ -106,6 +109,7 @@ pub fn AppShell(
                     onselect: move |id| on_switch_workspace.call(id),
                     create_label: "Create congregation",
                     oncreate: move |_| on_create_workspace.call(()),
+                            on_settings: on_workspace_settings,
                     placement: Placement::Side,
                 }
                 // Scroll only on desktop: on the tablet rail, a scroll container would clip the flyouts.
@@ -246,6 +250,7 @@ pub fn AppShell(
                             onselect: move |id| on_switch_workspace.call(id),
                             create_label: "Create congregation",
                             oncreate: move |_| on_create_workspace.call(()),
+                            on_settings: on_workspace_settings,
                         }
                     }
                     div { class: "flex-1" }
