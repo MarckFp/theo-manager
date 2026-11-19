@@ -91,11 +91,11 @@ fn EmergencyContactDialog(person: u32, index: Option<usize>, onclose: EventHandl
             title: if existing.is_some() { "Emergency contact" } else { "Add emergency contact" },
             description: "Someone to call when this person cannot be reached or needs help.",
             actions: rsx! {
-                if existing.is_some() {
-                    ActionButton { action: Action::Delete, onclick: move |_| confirm.set(true) }
+                EditActions {
+                    on_save: save,
+                    on_cancel: move |_| onclose.call(()),
+                    on_delete: existing.is_some().then_some(EventHandler::new(move |_| confirm.set(true))),
                 }
-                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
-                ActionButton { action: Action::Save, onclick: save }
             },
             Stack {
                 if !family.is_empty() {

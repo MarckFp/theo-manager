@@ -132,3 +132,62 @@ pub fn PickList(rows: Vec<Row>, selected: BTreeSet<String>, on_toggle: EventHand
         }
     }
 }
+
+/// A group of rows in a [`ChoiceList`], with a heading.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RowGroup {
+    /// Heading above the rows ("Meeting for field service").
+    pub title: String,
+    /// The rows.
+    pub rows: Vec<Row>,
+}
+
+/// Rows with a radio button, to choose one (or none), in groups with a heading. Each row can
+/// carry a tag (for example whether the person is available).
+#[component]
+pub fn ChoiceList(
+    groups: Vec<RowGroup>,
+    selected: Option<String>,
+    on_choose: EventHandler<Option<String>>,
+    /// A first row that chooses nothing ("Nobody yet").
+    #[props(default)]
+    none_label: Option<String>,
+) -> Element {
+    let radio = |checked: bool| if checked { "flex cursor-pointer items-center gap-3 rounded-field bg-primary/5 px-2 py-2 transition-colors" } else { "flex cursor-pointer items-center gap-3 rounded-field px-2 py-2 transition-colors hover:bg-base-200" };
+    rsx! {
+        div { class: "flex flex-col gap-3", role: "radiogroup",
+            if let Some(label) = none_label {
+                label { class: radio(selected.is_none()),
+                    input { r#type: "radio", class: "radio radio-primary radio-sm", checked: selected.is_none(), onchange: move |_| on_choose.call(None) }
+                    span { class: "text-sm text-base-content/70", "{label}" }
+                }
+            }
+            for group in groups.into_iter().filter(|g| !g.rows.is_empty()) {
+                div { key: "{group.title}", class: "flex flex-col gap-0.5",
+                    span { class: "px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-base-content/50", "{group.title}" }
+                    ul { class: "flex flex-col gap-0.5",
+                        for row in group.rows {
+                            {
+                                let id = row.id.clone();
+                                let checked = selected.as_deref() == Some(row.id.as_str());
+                                rsx! {
+                                    li { key: "{row.id}",
+                                        label { class: radio(checked),
+                                            input {
+                                                r#type: "radio",
+                                                class: "radio radio-primary radio-sm",
+                                                checked,
+                                                onchange: move |_| on_choose.call(Some(id.clone())),
+                                            }
+                                            RowBody { row: row.clone() }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

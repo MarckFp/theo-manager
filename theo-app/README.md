@@ -61,6 +61,10 @@ The debug web build is large (about 70 MB of WebAssembly) and loads slowly. Use
 | `/app/users/families/<id>` | Family page (from the Families tab) | Same |
 | `/app/users/absences` | Absences: who is away when | Same |
 | `/app/departments/custom-tasks` | Custom tasks and who does them | Same |
+| `/app/meetings/events` | Events: list with filters, or a month calendar; add and change events | Same |
+| `/app/meetings/attendance` | Meeting attendance: months of a service year, statistics, export | Same |
+| `/app/meetings/attendance/<YYYY-MM>` | One month: 5 weeks × midweek and weekend meeting | Same |
+| `/app/ministry/service-meetings` | Meetings for field service: list, calendar, presets, fill, assign and send | Same |
 | `/app/ministry/groups` | Field service groups: search, cards, export | Same |
 | `/app/ministry/groups/new`, `/app/ministry/groups/<id>` | Group page: name, overseer, assistant, members, activity | Same |
 | `/app/ministry/reports` | Field service reports: month, statistics, goals | Same |

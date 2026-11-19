@@ -103,6 +103,7 @@ pub enum Icon {
     Tag,
     Absence,
     Task,
+    Send,
 }
 
 /// Icon sizes, in pixels.
@@ -233,6 +234,7 @@ pub fn IconView(
         Icon::Tag => rsx!(Svg { icon: ld::LdTag, width: px, height: px, title: label }),
         Icon::Absence => rsx!(Svg { icon: ld::LdCalendarX, width: px, height: px, title: label }),
         Icon::Task => rsx!(Svg { icon: ld::LdClipboardList, width: px, height: px, title: label }),
+        Icon::Send => rsx!(Svg { icon: ld::LdSendHorizontal, width: px, height: px, title: label }),
     };
     rsx! {
         span { class: "inline-flex shrink-0 items-center justify-center", "aria-hidden": hidden, {svg} }

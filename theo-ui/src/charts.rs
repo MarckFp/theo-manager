@@ -1,4 +1,4 @@
-//! Small charts drawn as SVG/CSS: stat tiles, bar charts and sparklines.
+//! Small charts drawn as SVG/CSS: stat tiles, bar and line charts, sparklines.
 
 use crate::icon::{Icon, IconSize, IconView};
 use dioxus::prelude::*;
@@ -212,6 +212,177 @@ pub fn ProgressRow(
                 div { class: "h-full rounded-full {bar} transition-[width] duration-700 ease-[var(--ease-out-soft)]", style: "width: {pct:.1}%;" }
                 if let Some(m) = marker_pct {
                     div { class: "absolute inset-y-0 w-0.5 bg-base-content/60", style: "left: calc({m:.1}% - 1px);", title: "Expected by now" }
+                }
+            }
+        }
+    }
+}
+
+/// One line of a [`LineChart`]: a name and one value per label (`None`: no value there).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChartSeries {
+    /// Name in the legend and the tooltip.
+    pub name: String,
+    /// One value per label of the chart.
+    pub values: Vec<Option<f64>>,
+}
+
+impl ChartSeries {
+    /// Creates a series.
+    pub fn new(name: impl Into<String>, values: Vec<Option<f64>>) -> Self {
+        Self { name: name.into(), values }
+    }
+}
+
+/// Series colours in fixed order (never by rank): `--chart-1`, `--chart-2` of the theme.
+const SERIES_STROKE: [&str; 2] = ["stroke-chart-1", "stroke-chart-2"];
+const SERIES_FILL: [&str; 2] = ["bg-chart-1", "bg-chart-2"];
+
+/// A round top for the y axis and its step: 4 or 5 ticks of 1, 2 or 5 × 10ⁿ.
+fn nice_scale(top: f64) -> (f64, f64) {
+    let top = top.max(1.0);
+    let raw = top / 4.0;
+    let mag = 10f64.powf(raw.log10().floor());
+    let step = [1.0, 2.0, 5.0, 10.0].iter().map(|f| f * mag).find(|s| *s >= raw).unwrap_or(10.0 * mag);
+    ((top / step).ceil() * step, step)
+}
+
+fn chart_number(v: f64) -> String {
+    if (v - v.round()).abs() < 0.05 { format!("{v:.0}") } else { format!("{v:.1}") }
+}
+
+/// A line chart of one or two series over the same labels (for example months), from a zero
+/// baseline. Two series get a legend and their last value at the end of each line (left out when
+/// the two would collide). Hover or focus a label for a tooltip with every series.
+#[component]
+pub fn LineChart(labels: Vec<String>, series: Vec<ChartSeries>, #[props(default)] unit: Option<String>) -> Element {
+    let series: Vec<ChartSeries> = series.into_iter().take(SERIES_STROKE.len()).collect();
+    let n = labels.len().max(1);
+    let unit = unit.unwrap_or_default();
+    let top = series.iter().flat_map(|s| s.values.iter().flatten()).cloned().fold(0.0, f64::max);
+    let (max, step) = nice_scale(top);
+    let ticks: Vec<f64> = (0..=((max / step).round() as usize)).map(|i| i as f64 * step).collect();
+    let x = move |i: usize| (i as f64 + 0.5) / n as f64 * 100.0;
+    let y = move |v: f64| 100.0 - v / max * 100.0;
+    // Lines break where a value is missing.
+    let segments: Vec<Vec<String>> = series
+        .iter()
+        .map(|s| {
+            let mut out = Vec::new();
+            let mut cur: Vec<String> = Vec::new();
+            for (i, v) in s.values.iter().enumerate() {
+                match v {
+                    Some(v) => cur.push(format!("{:.2},{:.2}", x(i), y(*v))),
+                    None if !cur.is_empty() => out.push(std::mem::take(&mut cur).join(" ")),
+                    None => {}
+                }
+            }
+            if !cur.is_empty() {
+                out.push(cur.join(" "));
+            }
+            out
+        })
+        .collect();
+    let ends: Vec<Option<(usize, f64)>> =
+        series.iter().map(|s| s.values.iter().enumerate().rev().find_map(|(i, v)| v.map(|v| (i, v)))).collect();
+    let show_ends = match (ends.first().copied().flatten(), ends.get(1).copied().flatten()) {
+        (Some(a), Some(b)) => (y(a.1) - y(b.1)).abs() >= 9.0,
+        _ => true,
+    };
+    let columns = format!("grid-template-columns: repeat({n}, minmax(0, 1fr));");
+    rsx! {
+        div { class: "flex flex-col gap-3",
+            if series.len() > 1 {
+                div { class: "flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/70",
+                    for (k, s) in series.iter().enumerate() {
+                        span { key: "{k}", class: "inline-flex items-center gap-1.5",
+                            span { class: "h-0.5 w-4 rounded-full {SERIES_FILL[k]}" }
+                            "{s.name}"
+                        }
+                    }
+                }
+            }
+            div { class: "flex pt-2",
+                div { class: "relative w-8 shrink-0 text-right text-[10px] tabular-nums text-base-content/50", "aria-hidden": "true",
+                    for (t_i, t) in ticks.iter().enumerate() {
+                        span { key: "{t_i}", class: "absolute right-2 -translate-y-1/2", style: "top: {y(*t):.2}%;", "{chart_number(*t)}" }
+                    }
+                }
+                div { class: "relative mr-8 h-56 min-w-0 flex-1",
+                    svg { view_box: "0 0 100 100", preserve_aspect_ratio: "none", class: "absolute inset-0 h-full w-full overflow-visible", "aria-hidden": "true",
+                        for (t_i, t) in ticks.iter().enumerate() {
+                            line { key: "{t_i}", x1: "0", x2: "100", y1: "{y(*t):.2}", y2: "{y(*t):.2}", class: "stroke-base-300", stroke_width: "1", vector_effect: "non-scaling-stroke" }
+                        }
+                        for (k, segs) in segments.iter().enumerate() {
+                            for (j, pts) in segs.iter().enumerate() {
+                                polyline {
+                                    key: "{k}-{j}",
+                                    points: "{pts}",
+                                    class: "fill-none {SERIES_STROKE[k]}",
+                                    stroke_width: "2",
+                                    stroke_linejoin: "round",
+                                    stroke_linecap: "round",
+                                    vector_effect: "non-scaling-stroke",
+                                }
+                            }
+                        }
+                    }
+                    for (k, s) in series.iter().enumerate() {
+                        for (i, v) in s.values.iter().enumerate() {
+                            if let Some(v) = v {
+                                span {
+                                    key: "{k}-{i}",
+                                    class: "pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-base-100 {SERIES_FILL[k]}",
+                                    style: "left: {x(i):.2}%; top: {y(*v):.2}%;",
+                                }
+                            }
+                        }
+                    }
+                    if show_ends {
+                        for (k, end) in ends.iter().enumerate() {
+                            if let Some((i, v)) = end {
+                                span {
+                                    key: "end-{k}",
+                                    class: "pointer-events-none absolute translate-x-2 -translate-y-1/2 text-xs font-semibold tabular-nums text-base-content",
+                                    style: "left: {x(*i):.2}%; top: {y(*v):.2}%;",
+                                    "{chart_number(*v)}"
+                                }
+                            }
+                        }
+                    }
+                    div { class: "absolute inset-0 grid", style: "{columns}",
+                        for (i, label) in labels.iter().enumerate() {
+                            {
+                                let place = if i == 0 { "left-0" } else if i + 1 == n { "right-0" } else { "left-1/2 -translate-x-1/2" };
+                                let read: Vec<String> = series
+                                    .iter()
+                                    .map(|s| format!("{} {}", s.name, s.values.get(i).copied().flatten().map(|v| format!("{}{unit}", chart_number(v))).unwrap_or_else(|| "no value".into())))
+                                    .collect();
+                                rsx! {
+                                    div { key: "{i}", tabindex: "0", class: "group relative outline-none", "aria-label": "{label}: {read.join(\", \")}",
+                                        div { class: "absolute inset-y-0 left-1/2 w-px bg-base-content/25 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" }
+                                        div { class: "pointer-events-none absolute -top-2 z-10 -translate-y-full whitespace-nowrap rounded-field border border-base-300 bg-base-100 px-2.5 py-1.5 text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 {place}",
+                                            div { class: "mb-1 text-base-content/60", "{label}" }
+                                            for (k, s) in series.iter().enumerate() {
+                                                div { key: "{k}", class: "flex items-center gap-2",
+                                                    span { class: "h-0.5 w-3 rounded-full {SERIES_FILL[k]}" }
+                                                    span { class: "font-semibold tabular-nums text-base-content",
+                                                        {s.values.get(i).copied().flatten().map(|v| format!("{}{unit}", chart_number(v))).unwrap_or_else(|| "–".into())}
+                                                    }
+                                                    span { class: "text-base-content/60", "{s.name}" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            div { class: "ml-8 mr-8 grid text-center text-[10px] text-base-content/60", style: "{columns}", "aria-hidden": "true",
+                for (i, l) in labels.iter().enumerate() {
+                    span { key: "{i}", class: "truncate", "{l}" }
                 }
             }
         }

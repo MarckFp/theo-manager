@@ -12,12 +12,29 @@ pub fn Dashboard() -> Element {
     let name = state.account().map(|a| a.display_name).unwrap_or_default();
     let first = name.split_whitespace().next().unwrap_or("").to_string();
     let congregation = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    // Widgets that were removed: they can be added back while customizing.
+    let shown: Vec<String> = state.layout().into_iter().map(|w| w.id).collect();
+    let hidden: Vec<WidgetLayout> = mock::default_layout().into_iter().filter(|w| !shown.contains(&w.id)).collect();
 
     rsx! {
         Page {
             title: "Welcome back, {first}",
             subtitle: "{congregation} · Some widgets still show sample data",
             actions: rsx! {
+                if editing() && !hidden.is_empty() {
+                    MenuButton {
+                        label: "Add widget",
+                        icon: Icon::Plus,
+                        items: hidden.iter().map(|w| MenuItem::new(w.id.clone(), w.title.clone(), w.icon)).collect::<Vec<_>>(),
+                        onselect: move |id: String| {
+                            let mut layout = state.layout();
+                            if let Some(w) = mock::default_layout().into_iter().find(|w| w.id == id) {
+                                layout.push(w);
+                                state.set_layout(layout);
+                            }
+                        },
+                    }
+                }
                 if editing() {
                     ActionButton { action: Action::ResetLayout, onclick: move |_| state.reset_layout() }
                 }
@@ -28,7 +45,7 @@ pub fn Dashboard() -> Element {
                 }
             },
             if editing() {
-                Alert { tone: Tone::Info, "Drag a widget by its handle to move it. Drag the corner to resize it." }
+                Alert { tone: Tone::Info, "Drag a widget by its handle to move it, drag the corner to resize it, and remove it with ×. Add widget brings it back." }
             }
             theo_ui::Dashboard {
                 widgets: state.layout(),
@@ -36,6 +53,69 @@ pub fn Dashboard() -> Element {
                 on_change: move |layout| state.set_layout(layout),
                 render: move |id: String| widget(&id, &state),
             }
+        }
+    }
+}
+
+/// "My assignments": what changed for me (until I mark it seen), then what is coming up.
+#[component]
+fn MyAssignments() -> Element {
+    let mut state = use_app_state();
+    let navigator = navigator();
+    let prefs = state.preferences();
+    let Some(me) = state.me() else {
+        return rsx! { Text { tone: TextTone::Muted, "Your assignments appear here when your account is linked to your person in Users." } };
+    };
+    let dir = state.directory();
+    let today = crate::people::today_iso();
+    let when = |date: &str, time: &Option<String>| {
+        let day = crate::people::parse_date(date).map(|d| prefs.format_date(d)).unwrap_or_else(|| date.to_string());
+        match time {
+            Some(t) => format!("{day} · {}", prefs.format_hhmm(t)),
+            None => day,
+        }
+    };
+    let notices: Vec<ListEntry> = dir
+        .my_notices(me)
+        .iter()
+        .map(|n| ListEntry {
+            icon: match n.kind {
+                crate::assignments::NoticeKind::Cancelled => Icon::Close,
+                crate::assignments::NoticeKind::Changed => Icon::Edit,
+                crate::assignments::NoticeKind::New => Icon::Sparkles,
+            },
+            title: n.what.label().into(),
+            subtitle: format!("{} · {}", when(&n.date, &n.time), n.detail),
+            meta: n.kind.label().into(),
+        })
+        .collect();
+    let upcoming: Vec<ListEntry> = dir
+        .my_assignments(me, &today)
+        .into_iter()
+        .take(6)
+        .map(|a| ListEntry { icon: Icon::Footprints, title: a.kind.label().into(), subtitle: format!("{} · {}", when(&a.date, &a.time), a.detail), meta: String::new() })
+        .collect();
+    let changes = if notices.len() == 1 { "1 change for you".to_string() } else { format!("{} changes for you", notices.len()) };
+    rsx! {
+        Stack { gap: Gap::Sm,
+            if !notices.is_empty() {
+                Cluster { justify: Justify::Between,
+                    Badge { tone: Tone::Info, icon: Icon::Sparkles,
+                        "{changes}"
+                    }
+                    ActionButton { action: Action::Done, variant: ButtonVariant::Ghost, label: "Got it", onclick: move |_| state.update_directory(|d| d.mark_notices_seen(me)) }
+                }
+                ItemList { items: notices }
+                if !upcoming.is_empty() {
+                    Text { tone: TextTone::Small, "Coming up" }
+                }
+            }
+            if upcoming.is_empty() {
+                Text { tone: TextTone::Muted, "Nothing assigned to you yet." }
+            } else {
+                ItemList { items: upcoming }
+            }
+            TextLink { icon: Icon::ArrowRight, onclick: move |_| { navigator.push(crate::Route::MyAssignmentsPage {}); }, "All my assignments" }
         }
     }
 }
@@ -70,7 +150,7 @@ fn widget(id: &str, state: &crate::state::AppState) -> Element {
             let (label, value, delta, done) = super::reports::reports_widget_values(&state.directory());
             rsx! { StatTile { label, value, icon: Icon::Footprints, delta, trend: if done { Trend::Up } else { Trend::Down } } }
         }
-        "assignments" => rsx! { ItemList { items: mock::my_assignments() } },
+        "assignments" => rsx! { MyAssignments {} },
         "attendance" => rsx! { BarChart { data: mock::attendance(), highlight_last: true } },
         "territories" => rsx! {
             StatTile { label: "Checked out", value: "18 / 42", icon: Icon::Map, delta: "5 overdue", trend: Trend::Down }

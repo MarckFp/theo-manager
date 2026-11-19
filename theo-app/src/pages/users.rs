@@ -228,8 +228,17 @@ fn PeopleTab() -> Element {
     let facets = people::facets(&dir, &query, &sel);
     let total = dir.people.len();
     let summary = format!("{} of {total} users", list.len());
-    let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> =
-        list.iter().map(|p| (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), tags(&dir, p))).collect();
+    let me = state.me();
+    let cards: Vec<(u32, String, Option<String>, Vec<Tag>)> = list
+        .iter()
+        .map(|p| {
+            let mut t = tags(&dir, p);
+            if Some(p.id) == me {
+                t.insert(0, Tag::new("You", Tone::Info).with_icon(Icon::User));
+            }
+            (p.id, p.display_name(&prefs), card_subtitle(&dir, p, &prefs), t)
+        })
+        .collect();
     let mut managing = use_signal(|| false);
 
     let on_export = {
@@ -546,6 +555,21 @@ fn PersonEditor(id: Option<u32>) -> Element {
         }
     };
     let delete_consequences = id.map(|n| dir.delete_consequences(n, &prefs)).unwrap_or_default();
+    // Deleting yourself removes your access to the congregation. Not possible on a Local
+    // congregation (one user) or for the only administrator.
+    let is_me = id.is_some() && id == state.me();
+    let local = state.active_congregation().is_some_and(|c| matches!(c.mode, StorageMode::Local));
+    let admins = dir.accounts().iter().filter(|p| dir.access(p.id).admin).count();
+    let self_block: Option<&'static str> = if !is_me {
+        None
+    } else if local {
+        Some("This is a Local congregation: you are its only user, so you cannot delete yourself from it.")
+    } else if state.i_am_admin() && admins <= 1 {
+        Some("You are the only administrator. Make someone else an administrator first (Users › Permissions), then you can leave.")
+    } else {
+        None
+    };
+    let congregation_name = state.active_congregation().map(|c| c.name).unwrap_or_default();
     let delete_name = name.clone().unwrap_or_default();
     let invite_name = name.clone().unwrap_or_default();
     let move_name = name.clone().unwrap_or_default();
@@ -728,6 +752,11 @@ fn PersonEditor(id: Option<u32>) -> Element {
                         super::person_extras::LabelsCard { person: p.id }
                         FamilyCard { id: p.id }
                         super::person_extras::EmergencyContactsCard { person: p.id }
+                        if is_me {
+                            Card { title: "This is you", icon: Icon::User,
+                                Text { tone: TextTone::Muted, "Your account is linked to this person: your assignments and reports are the ones of this person." }
+                            }
+                        }
                         if cloud && p.moved_away.is_none() {
                             AccountCard { account: p.account.clone(), person: p.id, permissions: super::permissions::access_summary(&dir.access(p.id)), on_invite: move |_| invite_open.set(true) }
                         }
@@ -789,20 +818,47 @@ fn PersonEditor(id: Option<u32>) -> Element {
                 }
             }
         }
-        ConfirmDialog {
-            open: confirm_delete(),
-            title: "Delete {delete_name}?",
-            message: "They disappear from lists, filters and exports. Past assignments and reports keep their name.",
-            confirm: Action::Delete,
-            consequences: delete_consequences,
-            oncancel: move |_| confirm_delete.set(false),
-            onconfirm: move |_| {
-                if let Some(n) = id {
-                    state.update_directory(|d| d.delete(n));
-                    toaster.success(format!("{delete_name} was deleted."));
-                    navigator.replace(Route::UserList {});
-                }
-            },
+        if let Some(reason) = self_block {
+            Dialog {
+                open: confirm_delete(),
+                onclose: move |_| confirm_delete.set(false),
+                title: "You cannot delete yourself",
+                actions: rsx! { ActionButton { action: Action::Done, onclick: move |_| confirm_delete.set(false) } },
+                Alert { tone: Tone::Warning, "{reason}" }
+            }
+        } else if is_me {
+            ConfirmDialog {
+                open: confirm_delete(),
+                title: "Delete yourself from {congregation_name}?",
+                message: "You lose your access to {congregation_name}: it is removed from your congregations. An administrator can invite you again.",
+                confirm: Action::Delete,
+                consequences: delete_consequences,
+                oncancel: move |_| confirm_delete.set(false),
+                onconfirm: move |_| {
+                    if let Some(n) = id {
+                        state.update_directory(|d| d.delete(n));
+                        state.leave_congregation();
+                        toaster.success("You left the congregation.");
+                        navigator.replace(Route::Unlock {});
+                    }
+                },
+            }
+        } else {
+            ConfirmDialog {
+                open: confirm_delete(),
+                title: "Delete {delete_name}?",
+                message: "They disappear from lists, filters and exports. Past assignments and reports keep their name.",
+                confirm: Action::Delete,
+                consequences: delete_consequences,
+                oncancel: move |_| confirm_delete.set(false),
+                onconfirm: move |_| {
+                    if let Some(n) = id {
+                        state.update_directory(|d| d.delete(n));
+                        toaster.success(format!("{delete_name} was deleted."));
+                        navigator.replace(Route::UserList {});
+                    }
+                },
+            }
         }
         Dialog {
             open: invite_open(),

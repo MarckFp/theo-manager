@@ -31,6 +31,19 @@ rotates the keys that account held (R-246).
 **Local congregations** have one user, on one device, with every permission (R-244). The
 permissions screen explains this; permissions apply once the congregation moves to Cloud.
 
+## You are a person too
+
+The account that creates a congregation is also a **person** of it: the wizard asks for your
+first name, last name and gender ("About you"), adds you to *All users* as a baptised publisher
+(change it later), links your account to that person and makes you the owner (administrator). So
+your account and your person are the same in every list, and *My assignments* knows who you are.
+
+- In *All users* your card has the tag **You**; your person page says "This is you".
+- **Deleting yourself** removes your access to the congregation: it disappears from your list of
+  congregations, and an administrator can invite you again. It is **not possible** on a Local
+  congregation (you are its only user) or when you are the only administrator (make someone else
+  administrator first).
+
 ## Permissions
 
 | Permission | What it allows |

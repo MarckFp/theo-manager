@@ -159,10 +159,22 @@ pub fn Split(main: Element, side: Element, #[props(default)] side_first: bool) -
 
 /// Controls that stay in view while the page scrolls (tabs, a month picker…). Spans the full
 /// width of the content. On phones it sits under the top bar.
+///
+/// No backdrop-blur here: a backdrop filter makes this bar the containing block of fixed
+/// children, and the filter sheet on phones would open inside the bar instead of from the bottom.
+/// It sits above the phone dock (z-40) so that sheets opened from it cover the dock too.
+/// On a detail page (a `Page` with a back link) phones stick it under the page's title bar
+/// (3.5rem high), so the title stays in view too.
 #[component]
 pub fn StickyBar(children: Element) -> Element {
+    let under_title = try_use_context::<Signal<crate::page::PhoneTitleBar>>().is_some_and(|b| b().0);
+    let top = if under_title {
+        "max-md:top-[calc(3.8125rem+max(0.625rem,env(safe-area-inset-top))+3.5rem)]"
+    } else {
+        "max-md:top-[calc(3.8125rem+max(0.625rem,env(safe-area-inset-top)))]"
+    };
     rsx! {
-        div { class: "sticky z-20 -mx-4 flex flex-col gap-3 border-b border-base-300 bg-base-100/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 max-md:top-[calc(3.8125rem+max(0.625rem,env(safe-area-inset-top)))] md:top-0",
+        div { class: "sticky z-[45] -mx-4 flex flex-col gap-3 border-b border-base-300 bg-base-100 px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 md:top-0 {top}",
             {children}
         }
     }

@@ -62,10 +62,10 @@ pub fn strength(pw: &str) -> u8 {
 
 pub fn default_layout() -> Vec<WidgetLayout> {
     vec![
+        WidgetLayout::new("assignments", "My assignments", Icon::Assignment, 1, 2),
         WidgetLayout::new("next-meeting", "Next meeting", Icon::Meetings, 2, 1),
         WidgetLayout::new("publishers", "Publishers", Icon::Users, 1, 1),
         WidgetLayout::new("reports", "Field service reports", Icon::Footprints, 1, 1),
-        WidgetLayout::new("assignments", "My assignments", Icon::Assignment, 1, 2),
         WidgetLayout::new("attendance", "Meeting attendance", Icon::Chart, 2, 1),
         WidgetLayout::new("territories", "Territories", Icon::Map, 1, 1),
         WidgetLayout::new("duties", "Duties this week", Icon::Audio, 2, 1),
@@ -302,7 +302,124 @@ pub fn demo_directory(size: usize) -> Directory {
         CustomTask { id: 2, name: "Accounts".into(), description: Some("Counts the contributions and keeps the accounts.".into()), people: [7, 10].into_iter().filter(|p| *p <= count).collect() },
         CustomTask { id: 3, name: "Garden".into(), description: Some("Keeps the Kingdom Hall garden tidy.".into()), people: vec![] },
     ];
-    Directory { people, families, groups, reports, aux_short_months, aux_plans, access, owner: Some(1), log: Vec::new(), labels, absences, custom_tasks }
+    let attendance = demo_attendance(size);
+    let mut dir = Directory {
+        people,
+        families,
+        groups,
+        reports,
+        aux_short_months,
+        aux_plans,
+        access,
+        owner: Some(1),
+        log: Vec::new(),
+        labels,
+        absences,
+        custom_tasks,
+        attendance,
+        events: Vec::new(),
+        service_presets: Vec::new(),
+        service_meetings: Vec::new(),
+        notices: Vec::new(),
+    };
+    demo_events(&mut dir);
+    demo_service_meetings(&mut dir);
+    dir
+}
+
+/// Meetings for field service (invented, R-022): four weekly presets, each with the brothers
+/// who said they can conduct it; this month filled, assigned and sent, next month filled and
+/// assigned but not sent yet.
+fn demo_service_meetings(dir: &mut Directory) {
+    let conductors: Vec<u32> = dir.conductors().iter().map(|p| p.id).collect();
+    let all_but = |ids: &[usize]| {
+        conductors.iter().enumerate().filter(|(i, _)| !ids.contains(i)).map(|(_, c)| *c).collect::<BTreeSet<u32>>()
+    };
+    for (weekday, time, place, available) in [
+        (1, "10:00", "Kingdom Hall", all_but(&[0, 4])),
+        (3, "18:30", "Kingdom Hall", all_but(&[1, 2, 5])),
+        (6, "09:30", "Kingdom Hall", all_but(&[])),
+        (0, "09:00", "Smith family home, 5 Example Street", all_but(&[3, 6, 7])),
+    ] {
+        let _ = dir.save_service_preset(None, weekday, time, place, available);
+    }
+    let (y, m, _) = crate::prefs::today();
+    dir.fill_service_month((y, m), true);
+    dir.send_service_month((y, m));
+    dir.fill_service_month(crate::reports::shift((y, m), 1), true);
+}
+
+/// A few events around today (invented, R-022): the circuit overseer's visit, a circuit assembly,
+/// the Memorial, regional conventions, and two custom events, one only for the elders.
+fn demo_events(dir: &mut Directory) {
+    use crate::events::{add_days, EventDraft, EventKind};
+    let today = crate::people::today_iso();
+    let day = |n: i64| add_days(&today, n).unwrap_or_else(|| today.clone());
+    let mut add = |kind: EventKind, start: i64, title: &str, description: &str, people: Option<Vec<u32>>| {
+        let mut d = EventDraft::new(kind, &day(start));
+        if !title.is_empty() {
+            d.title = title.into();
+        }
+        d.description = description.into();
+        if let Some(p) = people {
+            d.everyone = false;
+            d.people = p.into_iter().filter(|p| dir.person(*p).is_some()).collect();
+            d.absence = false;
+        }
+        let _ = dir.save_event(None, &d);
+    };
+    add(EventKind::RegionalConvention, -130, "", "Three days at the assembly hall.", None);
+    add(EventKind::CircuitOverseerVisit, 12, "", "Meetings, field service and visits all week.", None);
+    add(EventKind::Custom, 5, "Kingdom Hall cleaning day", "Everyone is welcome to help, from 9:00.", None);
+    add(EventKind::Custom, 9, "Elders' meeting", "Before the circuit overseer's visit.", Some(vec![1, 7, 12]));
+    add(EventKind::CircuitAssembly, 38, "", "", None);
+    add(EventKind::Memorial, 120, "", "Invite everyone you know.", None);
+    add(EventKind::RegionalConvention, 235, "", "", None);
+}
+
+/// Plausible meeting attendance (invented, R-022) from the last service year up to today, for
+/// meetings on Thursday and Sunday: a bit more at the weekend, a dip in summer, a week without
+/// a meeting now and then (assemblies), and nothing for meetings still to come.
+fn demo_attendance(size: usize) -> Vec<crate::attendance::MonthAttendance> {
+    use crate::attendance::{meeting_days, Meeting, MonthAttendance};
+    use crate::reports::{service_year, service_year_months};
+    let (y, m, d) = crate::prefs::today();
+    let start = service_year((y, m)) - 1;
+    let base = size as f64;
+    let mut out = Vec::new();
+    for ym in service_year_months(start).into_iter().chain(service_year_months(start + 1)) {
+        if ym > (y, m) {
+            break;
+        }
+        let mut a = MonthAttendance::new(ym);
+        for (meeting, day, factor) in [(Meeting::Midweek, "Thursday", 0.95), (Meeting::Weekend, "Sunday", 1.1)] {
+            for (w, day_of_month) in meeting_days(ym, day).into_iter().enumerate() {
+                if ym == (y, m) && day_of_month > d {
+                    continue;
+                }
+                // A week without a meeting: the circuit assembly weekend and the convention week.
+                if (ym.1 == 2 && w == 2 && meeting == Meeting::Weekend) || (ym.1 == 7 && w == 1) {
+                    continue;
+                }
+                let season = match ym.1 {
+                    7 | 8 => 0.9,
+                    12 | 1 => 0.95,
+                    4 => 1.08,
+                    _ => 1.0,
+                };
+                // Small week-to-week changes, the same every time the demo opens.
+                let wobble = ((ym.0 as u32 * 31 + ym.1 * 7 + w as u32 * 13 + (factor * 100.0) as u32) % 9) as f64 - 4.0;
+                let trend = if ym.0 * 12 + ym.1 as i32 >= (start + 1) * 12 + 9 { 1.04 } else { 1.0 };
+                let count = (base * factor * season * trend + wobble).round().max(1.0) as u32;
+                a.midweek[w] = if meeting == Meeting::Midweek { Some(count) } else { a.midweek[w] };
+                a.weekend[w] = if meeting == Meeting::Weekend { Some(count) } else { a.weekend[w] };
+            }
+        }
+        if !a.is_empty() {
+            out.push(a);
+        }
+    }
+    out
 }
 
 /// Permissions of the demo accounts: a secretary, a group overseer, an audio coordinator, and
@@ -364,13 +481,13 @@ fn demo_absences(count: u32) -> Vec<crate::absences::Absence> {
         from: day(from),
         to: day(to),
         notes: (!notes.is_empty()).then(|| notes.to_string()),
+        event: None,
     };
     vec![
         a(1, Some(5), -2, 5, "Holiday"),
         a(2, Some(13), 10, 24, "Visiting family abroad"),
         a(3, Some(9), 3, 4, "Pioneer school"),
         a(4, Some(21), -30, -20, "Work trip"),
-        a(5, None, 40, 42, "Regional convention"),
     ]
     .into_iter()
     .filter(|x| x.person.is_none_or(|p| p <= count))
@@ -387,7 +504,11 @@ fn demo_privileges(people: &mut [Person]) {
         let brother = p.gender == Gender::Male;
         let mut wanted: Vec<P> = vec![P::StartingConversation, P::FollowingUp, P::MakingDisciples, P::Assistant, P::Cleaning, P::BibleReading];
         if p.publisher_type.is_baptised() {
-            wanted.extend([P::Attendant, P::ZoomAttendant, P::EntranceAttendant, P::Microphones, P::WatchtowerReader, P::PublicWitnessing, P::FieldServiceMeeting]);
+            wanted.extend([P::Attendant, P::ZoomAttendant, P::EntranceAttendant, P::Microphones, P::WatchtowerReader, P::PublicWitnessing]);
+            // Meetings for field service: elders, ministerial servants and brothers who pioneer.
+            if brother && (elder || ms || p.publisher_type.is_pioneer()) {
+                wanted.push(P::FieldServiceMeeting);
+            }
             if brother {
                 wanted.extend([P::Prayer, P::StudentTalk, P::Stage, P::Audio, P::Video, P::BibleStudyReader]);
             } else {

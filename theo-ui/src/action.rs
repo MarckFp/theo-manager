@@ -45,6 +45,7 @@ pub enum Action {
     ManageLabels,
     Apply,
     Undo,
+    Send,
 }
 
 impl Action {
@@ -88,6 +89,7 @@ impl Action {
             Action::ManageLabels => "Labels",
             Action::Apply => "Apply",
             Action::Undo => "Undo",
+            Action::Send => "Send",
         }
     }
 
@@ -102,6 +104,7 @@ impl Action {
             Action::ManageLabels => Some(Icon::Tag),
             Action::Apply => Some(Icon::Check),
             Action::Undo => Some(Icon::MoveBack),
+            Action::Send => Some(Icon::Send),
             Action::Next => Some(Icon::ArrowRight),
             Action::Finish => Some(Icon::Check),
             Action::Edit => Some(Icon::Edit),
@@ -155,6 +158,31 @@ impl Action {
                 ButtonVariant::Ghost
             }
             _ => ButtonVariant::Secondary,
+        }
+    }
+}
+
+/// The buttons of a dialog that edits one thing: Delete and Save side by side (Delete only when
+/// it exists), Cancel below over the full width. Put it in the `actions` of a `Dialog`.
+#[component]
+pub fn EditActions(
+    on_save: EventHandler<()>,
+    on_cancel: EventHandler<()>,
+    #[props(default)] on_delete: Option<EventHandler<()>>,
+    #[props(default)] save_label: Option<String>,
+) -> Element {
+    let save_span = if on_delete.is_some() { "" } else { "col-span-2" };
+    rsx! {
+        div { class: "grid w-full! grid-cols-2 gap-2 [&_button]:w-full",
+            if let Some(d) = on_delete {
+                ActionButton { action: Action::Delete, onclick: move |_| d.call(()) }
+            }
+            div { class: save_span,
+                ActionButton { action: Action::Save, label: save_label, onclick: move |_| on_save.call(()) }
+            }
+            div { class: "col-span-2",
+                ActionButton { action: Action::Cancel, onclick: move |_| on_cancel.call(()) }
+            }
         }
     }
 }

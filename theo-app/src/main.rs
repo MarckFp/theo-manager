@@ -4,8 +4,11 @@
 //! built only from `theo-ui` components. `tests/ui_rules.rs` enforces it.
 
 mod absences;
+mod assignments;
+mod attendance;
 mod access;
 mod backup;
+mod events;
 mod export;
 mod mock;
 mod nav;
@@ -16,6 +19,7 @@ mod platform;
 mod prefs;
 mod privileges;
 mod reports;
+mod service_meetings;
 mod state;
 mod tasks;
 
@@ -55,6 +59,9 @@ pub enum Route {
             /// Settings of the open congregation (cog in the congregation switcher).
             #[route("/settings")]
             SettingsPage {},
+            /// Everything assigned to me (from the home widget "My assignments").
+            #[route("/me/assignments")]
+            MyAssignmentsPage {},
             /// Users › All users: list, new person, one person (docs/model/m01-people.md).
             #[route("/users/all")]
             UserList {},
@@ -78,9 +85,21 @@ pub enum Route {
             /// A family, opened from the Families tab of All users (docs/model/m01-people.md, "Family").
             #[route("/users/families/:id")]
             FamilyDetail { id: u32 },
+            /// Meetings › Events (docs/model/m12-events.md).
+            #[route("/meetings/events")]
+            EventsPage {},
+            /// Meetings › Meeting attendance (docs/model/m11-meeting-attendance.md).
+            #[route("/meetings/attendance")]
+            AttendancePage {},
+            /// One month of attendance, `month` as `YYYY-MM`.
+            #[route("/meetings/attendance/:month")]
+            AttendanceMonth { month: String },
             /// Ministry › Field service reports (docs/model/m10-field-service-reports.md).
             #[route("/ministry/reports")]
             ReportsPage {},
+            /// Ministry › Meetings for field service (docs/model/m15-field-service-meetings.md).
+            #[route("/ministry/service-meetings")]
+            ServiceMeetingsPage {},
             /// Ministry › Field service groups (docs/model/m09-field-service-groups.md).
             #[route("/ministry/groups")]
             GroupList {},
@@ -164,6 +183,9 @@ pub fn route_for(id: &str) -> Route {
         Some(("users", "permissions")) => Route::PermissionsPage {},
         Some(("ministry", "groups")) => Route::GroupList {},
         Some(("ministry", "reports")) => Route::ReportsPage {},
+        Some(("ministry", "service-meetings")) => Route::ServiceMeetingsPage {},
+        Some(("meetings", "attendance")) => Route::AttendancePage {},
+        Some(("meetings", "events")) => Route::EventsPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },
         None => match id {
             "home" => Route::Dashboard {},

@@ -421,7 +421,9 @@ pub struct Relative {
 // Directory: all people data of one congregation
 // ---------------------------------------------------------------------------------------------
 
+/// `serde(default)`: a backup made before a field existed still restores (the field starts empty).
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Directory {
     pub people: Vec<Person>,
     pub families: Vec<Family>,
@@ -444,6 +446,15 @@ pub struct Directory {
     pub absences: Vec<crate::absences::Absence>,
     /// Custom tasks of the Departments section.
     pub custom_tasks: Vec<crate::tasks::CustomTask>,
+    /// Meeting attendance per month (M-11, `src/attendance.rs`).
+    pub attendance: Vec<crate::attendance::MonthAttendance>,
+    /// Events (M-12, `src/events.rs`).
+    pub events: Vec<crate::events::Event>,
+    /// Meetings for field service: weekly presets and the meetings (M-15, `src/service_meetings.rs`).
+    pub service_presets: Vec<crate::service_meetings::ServicePreset>,
+    pub service_meetings: Vec<crate::service_meetings::ServiceMeeting>,
+    /// Notices of "My assignments": new, changed or cancelled assignments per person.
+    pub notices: Vec<crate::assignments::Notice>,
 }
 
 impl Directory {

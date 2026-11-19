@@ -486,6 +486,150 @@ pub fn TagToggle(label: String, tone: crate::feedback::Tone, selected: bool, onc
     }
 }
 
+/// A column of a [`NumberGrid`]: a label and an optional hint under it (for example a date).
+#[derive(Clone, Debug, PartialEq)]
+pub struct GridColumn {
+    /// Column label ("Week 1").
+    pub label: String,
+    /// Small text under the label ("6 Nov").
+    pub hint: Option<String>,
+}
+
+/// A row of a [`NumberGrid`]: its values (one per column; `None` is empty) and the summary
+/// cells shown after the inputs (for example the total and the average).
+#[derive(Clone, Debug, PartialEq)]
+pub struct GridRow {
+    /// Row label ("Midweek meeting").
+    pub label: String,
+    /// Icon before the label.
+    pub icon: Icon,
+    /// One value per column.
+    pub values: Vec<Option<u32>>,
+    /// One text per summary column ("214", "53.5").
+    pub summary: Vec<String>,
+    /// Grey text in each empty input (for example the date of that meeting: "Thu 5").
+    pub placeholders: Vec<String>,
+}
+
+/// Whole numbers in a grid of rows × columns, with summary cells per row. A table on larger
+/// screens; on phones each row is a block with its inputs side by side. `onchange` gets
+/// (row, column, value); an emptied input gives `None`. Values above `max` are capped.
+#[component]
+pub fn NumberGrid(
+    columns: Vec<GridColumn>,
+    summary_columns: Vec<String>,
+    rows: Vec<GridRow>,
+    onchange: EventHandler<(usize, usize, Option<u32>)>,
+    #[props(default = 9999)] max: u32,
+) -> Element {
+    let n = columns.len().max(1);
+    let parse = move |v: String| -> Option<Option<u32>> {
+        let t = v.trim();
+        if t.is_empty() {
+            Some(None)
+        } else {
+            t.parse::<u32>().ok().map(|x| Some(x.min(max)))
+        }
+    };
+    let input = move |r: usize, c: usize, value: Option<u32>, label: String, placeholder: String| {
+        rsx! {
+            input {
+                r#type: "number",
+                inputmode: "numeric",
+                min: "0",
+                max: "{max}",
+                class: "input input-sm w-full px-1 text-center tabular-nums",
+                "aria-label": "{label}",
+                placeholder: "{placeholder}",
+                value: value.map(|v| v.to_string()).unwrap_or_default(),
+                oninput: move |e| {
+                    if let Some(v) = parse(e.value()) {
+                        onchange.call((r, c, v));
+                    }
+                },
+            }
+        }
+    };
+    let aria = move |row: &GridRow, col: &GridColumn, c: usize| {
+        let when = row.placeholders.get(c).filter(|p| !p.is_empty()).or(col.hint.as_ref());
+        match when {
+            Some(h) => format!("{}, {} ({h})", row.label, col.label),
+            None => format!("{}, {}", row.label, col.label),
+        }
+    };
+    rsx! {
+        // Larger screens: a table.
+        div { class: "hidden md:block",
+            table { class: "w-full border-collapse",
+                thead {
+                    tr {
+                        th { class: "w-48" }
+                        for (c, col) in columns.iter().enumerate() {
+                            th { key: "{c}", scope: "col", class: "px-1.5 pb-2 text-center align-bottom",
+                                div { class: "text-xs font-medium", "{col.label}" }
+                                if let Some(h) = &col.hint {
+                                    div { class: "text-[11px] font-normal text-base-content/60", "{h}" }
+                                }
+                            }
+                        }
+                        for (s, label) in summary_columns.iter().enumerate() {
+                            th { key: "s{s}", scope: "col", class: "px-3 pb-2 text-right align-bottom text-xs font-medium text-base-content/60", "{label}" }
+                        }
+                    }
+                }
+                tbody {
+                    for (r, row) in rows.iter().enumerate() {
+                        tr { key: "{r}", class: "border-t border-base-300",
+                            th { scope: "row", class: "py-3 pr-3 text-left text-sm font-medium",
+                                span { class: "inline-flex items-center gap-2",
+                                    span { class: "text-base-content/60", IconView { icon: row.icon, size: IconSize::Sm } }
+                                    "{row.label}"
+                                }
+                            }
+                            for (c, col) in columns.iter().enumerate() {
+                                td { key: "{c}", class: "px-1.5 py-3", {input(r, c, row.values.get(c).copied().flatten(), aria(row, col, c), row.placeholders.get(c).cloned().unwrap_or_default())} }
+                            }
+                            for (s, v) in row.summary.iter().enumerate() {
+                                td { key: "s{s}", class: "px-3 py-3 text-right text-sm font-semibold tabular-nums", "{v}" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Phones: one block per row.
+        div { class: "flex flex-col gap-3 md:hidden",
+            for (r, row) in rows.iter().enumerate() {
+                div { key: "{r}", class: "flex flex-col gap-3 rounded-box border border-base-300 p-3",
+                    span { class: "inline-flex items-center gap-2 text-sm font-medium",
+                        span { class: "text-base-content/60", IconView { icon: row.icon, size: IconSize::Sm } }
+                        "{row.label}"
+                    }
+                    div { class: "grid gap-1.5", style: "grid-template-columns: repeat({n}, minmax(0, 1fr));",
+                        for (c, col) in columns.iter().enumerate() {
+                            label { key: "{c}", class: "flex min-w-0 flex-col items-center gap-1",
+                                span { class: "truncate text-[11px] font-medium", "{col.label}" }
+                                {input(r, c, row.values.get(c).copied().flatten(), aria(row, col, c), row.placeholders.get(c).cloned().unwrap_or_default())}
+                                if let Some(h) = &col.hint {
+                                    span { class: "truncate text-[10px] text-base-content/60", "{h}" }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "flex justify-end gap-4 text-sm",
+                        for (s, v) in row.summary.iter().enumerate() {
+                            span { key: "{s}", class: "inline-flex items-baseline gap-1.5",
+                                span { class: "text-xs text-base-content/60", {summary_columns.get(s).cloned().unwrap_or_default()} }
+                                span { class: "font-semibold tabular-nums", "{v}" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Rules an input must meet, each marked as met or not (for example password rules).
 #[component]
 pub fn RuleChecklist(rules: Vec<(String, bool)>) -> Element {

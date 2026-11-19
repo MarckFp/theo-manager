@@ -26,6 +26,8 @@ pub fn MonthPicker(
     value: YearMonth,
     min: YearMonth,
     max: YearMonth,
+    /// The current month: a "Today" button goes back to it when another month is shown.
+    today: YearMonth,
     onchange: EventHandler<YearMonth>,
     /// Use the whole width: arrows at the edges, the month in the middle (easier to tap).
     #[props(default)]
@@ -111,6 +113,14 @@ pub fn MonthPicker(
                     }
                 }
             }
+            if value != today && today >= min && today <= max {
+                button {
+                    r#type: "button",
+                    class: if full_width { "btn btn-ghost btn-sm" } else { "btn btn-ghost btn-xs" },
+                    onclick: move |_| onchange.call(today),
+                    "Today"
+                }
+            }
             button {
                 r#type: "button",
                 class: if full_width { "btn btn-ghost btn-square" } else { "btn btn-ghost btn-square btn-sm" },
@@ -132,5 +142,40 @@ mod tests {
         assert_eq!(shift((2026, 1), -1), (2025, 12));
         assert_eq!(shift((2025, 12), 1), (2026, 1));
         assert_eq!(shift((2026, 9), -12), (2025, 9));
+    }
+}
+
+/// `‹  Service year 2026/2027  ›`: steps through years between `min` and `max`. The caller gives
+/// the label (for example a service year, which spans two calendar years).
+#[component]
+pub fn YearPicker(
+    value: i32,
+    min: i32,
+    max: i32,
+    /// The current year: a "Today" button goes back to it when another year is shown.
+    current: i32,
+    label: String,
+    onchange: EventHandler<i32>,
+    /// Use the whole width: arrows at the edges, the year in the middle.
+    #[props(default)]
+    full_width: bool,
+) -> Element {
+    let btn = if full_width { "btn btn-ghost btn-square" } else { "btn btn-ghost btn-square btn-sm" };
+    rsx! {
+        div { class: if full_width { "flex w-full items-center justify-between gap-1 rounded-box border border-base-300 bg-base-100 p-1" } else { "inline-flex items-center gap-1 rounded-box border border-base-300 bg-base-100 p-1" },
+            button { r#type: "button", class: btn, "aria-label": "Previous year", disabled: value <= min, onclick: move |_| onchange.call(value - 1),
+                IconView { icon: Icon::ArrowLeft, size: IconSize::Sm }
+            }
+            span { class: "inline-flex h-10 min-w-44 items-center justify-center gap-1.5 px-3 text-base font-semibold", "aria-live": "polite",
+                IconView { icon: Icon::Calendar, size: IconSize::Sm }
+                "{label}"
+            }
+            if value != current && current >= min && current <= max {
+                button { r#type: "button", class: "btn btn-ghost btn-sm", onclick: move |_| onchange.call(current), "Today" }
+            }
+            button { r#type: "button", class: btn, "aria-label": "Next year", disabled: value >= max, onclick: move |_| onchange.call(value + 1),
+                IconView { icon: Icon::ArrowRight, size: IconSize::Sm }
+            }
+        }
     }
 }

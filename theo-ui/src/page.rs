@@ -4,6 +4,11 @@ use crate::card::BrandMark;
 use crate::icon::{Icon, IconSize, IconView};
 use dioxus::prelude::*;
 
+/// Set by a [`Page`] with a back link: on phones its title sits in a sticky bar, and a
+/// [`crate::StickyBar`] on that page sticks just below it instead of covering it.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct PhoneTitleBar(pub bool);
+
 /// Standard page inside the app shell: header (title, subtitle, actions) + content.
 #[component]
 pub fn Page(
@@ -17,13 +22,17 @@ pub fn Page(
 ) -> Element {
     let detail = back.is_some();
     let has_actions = actions.is_some();
+    let mut bar = use_context_provider(|| Signal::new(PhoneTitleBar(detail)));
+    if bar.peek().0 != detail {
+        bar.set(PhoneTitleBar(detail));
+    }
     // Detail pages on phones: the title moves into a sticky bar with a back arrow, so you always
     // see what you are editing, and the arrow is the way to leave without saving.
     let title_class = if detail { "hidden min-w-0 flex-col gap-1 md:flex" } else { "flex min-w-0 flex-col gap-1" };
     rsx! {
         div { class: "flex flex-col gap-6",
             if let Some((label, onclick)) = back.clone() {
-                div { class: "sticky z-20 -mx-4 -mt-6 flex items-center gap-2 border-b border-base-300 bg-base-100/90 px-2 py-2 backdrop-blur sm:-mx-6 sm:px-4 md:hidden",
+                div { class: "sticky z-20 -mx-4 -mt-6 flex h-14 items-center gap-2 border-b border-base-300 bg-base-100/90 px-2 backdrop-blur sm:-mx-6 sm:px-4 md:hidden",
                     // Just under the phone top bar: 61 px + its top padding (which grows with the notch).
                     style: "top: calc(3.8125rem + max(0.625rem, env(safe-area-inset-top)));",
                     button {

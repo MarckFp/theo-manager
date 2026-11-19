@@ -75,7 +75,7 @@ pub fn ReportsPage() -> Element {
                     onchange: move |v: String| state.report_tab.set(v),
                 }
                 if tab == "month" {
-                    MonthPicker { value: ym, min, max, full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
+                    MonthPicker { value: ym, min, max, today: reporting_month(), full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
                 }
             }
             match tab.as_str() {

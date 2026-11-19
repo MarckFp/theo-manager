@@ -293,6 +293,8 @@ absence on that day or the whole congregation has one.
   choose them (the same absence is added for each), or continue with only that person.
 - **Deleting** an absence when family members have the same absence (same days) asks whose to
   delete too.
+- An **event** can create absences (M-12). Those belong to the event: they show an "Event" tag,
+  open read-only and change or go with the event.
 
 The page lists the absences as cards (name or "Whole congregation", dates, number of days). Notes
 show only when an absence is opened. Search by name, and the same filters as All users: *When*

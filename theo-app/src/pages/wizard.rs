@@ -63,6 +63,11 @@ pub fn NewCongregation() -> Element {
     let mut number = use_signal(String::new);
     let mut language = use_signal(|| "en".to_string());
     let mut tz = use_signal(|| "Europe/London".to_string());
+    // About you: the creator becomes a person of the congregation (All users), its administrator.
+    let account_name = state.account().map(|a| a.display_name).unwrap_or_default();
+    let mut my_first = use_signal(|| account_name.split_whitespace().next().unwrap_or("").to_string());
+    let mut my_last = use_signal(|| account_name.split_whitespace().skip(1).collect::<Vec<_>>().join(" "));
+    let mut my_gender = use_signal(String::new);
     // Step 2
     let mut mid_day = use_signal(|| "Thursday".to_string());
     let mut mid_time = use_signal(|| "19:00".to_string());
@@ -86,6 +91,9 @@ pub fn NewCongregation() -> Element {
     let score = crate::mock::strength(&custom());
     let t = tried();
     let name_err = (t && step() == 0 && name().trim().is_empty()).then(|| "Enter the congregation name.".to_string());
+    let first_err = (t && step() == 0 && my_first().trim().is_empty()).then(|| "Enter your first name.".to_string());
+    let last_err = (t && step() == 0 && my_last().trim().is_empty()).then(|| "Enter your last name.".to_string());
+    let gender_err = (t && step() == 0 && my_gender().is_empty()).then(|| "Choose one.".to_string());
     let server_err = (t && step() == 2 && mode() == "cloud" && !server().starts_with("https://")).then(|| "Enter an https:// address.".to_string());
     let custom_err = (t && step() == 3 && own() && !crate::password::meets_rules(&custom())).then(|| "The password does not meet all the rules below.".to_string());
     let custom2_err = (t && step() == 3 && own() && custom2() != custom()).then(|| "The passwords do not match.".to_string());
@@ -93,7 +101,7 @@ pub fn NewCongregation() -> Element {
 
     let step_valid = move |s: usize| -> bool {
         match s {
-            0 => !name().trim().is_empty(),
+            0 => !name().trim().is_empty() && !my_first().trim().is_empty() && !my_last().trim().is_empty() && !my_gender().is_empty(),
             2 => mode() == "local" || server().starts_with("https://"),
             3 => saved() && (!own() || (crate::password::meets_rules(&custom()) && custom2() == custom())),
             _ => true,
@@ -139,6 +147,9 @@ pub fn NewCongregation() -> Element {
                         weekend: MeetingSlot { day: wk_day(), time: wk_time() },
                         mode,
                         password,
+                        my_first_name: my_first(),
+                        my_last_name: my_last(),
+                        my_gender: my_gender(),
                     });
                     toaster.success(format!("{} is ready.", name().trim()));
                     nav.replace(Route::Dashboard {});
@@ -164,6 +175,24 @@ pub fn NewCongregation() -> Element {
                             }
                             Field { label: "Time zone", required: true,
                                 Select { value: tz(), options: time_zones(), onchange: move |v| tz.set(v) }
+                            }
+                        }
+                        Heading { level: HeadingLevel::H3, "About you" }
+                        Text { tone: TextTone::Muted, "You are added to the congregation's users as its administrator. You can complete your details later." }
+                        Grid { cols: 2,
+                            Field { label: "Your first name", required: true, error: first_err.clone(),
+                                TextInput { value: my_first(), oninput: move |v| my_first.set(v), invalid: first_err.is_some() }
+                            }
+                            Field { label: "Your last name", required: true, error: last_err.clone(),
+                                TextInput { value: my_last(), oninput: move |v| my_last.set(v), invalid: last_err.is_some() }
+                            }
+                        }
+                        Field { label: "Gender", required: true, error: gender_err.clone(),
+                            Select {
+                                value: my_gender(),
+                                invalid: gender_err.is_some(),
+                                options: vec![SelectOption::new("", "Choose…"), SelectOption::new("male", "Male"), SelectOption::new("female", "Female")],
+                                onchange: move |v| my_gender.set(v),
                             }
                         }
                     },

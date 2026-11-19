@@ -16,6 +16,9 @@ pub struct Absence {
     /// Free notes, shown only when the absence is opened.
     #[serde(alias = "note")]
     pub notes: Option<String>,
+    /// The event that created this absence (M-12). It changes with the event, not on its own.
+    #[serde(default)]
+    pub event: Option<u32>,
 }
 
 /// Where an absence is in time, compared with today.
@@ -83,7 +86,8 @@ impl Directory {
         }
         let notes = Some(notes.trim().to_string()).filter(|n| !n.is_empty());
         let new_id = id.unwrap_or_else(|| self.absences.iter().map(|a| a.id).max().unwrap_or(0) + 1);
-        let a = Absence { id: new_id, person, from: from.into(), to: to.into(), notes };
+        let event = self.absences.iter().find(|x| x.id == new_id).and_then(|x| x.event);
+        let a = Absence { id: new_id, person, from: from.into(), to: to.into(), notes, event };
         match self.absences.iter_mut().find(|x| x.id == new_id) {
             Some(slot) => *slot = a,
             None => self.absences.push(a),
@@ -116,7 +120,8 @@ impl Directory {
         let others = self.family_others(person);
         self.absences
             .iter()
-            .filter(|b| b.id != a.id && b.from == a.from && b.to == a.to)
+            // Absences of an event change with the event, not here.
+            .filter(|b| b.id != a.id && b.event.is_none() && b.from == a.from && b.to == a.to)
             .filter_map(|b| b.person.filter(|p| others.contains(p)).map(|p| (b.id, p)))
             .collect()
     }

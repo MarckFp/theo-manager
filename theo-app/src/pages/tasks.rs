@@ -125,11 +125,11 @@ fn TaskDialog(id: Option<u32>, onclose: EventHandler<()>) -> Element {
             title: if existing.is_some() { "Custom task" } else { "Add task" },
             description: "A task with no page of its own, and the people who do it.",
             actions: rsx! {
-                if existing.is_some() {
-                    ActionButton { action: Action::Delete, onclick: move |_| confirm.set(true) }
+                EditActions {
+                    on_save: save,
+                    on_cancel: move |_| onclose.call(()),
+                    on_delete: existing.is_some().then_some(EventHandler::new(move |_| confirm.set(true))),
                 }
-                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
-                ActionButton { action: Action::Save, onclick: save }
             },
             Stack {
                 Field { label: "Name", required: true, error: error(),

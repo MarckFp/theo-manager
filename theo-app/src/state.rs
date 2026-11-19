@@ -90,6 +90,11 @@ pub struct CongregationDraft {
     pub weekend: MeetingSlot,
     pub mode: StorageMode,
     pub password: String,
+    /// The creator, added to All users, linked to their account and administrator.
+    pub my_first_name: String,
+    pub my_last_name: String,
+    /// `"male"` or `"female"`.
+    pub my_gender: String,
 }
 
 /// Errors shown to the user.
@@ -135,6 +140,15 @@ pub struct AppState {
     pub report_month: Signal<Option<crate::reports::Ym>>,
     pub report_query: Signal<String>,
     pub report_filters: Signal<FilterSelection>,
+    /// Meetings for field service: list, calendar or presets, and the month (None = this month).
+    pub service_view: Signal<String>,
+    pub service_month: Signal<Option<(i32, u32)>>,
+    /// Events page: list or calendar, and the month of the calendar (None = this month).
+    pub events_view: Signal<String>,
+    pub events_month: Signal<Option<(i32, u32)>>,
+    /// Meeting attendance page: tab and service year (None = the current one).
+    pub attendance_tab: Signal<String>,
+    pub attendance_year: Signal<Option<i32>>,
     next_id: Signal<u64>,
 }
 
@@ -156,6 +170,12 @@ impl AppState {
             report_month: Signal::new(None),
             report_query: Signal::new(String::new()),
             report_filters: Signal::new(FilterSelection::new()),
+            service_view: Signal::new("list".into()),
+            service_month: Signal::new(None),
+            events_view: Signal::new("list".into()),
+            events_month: Signal::new(None),
+            attendance_tab: Signal::new("months".into()),
+            attendance_year: Signal::new(None),
             next_id: Signal::new(1),
         }
     }
@@ -215,6 +235,30 @@ impl AppState {
         self.congregations.read().iter().filter(|c| c.owner == user).cloned().collect()
     }
 
+    /// The person of the open congregation who is signed in (their account is linked to them).
+    pub fn me(&self) -> Option<u32> {
+        let username = self.session.read().clone()?;
+        self.directory()
+            .people
+            .iter()
+            .find(|p| matches!(&p.account, crate::people::AccountLink::Linked { username: u } if *u == username))
+            .map(|p| p.id)
+    }
+
+    /// Administrator of the open congregation: always on a Local congregation (one user).
+    pub fn i_am_admin(&self) -> bool {
+        match self.active_congregation().map(|c| c.mode) {
+            Some(StorageMode::Local) => true,
+            Some(_) => self.me().is_some_and(|p| self.directory().access(p).admin),
+            None => false,
+        }
+    }
+
+    /// May change `page` (`"section/page"`): administrators, and people with write on it.
+    pub fn can_write(&self, page: &str) -> bool {
+        self.i_am_admin() || self.me().is_some_and(|p| self.directory().access(p).level(page) == crate::access::Level::Write)
+    }
+
     pub fn active_congregation(&self) -> Option<Congregation> {
         let id = self.unlocked.read().clone()?;
         self.congregations.read().iter().find(|c| c.id == id).cloned()
@@ -239,9 +283,34 @@ impl AppState {
             defaults: Preferences::default(),
             password: new.password,
         });
-        self.directories.write().insert(id.clone(), Directory::default());
+        // The creator is a person of the congregation, linked to their account and its owner.
+        let mut dir = Directory::default();
+        let draft = crate::people::PersonDraft {
+            first_name: new.my_first_name.trim().into(),
+            last_name: new.my_last_name.trim().into(),
+            gender: new.my_gender.clone(),
+            publisher_type: crate::people::PublisherType::BaptisedPublisher.value().into(),
+            ..Default::default()
+        };
+        if let Ok(me) = dir.save(None, &draft) {
+            if let Some(p) = dir.people.iter_mut().find(|p| p.id == me) {
+                p.account = crate::people::AccountLink::Linked { username: self.session.read().clone().unwrap_or_default() };
+            }
+            dir.owner = Some(me);
+        }
+        self.directories.write().insert(id.clone(), dir);
         self.set_unlocked(&id);
         id
+    }
+
+    /// Leaves the open congregation: it is removed from this account's list on this device.
+    pub fn leave_congregation(&mut self) {
+        let Some(id) = self.unlocked.peek().clone() else { return };
+        let user = self.session.peek().clone().unwrap_or_default();
+        self.congregations.write().retain(|c| !(c.id == id && c.owner == user));
+        self.directories.write().remove(&id);
+        self.layouts.write().remove(&id);
+        self.unlocked.set(None);
     }
 
     pub fn unlock(&mut self, id: &str, password: &str, remember_biometric: bool) -> Result<(), AuthError> {
@@ -276,6 +345,7 @@ impl AppState {
             self.report_month.set(None);
             self.report_query.set(String::new());
             self.report_filters.set(FilterSelection::new());
+            self.attendance_year.set(None);
         }
         self.unlocked.set(Some(id.to_string()));
         // Retention (m01-people.md): people who moved away more than a year ago are removed for
@@ -407,7 +477,7 @@ impl AppState {
         if !self.accounts.read().iter().any(|a| a.username == crate::mock::DEMO_USER) {
             self.accounts.write().push(Account {
                 username: crate::mock::DEMO_USER.into(),
-                display_name: "Demo User".into(),
+                display_name: "John Smith".into(),
                 kind: AccountKind::Device,
                 overrides: Overrides::default(),
                 password: crate::mock::DEMO_PASSWORD.into(),

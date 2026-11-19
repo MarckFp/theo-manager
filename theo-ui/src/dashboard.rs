@@ -206,7 +206,23 @@ pub fn Dashboard(
                                         }
                                     }
                                     span { class: "text-base-content/50", IconView { icon: w.icon, size: IconSize::Sm } }
-                                    h3 { class: "truncate text-sm font-medium text-base-content/80", "{w.title}" }
+                                    h3 { class: "min-w-0 flex-1 truncate text-sm font-medium text-base-content/80", "{w.title}" }
+                                    if editing {
+                                        button {
+                                            r#type: "button",
+                                            class: "-mr-1.5 rounded-field p-1 text-base-content/50 hover:bg-error/10 hover:text-error",
+                                            "aria-label": "Remove {w.title}",
+                                            title: "Remove",
+                                            onclick: {
+                                                let id = w.id.clone();
+                                                move |_| {
+                                                    let rest: Vec<WidgetLayout> = current.peek().iter().filter(|x| x.id != id).cloned().collect();
+                                                    on_change.call(rest);
+                                                }
+                                            },
+                                            IconView { icon: Icon::Close, size: IconSize::Sm }
+                                        }
+                                    }
                                 }
                                 div { class: if editing { "min-h-0 flex-1 overflow-auto px-4 pb-8 pt-2 pr-8" } else { "min-h-0 flex-1 overflow-auto px-4 pb-4 pt-2" }, {render.call(id)} }
                                 if editing {

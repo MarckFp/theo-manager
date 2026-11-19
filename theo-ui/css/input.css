@@ -37,6 +37,8 @@
   --color-warning-content: oklch(25% 0.05 75);
   --color-error: oklch(58% 0.22 25);
   --color-error-content: oklch(98% 0.01 25);
+  --chart-1: oklch(51% 0.2 268);
+  --chart-2: oklch(60% 0.13 162);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
   --radius-box: 0.75rem;
@@ -72,6 +74,8 @@
   --color-warning-content: oklch(20% 0.04 75);
   --color-error: oklch(66% 0.2 25);
   --color-error-content: oklch(16% 0.03 25);
+  --chart-1: oklch(62% 0.17 268);
+  --chart-2: oklch(64% 0.13 162);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
   --radius-box: 0.75rem;
@@ -80,6 +84,14 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+/* ---------- Chart series colours ----------
+   Categorical, in fixed order (series 1, series 2). Each theme sets its own steps (above); they
+   passed the dataviz palette checks for that theme's surface. */
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
 }
 
 /* ---------- Tokens (R-415, R-433) ---------- */
@@ -138,6 +150,15 @@
 @layer base {
   html, body { height: 100%; }
   body { @apply bg-base-100 text-base-content antialiased; }
+}
+
+/* ---------- Scroll lock ----------
+   A dialog or sheet is open: the page behind it stays still (no scrolling through to it).
+   Outside any layer, and as specific as daisyUI's own `:root:not(span) { overflow: … }`, which
+   would otherwise win. */
+:root:not(span):has([data-scroll-lock]) {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* ---------- Dashboard grid (container-based, so Rust and CSS agree on columns) ---------- */

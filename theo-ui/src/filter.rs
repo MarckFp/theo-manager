@@ -222,7 +222,7 @@ fn FacetMenu(
             placement: Placement::Start,
             trigger,
             div { class: "px-2 pb-1 pt-1.5 text-xs font-medium text-base-content/60", "{facet.label}" }
-            ul { class: "flex max-h-80 flex-col gap-0.5 overflow-y-auto",
+            ul { class: "flex max-h-80 flex-col gap-0.5 overflow-y-auto overscroll-contain",
                 for o in facet.options.iter().cloned() {
                     {
                         let checked = selected.contains(&o.value);

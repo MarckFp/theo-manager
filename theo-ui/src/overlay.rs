@@ -21,7 +21,9 @@ pub fn Dialog(
     }
     rsx! {
         div {
-            class: "fixed inset-0 z-[55] flex items-end justify-center sm:items-center sm:p-6",
+            class: "fixed inset-0 z-[55] flex items-end justify-center overscroll-contain sm:items-center sm:p-6",
+            // While a dialog or sheet is open the page behind it does not scroll (theo-ui.css).
+            "data-scroll-lock": "true",
             onkeydown: move |e| {
                 if e.key() == Key::Escape {
                     onclose.call(())
@@ -49,7 +51,8 @@ pub fn Dialog(
                         IconView { icon: Icon::Close, size: IconSize::Sm }
                     }
                 }
-                div { class: "min-h-0 flex-1 overflow-y-auto px-5 py-3", {children} }
+                // `overscroll-contain`: reaching the end of the sheet does not scroll the page behind.
+                div { class: "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3", {children} }
                 if let Some(a) = actions {
                     div { class: "flex flex-col-reverse gap-2 border-t border-base-300 px-5 py-4 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto",
                         {a}

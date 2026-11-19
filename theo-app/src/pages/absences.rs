@@ -138,6 +138,9 @@ pub fn AbsencesPage() -> Element {
                             if a.person.is_none() {
                                 tags.push(Tag::new("Everyone", Tone::Neutral).with_icon(Icon::Congregation));
                             }
+                            if a.event.is_some() {
+                                tags.push(Tag::new("Event", Tone::Info).with_icon(Icon::Calendar));
+                            }
                             rsx! {
                                 RecordCard {
                                     key: "{id}",
@@ -154,7 +157,44 @@ pub fn AbsencesPage() -> Element {
             }
         }
         if let Some(id) = editing() {
-            AbsenceDialog { key: "{id:?}", id, onclose: move |_| editing.set(None) }
+            if let Some(event) = id.and_then(|i| dir.absences.iter().find(|a| a.id == i)).and_then(|a| a.event) {
+                EventAbsenceDialog { key: "{id:?}", event, onclose: move |_| editing.set(None) }
+            } else {
+                AbsenceDialog { key: "{id:?}", id, onclose: move |_| editing.set(None) }
+            }
+        }
+    }
+}
+
+/// An absence an event created: it changes with the event (M-12), so it opens read-only. The
+/// title of a private event shows only to the people who can see that event.
+#[component]
+fn EventAbsenceDialog(event: u32, onclose: EventHandler<()>) -> Element {
+    let state = use_app_state();
+    let navigator = navigator();
+    let prefs = state.preferences();
+    let dir = state.directory();
+    let visible = dir.event(event).filter(|e| dir.can_see_event(e, state.me(), state.i_am_admin())).cloned();
+    let text = match &visible {
+        Some(e) => format!("It comes from the event \"{}\" ({}). It changes with the event: open Events to change or delete it.", e.title, super::events::period(&prefs, &e.from, &e.to)),
+        None => "It comes from an event you cannot see. It changes with the event.".to_string(),
+    };
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: "Absence from an event",
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, label: "Close", onclick: move |_| onclose.call(()) }
+                if visible.is_some() {
+                    ActionButton {
+                        action: Action::View,
+                        label: "Open events",
+                        onclick: move |_| { navigator.push(crate::Route::EventsPage {}); },
+                    }
+                }
+            },
+            Alert { tone: Tone::Info, title: "Changed with its event", "{text}" }
         }
     }
 }
@@ -297,11 +337,11 @@ fn AbsenceDialog(id: Option<u32>, onclose: EventHandler<()>) -> Element {
                 title: if existing.is_some() { "Absence" } else { "Add absence" },
                 description: "From the first to the last day (both included), for one person or the whole congregation.",
                 actions: rsx! {
-                    if existing.is_some() {
-                        ActionButton { action: Action::Delete, onclick: move |_| { also.set(BTreeSet::new()); confirm.set(true); } }
+                    EditActions {
+                        on_save: move |_| save(false),
+                        on_cancel: move |_| onclose.call(()),
+                        on_delete: existing.is_some().then_some(EventHandler::new(move |_| { also.set(BTreeSet::new()); confirm.set(true); })),
                     }
-                    ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
-                    ActionButton { action: Action::Save, onclick: move |_| save(false) }
                 },
                 Stack {
                     Field { label: "Who", required: true, error: err("person"),
