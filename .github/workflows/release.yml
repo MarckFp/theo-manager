@@ -4,9 +4,11 @@
 # How to release:  create a release in GitHub with a new tag like v0.2.0 (target: main).
 # The tag gives the version (a leading "v" is optional).
 #
-# No signing secrets yet (REQUIREMENTS.md R-704): desktop installers are unsigned, the Android
-# .apk uses the debug key (it installs directly on a phone), the .aab is for Google Play once it is
-# signed, and the iOS .ipa is unsigned (install it only with your own signing).
+# Signing (REQUIREMENTS.md R-704): the Android .apk and .aab are signed with the release key when
+# the repository has the secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (how to make them: docs/release-signing.md). Without
+# them the .apk uses a debug key and the .aab is unsigned. Desktop installers and the iOS .ipa are
+# not signed yet.
 #
 # Icons: only theo-app/icons/icon.svg is in the repository. scripts/icons.sh generates every
 # platform icon from it (Tauri CLI `icon` command). dx 0.7 has no setting for Android and iOS
@@ -32,6 +34,8 @@ env:
   # Java only runs Gradle (the app is compiled for Java 17). Stay on 21 (LTS) until dx's Android
   # template moves past AGP 8.7.0 and Kotlin 2.0.20, which predate Java 25; Gradle 9.1 alone is fine.
   JAVA_VERSION: "21"
+  # zipalign and apksigner, to sign the Android .apk.
+  ANDROID_BUILD_TOOLS: "35.0.0"
   # Only its `icon` command is used: https://v2.tauri.app/reference/cli/#icon
   TAURI_CLI_VERSION: "2.12.6"
   CARGO_TERM_COLOR: always
@@ -98,18 +102,27 @@ jobs:
         # GitHub Pages serves the site under /<repository name>/.
         run: dx build --release --platform web --base-path "${{ github.event.repository.name }}"
 
+      - name: Install Tauri CLI (icons) 🛠️
+        run: cargo binstall "tauri-cli@$TAURI_CLI_VERSION" -y --force
+
+      - name: Generate icons 🎨
+        run: bash scripts/icons.sh
+
+      # Installable web app (PWA): manifest, icons and a service worker that keeps the files offline.
       - name: Finish for static hosting ✨
-        run: python3 scripts/web-postbuild.py target/dx/theo-app/release/web/public
+        run: |
+          python3 scripts/web-postbuild.py target/dx/theo-manager/release/web/public \
+            --base "/${{ github.event.repository.name }}/" --version "$VERSION" --icons theo-app/icons/gen
 
       - name: Attach to the release 📦
         run: |
-          (cd target/dx/theo-app/release/web/public && zip -qr "$GITHUB_WORKSPACE/theo-manager_${VERSION}_web.zip" .)
+          (cd target/dx/theo-manager/release/web/public && zip -qr "$GITHUB_WORKSPACE/theo-manager_${VERSION}_web.zip" .)
           gh release upload "${{ github.event.release.tag_name }}" "theo-manager_${VERSION}_web.zip" --clobber
 
       - name: Upload GitHub Pages 📤
         uses: actions/upload-pages-artifact@v5
         with:
-          path: target/dx/theo-app/release/web/public/
+          path: target/dx/theo-manager/release/web/public/
 
   pages:
     name: GitHub Pages 🌍
@@ -130,6 +143,9 @@ jobs:
     name: ${{ matrix.name }}
     needs: check
     runs-on: ${{ matrix.os }}
+    # Signing secrets live only in the protected `release` environment (R-704); give it a
+    # required reviewer so a release waits for approval before it can use them.
+    environment: release
     permissions:
       contents: write # attach the packages to the release
     env:
@@ -180,10 +196,10 @@ jobs:
         if: matrix.platform == 'android'
         uses: android-actions/setup-android@v4
 
-      - name: Install Android NDK 🤖
+      - name: Install Android NDK and build tools 🤖
         if: matrix.platform == 'android'
         run: |
-          sdkmanager "ndk;$NDK_VERSION"
+          sdkmanager "ndk;$NDK_VERSION" "build-tools;$ANDROID_BUILD_TOOLS"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       - name: Install Cargo Binstall 🛠️
@@ -196,6 +212,25 @@ jobs:
       - name: Install Tauri CLI (icons) 🛠️
         shell: bash
         run: cargo binstall "tauri-cli@$TAURI_CLI_VERSION" -y --force
+
+      # dx strips the release binary with Rust's rust-objcopy. On macOS that tool looks for
+      # libLLVM.dylib next to it (lib/rustlib/<host>/lib), but the toolchain keeps it in lib/, and
+      # dx only passes LD_LIBRARY_PATH (Linux). Link the library where the tool looks; if it is not
+      # found, build this job without stripping instead.
+      - name: macOS strip tool fix 🍏
+        if: runner.os == 'macOS'
+        run: |
+          sysroot=$(rustc --print sysroot)
+          host=$(rustc -vV | sed -n 's/^host: //p')
+          lib=$(find "$sysroot/lib" -maxdepth 1 -name 'libLLVM*.dylib' | head -1)
+          if [[ -n "$lib" ]]; then
+            mkdir -p "$sysroot/lib/rustlib/$host/lib"
+            ln -sf "$lib" "$sysroot/lib/rustlib/$host/lib/libLLVM.dylib"
+            echo "Linked $lib for rust-objcopy"
+          else
+            echo "::warning::libLLVM.dylib not found: building without stripping the binary."
+            sed -i.bak 's/^strip = true/strip = false/' Cargo.toml && rm Cargo.toml.bak
+          fi
 
       - name: Generate icons 🎨
         shell: bash
@@ -211,22 +246,57 @@ jobs:
             ios)     dx bundle --release --platform ios --out-dir "$GITHUB_WORKSPACE/dist" ;;
           esac
 
-      # dx writes its default launcher icons into the Android project and only copies the .aab.
-      # Put our icons in, build again with Gradle (the Rust libraries are already in the project),
-      # and take both the .apk and the .aab.
-      - name: Android icons and APK 🤖
+      # dx writes its default launcher icons into the Android project, always uses version code 1
+      # and only copies the .aab. Put our icons in, set the version code from the tag (Android
+      # only installs an update with a higher one), build again with Gradle (the Rust libraries
+      # are already in the project), and sign the .apk and the .aab with the release key.
+      - name: Android icons, version and signing 🤖
         if: matrix.platform == 'android'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          project=target/dx/theo-app/release/android/app
+          project=target/dx/theo-manager/release/android/app
           res="$project/app/src/main/res"
           test -d "$res" || { echo "::error::No Android project at $project"; exit 1; }
           rm -f "$res"/mipmap-*/ic_launcher*.webp "$res"/mipmap-*/ic_launcher*.png \
             "$res"/drawable/ic_launcher_background.xml "$res"/drawable-v24/ic_launcher_foreground.xml
           cp -R theo-app/icons/gen/android/. "$res/"
-          (cd "$project" && chmod +x gradlew && ./gradlew --no-daemon assembleDebug bundleRelease)
+
+          # Version code from the tag: 1.2.3 -> 10203 (pre-release suffixes are ignored).
+          IFS=. read -r major minor patch <<< "${VERSION%%-*}"
+          code=$(( major * 10000 + minor * 100 + patch ))
+          sed -i "s/versionCode = [0-9]*/versionCode = $code/" "$project/app/build.gradle.kts"
+          echo "Android version code: $code"
+
           rm -f dist/*.aab dist/*.apk
-          cp "$project/app/build/outputs/apk/debug/app-debug.apk" dist/theo-manager.apk
-          cp "$project/app/build/outputs/bundle/release/app-release.aab" dist/theo-manager.aab
+          out="$project/app/build/outputs"
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" ]]; then
+            # Keys made with Java 9 or later (PKCS12) have no password of their own: the key
+            # password is the keystore password.
+            export ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+            (cd "$project" && chmod +x gradlew && ./gradlew --no-daemon assembleRelease bundleRelease)
+            keystore="$RUNNER_TEMP/release.jks"
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+            tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
+            "$tools/zipalign" -p -f 4 "$out/apk/release/app-release-unsigned.apk" "$RUNNER_TEMP/aligned.apk"
+            "$tools/apksigner" sign --ks "$keystore" --ks-key-alias "$ANDROID_KEY_ALIAS" \
+              --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+              --out dist/theo-manager.apk "$RUNNER_TEMP/aligned.apk"
+            "$tools/apksigner" verify dist/theo-manager.apk
+            jarsigner -keystore "$keystore" -storepass:env ANDROID_KEYSTORE_PASSWORD -keypass:env ANDROID_KEY_PASSWORD \
+              -sigalg SHA256withRSA -digestalg SHA-256 \
+              -signedjar dist/theo-manager.aab "$out/bundle/release/app-release.aab" "$ANDROID_KEY_ALIAS"
+            jarsigner -verify dist/theo-manager.aab > /dev/null
+            rm -f "$keystore"
+          else
+            echo "::warning::No Android signing secrets: the .apk uses a debug key (a new one every build, so it cannot update an earlier install) and the .aab is unsigned. See docs/release-signing.md."
+            (cd "$project" && chmod +x gradlew && ./gradlew --no-daemon assembleDebug bundleRelease)
+            cp "$out/apk/debug/app-debug.apk" dist/theo-manager.apk
+            cp "$out/bundle/release/app-release.aab" dist/theo-manager.aab
+          fi
 
       # dx 0.7 builds the iOS app without an icon: compile an asset catalog with the 1024 px icon
       # into the app and merge its Info.plist keys.

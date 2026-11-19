@@ -5,7 +5,7 @@ use theo_ui::*;
 use theo_ui::Action; // explicit: dioxus::prelude also exports an `Action`
 
 /// Public landing page, web only (R-063). Signed-in users go straight to `/app`;
-/// installed apps (desktop and mobile) open on the log-in screen instead.
+/// installed apps (desktop, mobile, and the web app installed as a PWA) open on the log-in screen.
 #[component]
 pub fn Landing() -> Element {
     let mut state = use_app_state();
@@ -13,7 +13,7 @@ pub fn Landing() -> Element {
     if state.session.read().is_some() {
         return rsx! { Redirect { to: Route::Dashboard {} } };
     }
-    if !crate::platform::IS_WEB {
+    if !crate::platform::IS_WEB || crate::platform::is_installed_web_app() {
         return rsx! { Redirect { to: Route::Login {} } };
     }
 

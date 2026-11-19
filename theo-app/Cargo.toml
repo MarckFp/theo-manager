@@ -6,6 +6,12 @@ rust-version = "1.89"
 description = "Theo Manager: the app (screens, routes, wiring). UI comes only from theo-ui."
 publish = false
 
+# The binary name is the app name dx gives the bundles: "theo-manager" becomes "TheoManager" on
+# Android and in the desktop installers (the package stays `theo-app` for cargo commands).
+[[bin]]
+name = "theo-manager"
+path = "src/main.rs"
+
 [dependencies]
 dioxus = { version = "0.7.10", features = ["router"] }
 theo-ui = { path = "../theo-ui" }
@@ -24,7 +30,7 @@ sys-locale = { version = "0.3", features = ["js"] }
 # Saving exports as a download (already in the tree through dioxus-web).
 wasm-bindgen = "0.2"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement"] }
+web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "MediaQueryList"] }
 
 [features]
 default = ["web"]

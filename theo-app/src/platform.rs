@@ -18,6 +18,20 @@
 /// installed apps (Windows, macOS, Linux, iOS, Android) open on the log-in screen.
 pub const IS_WEB: bool = cfg!(target_arch = "wasm32");
 
+/// The web app runs installed (a PWA opened from the home screen or the app list), not in a tab.
+pub fn is_installed_web_app() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window()
+            .and_then(|w| w.match_media("(display-mode: standalone)").ok().flatten())
+            .is_some_and(|m| m.matches())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        false
+    }
+}
+
 /// Name of the biometric method on this platform, or `None` if it has none.
 pub fn biometric_label() -> Option<&'static str> {
     if cfg!(target_arch = "wasm32") {
