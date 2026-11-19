@@ -43,7 +43,7 @@ env:
 jobs:
   check:
     name: Check tag 🏷️
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -75,7 +75,7 @@ jobs:
   web:
     name: Web 🌐
     needs: check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write # attach the zip to the release
     env:
@@ -127,7 +127,7 @@ jobs:
   pages:
     name: GitHub Pages 🌍
     needs: web
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       pages: write
       id-token: write
@@ -158,12 +158,14 @@ jobs:
           - { name: "Windows x64 🪟", os: windows-2025, platform: desktop, target: x86_64-pc-windows-msvc, label: windows-x64 }
           - { name: "Windows x86 🪟", os: windows-2025, platform: desktop, target: i686-pc-windows-msvc, label: windows-x86 }
           - { name: "Windows ARM64 🪟", os: windows-2025, platform: desktop, target: aarch64-pc-windows-msvc, label: windows-arm64 }
-          - { name: "macOS x64 🍏", os: macos-15, platform: desktop, target: x86_64-apple-darwin, label: macos-x64 }
-          - { name: "macOS ARM64 🍏", os: macos-15, platform: desktop, target: aarch64-apple-darwin, label: macos-arm64 }
-          - { name: "Linux x64 🐧", os: ubuntu-24.04, platform: desktop, target: x86_64-unknown-linux-gnu, label: linux-x64 }
-          - { name: "Linux ARM64 🐧", os: ubuntu-24.04-arm, platform: desktop, target: aarch64-unknown-linux-gnu, label: linux-arm64 }
-          - { name: "Android 🤖", os: ubuntu-24.04, platform: android, target: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android, label: android }
-          - { name: "iOS 📱", os: macos-15, platform: ios, target: aarch64-apple-ios, label: ios }
+          - { name: "macOS x64 🍏", os: macos-26, platform: desktop, target: x86_64-apple-darwin, label: macos-x64 }
+          - { name: "macOS ARM64 🍏", os: macos-26, platform: desktop, target: aarch64-apple-darwin, label: macos-arm64 }
+          - { name: "Linux x64 🐧", os: ubuntu-26.04, platform: desktop, target: x86_64-unknown-linux-gnu, label: linux-x64 }
+          - { name: "Linux ARM64 🐧", os: ubuntu-26.04-arm, platform: desktop, target: aarch64-unknown-linux-gnu, label: linux-arm64 }
+          # Phones are arm64. Without an explicit target dx builds for the runner's own processor
+          # (x86_64, which only emulators use), and phones refuse the .apk ("App not installed").
+          - { name: "Android 🤖", os: ubuntu-26.04, platform: android, target: aarch64-linux-android, label: android }
+          - { name: "iOS 📱", os: macos-26, platform: ios, target: aarch64-apple-ios, label: ios }
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v7
@@ -242,7 +244,7 @@ jobs:
         run: |
           case "${{ matrix.platform }}" in
             desktop) dx bundle --release --platform desktop --target "${{ matrix.target }}" --out-dir "$GITHUB_WORKSPACE/dist" ;;
-            android) dx bundle --release --platform android --out-dir "$GITHUB_WORKSPACE/dist" ;;
+            android) dx bundle --release --platform android --target "${{ matrix.target }}" --out-dir "$GITHUB_WORKSPACE/dist" ;;
             ios)     dx bundle --release --platform ios --out-dir "$GITHUB_WORKSPACE/dist" ;;
           esac
 
@@ -297,6 +299,13 @@ jobs:
             cp "$out/apk/debug/app-debug.apk" dist/theo-manager.apk
             cp "$out/bundle/release/app-release.aab" dist/theo-manager.aab
           fi
+
+          # Phones need the app's code for arm64: stop here if the .apk does not have it.
+          unzip -l dist/theo-manager.apk | grep -q "lib/arm64-v8a/libmain.so" || {
+            echo "::error::The .apk has no arm64 code (lib/arm64-v8a/libmain.so): phones cannot install it."
+            unzip -l dist/theo-manager.apk | grep " lib/" || true
+            exit 1
+          }
 
       # dx 0.7 builds the iOS app without an icon: compile an asset catalog with the 1024 px icon
       # into the app and merge its Info.plist keys.
