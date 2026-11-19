@@ -217,3 +217,71 @@ pub fn RecordCard(
         }
     }
 }
+
+/// A colour that tells kinds of things apart (for example kinds of assignment), in fixed order.
+/// The same validated colours as the chart series.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Accent {
+    /// The first colour (the theme's `--chart-1`).
+    #[default]
+    One,
+    /// The second colour (`--chart-2`).
+    Two,
+}
+
+impl Accent {
+    pub(crate) fn tile(self) -> &'static str {
+        match self {
+            Accent::One => "bg-chart-1/15 text-chart-1",
+            Accent::Two => "bg-chart-2/15 text-chart-2",
+        }
+    }
+
+    pub(crate) fn text(self) -> &'static str {
+        match self {
+            Accent::One => "text-chart-1",
+            Accent::Two => "text-chart-2",
+        }
+    }
+}
+
+/// One row of an [`AccentList`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct AccentItem {
+    /// Icon of the kind, in its accent.
+    pub icon: Icon,
+    /// Colour of the kind.
+    pub accent: Accent,
+    /// The kind, in its accent ("Public witnessing").
+    pub kind: String,
+    /// What and when ("25-11-2026 · 18:30 · Kingdom Hall").
+    pub text: String,
+    /// A label on the right ("New", "Cancelled").
+    pub badge: Option<Tag>,
+}
+
+/// A compact list where each row shows its kind in an accent colour (for example the kinds of
+/// assignment in "My assignments").
+#[component]
+pub fn AccentList(items: Vec<AccentItem>) -> Element {
+    rsx! {
+        ul { class: "flex flex-col divide-y divide-base-300",
+            for (i, it) in items.into_iter().enumerate() {
+                li { key: "{i}", class: "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
+                    span { class: "grid size-8 shrink-0 place-items-center rounded-field {it.accent.tile()}",
+                        IconView { icon: it.icon, size: IconSize::Sm }
+                    }
+                    span { class: "flex min-w-0 flex-1 flex-col gap-0.5",
+                        span { class: "flex min-w-0 items-center gap-2",
+                            span { class: "truncate text-xs font-semibold {it.accent.text()}", "{it.kind}" }
+                            if let Some(t) = it.badge {
+                                Badge { tone: t.tone, icon: t.icon, "{t.label}" }
+                            }
+                        }
+                        span { class: "truncate text-sm", "{it.text}" }
+                    }
+                }
+            }
+        }
+    }
+}

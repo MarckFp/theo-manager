@@ -10,6 +10,7 @@ fn active_of(route: &Route) -> (String, Option<String>) {
         Route::UserList {} | Route::UserNew {} | Route::UserDetail { .. } => ("users".into(), Some("all".into())),
         Route::ReportsPage {} => ("ministry".into(), Some("reports".into())),
         Route::ServiceMeetingsPage {} => ("ministry".into(), Some("service-meetings".into())),
+        Route::WitnessingPage {} => ("ministry".into(), Some("witnessing".into())),
         Route::AttendancePage {} | Route::AttendanceMonth { .. } => ("meetings".into(), Some("attendance".into())),
         Route::EventsPage {} => ("meetings".into(), Some("events".into())),
         Route::PermissionsPage {} | Route::PermissionsDetail { .. } => ("users".into(), Some("permissions".into())),

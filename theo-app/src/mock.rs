@@ -321,10 +321,45 @@ pub fn demo_directory(size: usize) -> Directory {
         service_presets: Vec::new(),
         service_meetings: Vec::new(),
         notices: Vec::new(),
+        witnessing: Default::default(),
+        shift_presets: Vec::new(),
+        shifts: Vec::new(),
     };
     demo_events(&mut dir);
     demo_service_meetings(&mut dir);
+    demo_witnessing(&mut dir);
     dir
+}
+
+/// Public witnessing (invented, R-022): shift supervisors on (the elders and ministerial
+/// servants among the witnesses), three weekly presets with their availability; this month
+/// filled, assigned and sent, next month filled and assigned but not sent.
+fn demo_witnessing(dir: &mut Directory) {
+    use crate::public_witnessing::Needs;
+    let witnesses: Vec<(u32, bool)> = dir.witnesses().iter().map(|p| (p.id, p.appointment.is_some())).collect();
+    dir.set_supervisors_on(true);
+    dir.set_supervisors(witnesses.iter().filter(|(_, appointed)| *appointed).map(|(id, _)| *id).collect());
+    // Every `every`-th witness cannot come at that time.
+    let some = |every: usize| witnesses.iter().enumerate().filter(|(i, _)| i % every != 0).map(|(_, (id, _))| *id).collect::<BTreeSet<u32>>();
+    for (weekday, start, end, place, needs, available) in [
+        (2, "09:00", "11:00", "Market square", Needs { supervisors: 1, men: 0, women: 1, anyone: 1 }, some(5)),
+        (4, "17:00", "19:00", "Riverside station", Needs { supervisors: 1, men: 1, women: 1, anyone: 0 }, some(2)),
+        (6, "10:00", "12:00", "Hospital entrance", Needs { supervisors: 0, men: 0, women: 0, anyone: 2 }, some(3)),
+    ] {
+        let _ = dir.save_shift_preset(None, weekday, start, end, place, needs, available, true);
+    }
+    let (y, m, _) = crate::prefs::today();
+    for back in [3, 2, 1] {
+        let ym = crate::reports::shift((y, m), -back);
+        dir.fill_shift_month(ym, true);
+        dir.send_shift_month(ym);
+    }
+    dir.fill_shift_month((y, m), true);
+    dir.send_shift_month((y, m));
+    dir.fill_shift_month(crate::reports::shift((y, m), 1), true);
+    // The demo starts without notices from past months.
+    let today = crate::people::today_iso();
+    dir.notices.retain(|n| n.date >= today);
 }
 
 /// Meetings for field service (invented, R-022): four weekly presets, each with the brothers

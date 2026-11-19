@@ -455,6 +455,10 @@ pub struct Directory {
     pub service_meetings: Vec<crate::service_meetings::ServiceMeeting>,
     /// Notices of "My assignments": new, changed or cancelled assignments per person.
     pub notices: Vec<crate::assignments::Notice>,
+    /// Public witnessing: settings (shift supervisors), weekly presets and shifts (M-08).
+    pub witnessing: crate::public_witnessing::WitnessingSettings,
+    pub shift_presets: Vec<crate::public_witnessing::ShiftPreset>,
+    pub shifts: Vec<crate::public_witnessing::Shift>,
 }
 
 impl Directory {

@@ -1,6 +1,6 @@
 //! A vertical timeline of dated items, grouped by month (for example "My assignments").
 
-use crate::card::Tag;
+use crate::card::{Accent, Tag};
 use crate::feedback::{Badge, Tone};
 use crate::icon::{Icon, IconSize, IconView};
 use dioxus::prelude::*;
@@ -22,6 +22,8 @@ pub struct TimelineItem {
     pub subtitle: String,
     /// Icon in the item.
     pub icon: Icon,
+    /// Colour of the kind (icon and title), to tell kinds apart.
+    pub accent: Option<Accent>,
     /// A label after the title ("New", "Changed").
     pub tag: Option<Tag>,
     /// Shown faded (for example in the past).
@@ -63,10 +65,12 @@ pub fn Timeline(items: Vec<TimelineItem>) -> Element {
                                             span { class: "relative mt-4 size-2.5 rounded-full {dot}" }
                                         }
                                         div { class: "mb-3 flex min-w-0 flex-1 items-center gap-3 rounded-box border p-3 {card}",
-                                            span { class: "text-base-content/60", IconView { icon: it.icon, size: IconSize::Md } }
+                                            span { class: match it.accent { Some(a) => format!("grid size-8 shrink-0 place-items-center rounded-field {}", a.tile()), None => "text-base-content/60".to_string() },
+                                                IconView { icon: it.icon, size: IconSize::Md }
+                                            }
                                             div { class: "flex min-w-0 flex-1 flex-col",
                                                 span { class: "flex min-w-0 flex-wrap items-center gap-2",
-                                                    span { class: "truncate text-sm font-medium", "{it.title}" }
+                                                    span { class: match it.accent { Some(a) => format!("truncate text-sm font-semibold {}", a.text()), None => "truncate text-sm font-medium".to_string() }, "{it.title}" }
                                                     if let Some(t) = &it.tag {
                                                         Badge { tone: t.tone, icon: t.icon, "{t.label}" }
                                                     }

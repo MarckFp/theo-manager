@@ -75,45 +75,52 @@ fn MyAssignments() -> Element {
             None => day,
         }
     };
-    let notices: Vec<ListEntry> = dir
-        .my_notices(me)
+    // Notices of what is still to come: new and changed ones mark their row below; cancelled
+    // ones (no longer in the list) are shown on top.
+    let notices: Vec<&crate::assignments::Notice> = dir.my_notices(me).into_iter().filter(|n| n.date.as_str() >= today.as_str()).collect();
+    let badge = |k: crate::assignments::NoticeKind| match k {
+        crate::assignments::NoticeKind::New => Tag::new("New", Tone::Info).with_icon(Icon::Sparkles),
+        crate::assignments::NoticeKind::Changed => Tag::new("Changed", Tone::Warning).with_icon(Icon::Edit),
+        crate::assignments::NoticeKind::Cancelled => Tag::new("Cancelled", Tone::Error).with_icon(Icon::Close),
+    };
+    let cancelled: Vec<AccentItem> = notices
         .iter()
-        .map(|n| ListEntry {
-            icon: match n.kind {
-                crate::assignments::NoticeKind::Cancelled => Icon::Close,
-                crate::assignments::NoticeKind::Changed => Icon::Edit,
-                crate::assignments::NoticeKind::New => Icon::Sparkles,
-            },
-            title: n.what.label().into(),
-            subtitle: format!("{} · {}", when(&n.date, &n.time), n.detail),
-            meta: n.kind.label().into(),
-        })
+        .filter(|n| n.kind == crate::assignments::NoticeKind::Cancelled)
+        .map(|n| AccentItem { icon: n.what.icon(), accent: n.what.accent(), kind: n.what.label().into(), text: format!("{} · {}", when(&n.date, &n.time), n.detail), badge: Some(badge(n.kind)) })
         .collect();
-    let upcoming: Vec<ListEntry> = dir
+    let upcoming: Vec<AccentItem> = dir
         .my_assignments(me, &today)
         .into_iter()
         .take(6)
-        .map(|a| ListEntry { icon: Icon::Footprints, title: a.kind.label().into(), subtitle: format!("{} · {}", when(&a.date, &a.time), a.detail), meta: String::new() })
+        .map(|a| AccentItem {
+            icon: a.kind.icon(),
+            accent: a.kind.accent(),
+            kind: a.kind.label().into(),
+            text: format!("{} · {}", when(&a.date, &a.time), a.detail),
+            badge: notices.iter().find(|n| n.what == a.kind && n.record == a.record && n.kind != crate::assignments::NoticeKind::Cancelled).map(|n| badge(n.kind)),
+        })
         .collect();
-    let changes = if notices.len() == 1 { "1 change for you".to_string() } else { format!("{} changes for you", notices.len()) };
+    let changes = match notices.len() {
+        0 => String::new(),
+        1 => "1 change for you".to_string(),
+        n => format!("{n} changes for you"),
+    };
+    let has_notices = !notices.is_empty();
     rsx! {
         Stack { gap: Gap::Sm,
-            if !notices.is_empty() {
+            if has_notices {
                 Cluster { justify: Justify::Between,
-                    Badge { tone: Tone::Info, icon: Icon::Sparkles,
-                        "{changes}"
-                    }
+                    Badge { tone: Tone::Info, icon: Icon::Sparkles, "{changes}" }
                     ActionButton { action: Action::Done, variant: ButtonVariant::Ghost, label: "Got it", onclick: move |_| state.update_directory(|d| d.mark_notices_seen(me)) }
                 }
-                ItemList { items: notices }
-                if !upcoming.is_empty() {
-                    Text { tone: TextTone::Small, "Coming up" }
-                }
+            }
+            if !cancelled.is_empty() {
+                AccentList { items: cancelled }
             }
             if upcoming.is_empty() {
-                Text { tone: TextTone::Muted, "Nothing assigned to you yet." }
+                Text { tone: TextTone::Muted, "Nothing coming up for you." }
             } else {
-                ItemList { items: upcoming }
+                AccentList { items: upcoming }
             }
             TextLink { icon: Icon::ArrowRight, onclick: move |_| { navigator.push(crate::Route::MyAssignmentsPage {}); }, "All my assignments" }
         }

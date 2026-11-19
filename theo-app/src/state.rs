@@ -140,6 +140,9 @@ pub struct AppState {
     pub report_month: Signal<Option<crate::reports::Ym>>,
     pub report_query: Signal<String>,
     pub report_filters: Signal<FilterSelection>,
+    /// Public witnessing: list, calendar, presets or statistics, and the month (None = this month).
+    pub pw_view: Signal<String>,
+    pub pw_month: Signal<Option<(i32, u32)>>,
     /// Meetings for field service: list, calendar or presets, and the month (None = this month).
     pub service_view: Signal<String>,
     pub service_month: Signal<Option<(i32, u32)>>,
@@ -170,6 +173,8 @@ impl AppState {
             report_month: Signal::new(None),
             report_query: Signal::new(String::new()),
             report_filters: Signal::new(FilterSelection::new()),
+            pw_view: Signal::new("list".into()),
+            pw_month: Signal::new(None),
             service_view: Signal::new("list".into()),
             service_month: Signal::new(None),
             events_view: Signal::new("list".into()),

@@ -18,6 +18,7 @@ mod people;
 mod platform;
 mod prefs;
 mod privileges;
+mod public_witnessing;
 mod reports;
 mod service_meetings;
 mod state;
@@ -97,6 +98,9 @@ pub enum Route {
             /// Ministry › Field service reports (docs/model/m10-field-service-reports.md).
             #[route("/ministry/reports")]
             ReportsPage {},
+            /// Ministry › Public witnessing (docs/model/m16-public-witnessing.md).
+            #[route("/ministry/witnessing")]
+            WitnessingPage {},
             /// Ministry › Meetings for field service (docs/model/m15-field-service-meetings.md).
             #[route("/ministry/service-meetings")]
             ServiceMeetingsPage {},
@@ -184,6 +188,7 @@ pub fn route_for(id: &str) -> Route {
         Some(("ministry", "groups")) => Route::GroupList {},
         Some(("ministry", "reports")) => Route::ReportsPage {},
         Some(("ministry", "service-meetings")) => Route::ServiceMeetingsPage {},
+        Some(("ministry", "witnessing")) => Route::WitnessingPage {},
         Some(("meetings", "attendance")) => Route::AttendancePage {},
         Some(("meetings", "events")) => Route::EventsPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },

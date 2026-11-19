@@ -99,9 +99,12 @@ A newer notice about the same meeting replaces an unseen older one (new then cha
 *New*; new then cancelled before it was seen disappears).
 
 The home page widget **My assignments** (first on the home page by default) shows, for the signed-in person (their account linked to
-their person, M-02): first their unseen notices with *Got it* to mark them seen, then their
-upcoming assignments (only what was sent). Other assignments (meeting parts, duties) join this
-widget when their modules exist. *All my assignments* opens a full page
+their person, M-02), only their **upcoming** assignments (only what was sent; past ones are on the
+full page, tab *Past*). New and changed ones carry a *New* or *Changed* badge on their own row (no
+second list); cancelled ones are listed on top; *Got it* marks them seen. **Each kind of assignment
+has its own colour** (icon and label), so meetings for field service and public witnessing are
+told apart at a glance. Public witnessing shifts (M-08) are in it too; meeting
+parts and duties join when their modules exist. *All my assignments* opens a full page
 (`/app/me/assignments`): a timeline grouped by month, with *Coming up* and *Past*, the next one
 highlighted, new and changed ones marked, and cancelled ones listed with the notices. Notices are in the app; push notifications or e-mail come later
 with notifications in general.

@@ -38,7 +38,7 @@ mod typography;
 pub use action::{Action, ActionButton, EditActions};
 pub use calendar::{Calendar, CalendarEntry, Date};
 pub use button::{Button, ButtonKind, ButtonSize, ButtonVariant, IconButton};
-pub use card::{Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, RecordCard, Tag};
+pub use card::{Accent, AccentItem, AccentList, Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, RecordCard, Tag};
 pub use charts::{BarChart, ChartPoint, ChartSeries, LineChart, MonthMark, MonthStrip, ProgressRow, Sparkline, StatTile, Trend};
 pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};

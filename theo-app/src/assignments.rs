@@ -1,20 +1,36 @@
 //! ⚠️ MOCK of "My assignments": everything a person is assigned to, and notices when something
-//! sent changes for them. For now: meetings for field service (M-15). Meeting parts and duties
-//! join when those modules exist. Rules: `docs/model/m15-field-service-meetings.md`, "Notices".
+//! sent changes for them: meetings for field service (M-15) and public witnessing (M-08).
+//! Meeting parts and duties join when those modules exist. Rules: `docs/model/m15-field-service-meetings.md`, "Notices".
 
 use crate::people::Directory;
-use crate::service_meetings::MeetingVersion;
 
 /// Where an assignment comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AssignmentKind {
     FieldServiceMeeting,
+    PublicWitnessing,
 }
 
 impl AssignmentKind {
     pub fn label(self) -> &'static str {
         match self {
             AssignmentKind::FieldServiceMeeting => "Meeting for field service",
+            AssignmentKind::PublicWitnessing => "Public witnessing",
+        }
+    }
+
+    /// Its colour in lists (each kind its own).
+    pub fn accent(self) -> theo_ui::Accent {
+        match self {
+            AssignmentKind::FieldServiceMeeting => theo_ui::Accent::One,
+            AssignmentKind::PublicWitnessing => theo_ui::Accent::Two,
+        }
+    }
+
+    pub fn icon(self) -> theo_ui::Icon {
+        match self {
+            AssignmentKind::FieldServiceMeeting => theo_ui::Icon::Footprints,
+            AssignmentKind::PublicWitnessing => theo_ui::Icon::PublicWitnessing,
         }
     }
 }
@@ -88,6 +104,18 @@ impl Directory {
                 detail: s.place.clone(),
             })
             .collect();
+        v.extend(self.shifts.iter().filter_map(|s| s.sent.as_ref().map(|v| (s.id, v))).filter_map(|(id, v)| {
+            let slot = v.slots.iter().find(|x| x.person == Some(person))?;
+            let role = if slot.role == crate::public_witnessing::Role::Supervisor { " · Shift supervisor" } else { "" };
+            Some(Assignment {
+                kind: AssignmentKind::PublicWitnessing,
+                record: id,
+                date: v.date.clone(),
+                // The time is in the detail ("09:00–11:00"), so it is not shown twice.
+                time: None,
+                detail: format!("{}–{} · {}{role}", v.start, v.end, v.place),
+            })
+        }));
         v.sort_by(|a, b| (&a.date, &a.time).cmp(&(&b.date, &b.time)));
         v
     }
@@ -106,29 +134,21 @@ impl Directory {
     }
 
     /// Adds a notice, replacing an unseen one of the same person about the same record.
-    pub(crate) fn notify(&mut self, person: u32, kind: NoticeKind, record: u32, v: &MeetingVersion) {
-        let earlier = self.notices.iter().find(|n| n.person == person && n.record == record && !n.seen).map(|n| n.kind);
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn notify(&mut self, person: u32, kind: NoticeKind, what: AssignmentKind, record: u32, date: &str, time: Option<String>, detail: String) {
+        let same = |n: &Notice| n.person == person && n.what == what && n.record == record && !n.seen;
+        let earlier = self.notices.iter().find(|n| same(n)).map(|n| n.kind);
         // New then changed before they looked: still new to them. New then cancelled: nothing to say.
         let kind = match (earlier, kind) {
             (Some(NoticeKind::New), NoticeKind::Changed) => NoticeKind::New,
             (Some(NoticeKind::New), NoticeKind::Cancelled) => {
-                self.notices.retain(|n| !(n.person == person && n.record == record && !n.seen));
+                self.notices.retain(|n| !same(n));
                 return;
             }
             (_, k) => k,
         };
-        self.notices.retain(|n| !(n.person == person && n.record == record && !n.seen));
+        self.notices.retain(|n| !same(n));
         let id = self.notices.iter().map(|n| n.id).max().unwrap_or(0) + 1;
-        self.notices.push(Notice {
-            id,
-            person,
-            kind,
-            what: AssignmentKind::FieldServiceMeeting,
-            record,
-            date: v.date.clone(),
-            time: Some(v.time.clone()),
-            detail: v.place.clone(),
-            seen: false,
-        });
+        self.notices.push(Notice { id, person, kind, what, record, date: date.into(), time, detail, seen: false });
     }
 }

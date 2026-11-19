@@ -61,8 +61,9 @@ pub fn MyAssignmentsPage() -> Element {
                 weekday,
                 title: a.kind.label().into(),
                 subtitle: when(a),
-                icon: Icon::Footprints,
-                tag: notices.iter().find(|n| n.record == a.record && n.kind != NoticeKind::Cancelled).map(|n| notice_tag(n.kind)),
+                icon: a.kind.icon(),
+                accent: Some(a.kind.accent()),
+                tag: notices.iter().find(|n| n.what == a.kind && n.record == a.record && n.kind != NoticeKind::Cancelled).map(|n| notice_tag(n.kind)),
                 muted: showing_past,
                 highlight: !showing_past && i == 0,
             }

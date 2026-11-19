@@ -464,34 +464,37 @@ impl Directory {
     /// A meeting moved to another month after it was sent is sent with the month it is in now.
     /// Only the conductors concerned get a notice (new, changed or cancelled).
     pub fn send_service_month(&mut self, ym: Ym) -> usize {
-        use crate::assignments::NoticeKind;
+        use crate::assignments::{AssignmentKind, NoticeKind};
         let ids: Vec<u32> = self.unsent_service_changes(ym).iter().map(|(id, _)| *id).collect();
         for id in &ids {
             let Some(m) = self.service_meeting(*id).cloned() else { continue };
             let now = m.current();
             let before = m.sent.clone();
+            let notify = |d: &mut Directory, c: u32, k: NoticeKind, v: &MeetingVersion| {
+                d.notify(c, k, AssignmentKind::FieldServiceMeeting, m.id, &v.date, Some(v.time.clone()), v.place.clone())
+            };
             match (&before, m.removed) {
                 (Some(b), true) => {
                     if let Some(c) = b.conductor {
-                        self.notify(c, NoticeKind::Cancelled, m.id, b);
+                        notify(self, c, NoticeKind::Cancelled, b);
                     }
                 }
                 (Some(b), false) if b.conductor == now.conductor => {
                     if let Some(c) = now.conductor {
-                        self.notify(c, NoticeKind::Changed, m.id, &now);
+                        notify(self, c, NoticeKind::Changed, &now);
                     }
                 }
                 (Some(b), false) => {
                     if let Some(c) = b.conductor {
-                        self.notify(c, NoticeKind::Cancelled, m.id, b);
+                        notify(self, c, NoticeKind::Cancelled, b);
                     }
                     if let Some(c) = now.conductor {
-                        self.notify(c, NoticeKind::New, m.id, &now);
+                        notify(self, c, NoticeKind::New, &now);
                     }
                 }
                 (None, _) => {
                     if let Some(c) = now.conductor {
-                        self.notify(c, NoticeKind::New, m.id, &now);
+                        notify(self, c, NoticeKind::New, &now);
                     }
                 }
             }
@@ -620,7 +623,10 @@ mod tests {
         let total: usize = [2, 3, 4].iter().map(|c| d.my_notices(*c).len()).sum();
         assert_eq!(total, 9);
         assert!(d.my_notices(5).is_empty());
-        assert_eq!(d.my_assignments(2, "2026-11-01").len(), d.my_notices(2).len());
+        let fsm = |d: &Directory| {
+            d.my_assignments(2, "2026-11-01").iter().filter(|a| a.kind == crate::assignments::AssignmentKind::FieldServiceMeeting).count()
+        };
+        assert_eq!(fsm(&d), d.my_notices(2).len());
         for c in [2, 3, 4] {
             d.mark_notices_seen(c);
         }
