@@ -71,12 +71,13 @@ As in M-15. On send, only the people concerned get a notice in *My assignments*:
 ## Screens
 
 *Ministry › Public witnessing* (`/app/ministry/witnessing`). Tabs: *List*, *Calendar*, and for
-planners *Presets* and *Statistics*.
+planners *Statistics*. Header: *Presets* (planners), *Export* (the shown month as PDF, DOCX or CSV:
+date, time, place, supervisor, people), *Fill month*, *Send (n)*, *Add shift*.
 
 - **List:** one card per shift: day and time, place and the people, a tag with how many places
   are filled ("3 people", "2 of 3 people", "Nobody yet"), the supervisor, and the send state.
 - **Calendar:** the shared month calendar; on large screens the people under each shift.
-- **Presets:** the *Shift supervisors* card (switch, how many can supervise, *Choose who*), then one
+- **Presets** (a page of its own, `/app/ministry/witnessing/presets`): the *Shift supervisors* card (switch, how many can supervise, *Choose who*), then one
   card per weekly shift with what it needs and how many are available.
 - **Statistics** (last 6 or 12 months, sent shifts): shifts, places filled, how many took part, shifts
   per person on average; shifts per person (with how many as supervisor; people without a shift

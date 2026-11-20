@@ -119,11 +119,15 @@ stay at the top.
   conductor.
 - **Calendar:** the shared month calendar (M-12), with the place under the time and conductor
   on large screens. For planners: blue sent, yellow not sent, red no conductor.
-- **Presets** (planners only): one card per weekly meeting with how many can conduct it and
-  "Off: not filled" when switched off; the dialog sets the day, time, place, on or off, and who
-  can conduct it (ticked: available).
-- Header actions (planners): *Fill month*, *Send (n)*, *Add meeting*; on the Presets tab *Add
-  preset*.
+- **Statistics** (planners; last 6 or 12 months, sent meetings): meetings, share with a
+  conductor, how many conducted, meetings per conductor on average; meetings per conductor
+  (people without one marked); availability per preset, fewest available first; highlights.
+- **Presets** (planners): a page of its own (`/app/ministry/service-meetings/presets`), opened
+  with the *Presets* button in the header: one card per weekly meeting with how many can conduct
+  it and "Off: not filled" when switched off; the dialog sets the day, time, place, on or off, and
+  who can conduct it (ticked: available).
+- Header actions: *Presets*, *Export* (the shown month as PDF, DOCX or CSV: date, time, place,
+  conductor; everyone else exports what was sent), *Fill month*, *Send (n)*, *Add meeting*.
 
 ## Permissions
 

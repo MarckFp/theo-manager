@@ -455,6 +455,21 @@ impl Directory {
         }
     }
 
+    /// Sent meetings between two dates (both included), and how many of them had a conductor.
+    pub fn service_meeting_totals(&self, from: &str, to: &str) -> (usize, usize) {
+        let sent: Vec<&MeetingVersion> = self.service_meetings.iter().filter_map(|m| m.sent.as_ref()).filter(|v| v.date.as_str() >= from && v.date.as_str() <= to).collect();
+        (sent.len(), sent.iter().filter(|v| v.conductor.is_some()).count())
+    }
+
+    /// Sent meetings per person with the privilege between two dates: most first (people without
+    /// any are included, last).
+    pub fn meetings_per_conductor(&self, from: &str, to: &str) -> Vec<(u32, usize)> {
+        let sent: Vec<&MeetingVersion> = self.service_meetings.iter().filter_map(|m| m.sent.as_ref()).filter(|v| v.date.as_str() >= from && v.date.as_str() <= to).collect();
+        let mut rows: Vec<(u32, usize)> = self.conductors().iter().map(|p| (p.id, sent.iter().filter(|v| v.conductor == Some(p.id)).count())).collect();
+        rows.sort_by_key(|r| std::cmp::Reverse(r.1));
+        rows
+    }
+
     /// Changes of the month that everyone does not see yet.
     pub fn unsent_service_changes(&self, ym: Ym) -> Vec<(u32, SendStatus)> {
         self.service_meetings_in(ym).iter().map(|m| (m.id, m.status())).filter(|(_, s)| *s != SendStatus::Sent).collect()
@@ -600,6 +615,11 @@ mod tests {
         assert_eq!(d.unsent_service_changes((2026, 11)).len(), 2);
         d.send_service_month((2026, 11));
         assert!(d.service_meeting(first.id).is_none());
+        // Statistics count sent meetings.
+        let (meetings, with_conductor) = d.service_meeting_totals("2026-11-01", "2026-11-30");
+        assert_eq!((meetings, with_conductor), (9, 9));
+        let per = d.meetings_per_conductor("2026-11-01", "2026-11-30");
+        assert_eq!(per.iter().map(|(_, n)| n).sum::<usize>(), 9);
         assert_eq!(d.sent_service_meetings_in((2026, 11)).len(), 9);
     }
 

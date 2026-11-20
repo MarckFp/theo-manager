@@ -21,7 +21,8 @@ People who moved away do not report.
 
 - **Total hours** = hours + credit hours. Goals use the total.
 - **Credit hours** are at most **50 per month**.
-- Hours, credit hours and Bible studies are whole numbers from 0.
+- Hours, credit hours and Bible studies are whole numbers from 0. The Bible studies field takes
+  digits only (no sign or decimals) and starts at 0 in a new report.
 - For people who report hours, "took part" is true when the total is more than 0.
 - **Monthly auxiliary pioneering** (baptised publishers) is planned per person and month: ahead of
   time, or once the month has started, on the person page (*Auxiliary pioneering*), or with the
@@ -88,8 +89,8 @@ than 0 hours). Months before the person's first report do not count.
 | Tab | What it shows |
 |---|---|
 | **Month** | A month picker across the full width (previous, next, and a popover to jump to any month and year; starts at the reporting month). Totals: reports received, publishers who took part, hours, Bible studies. Search and filters: **Report status** (received, not in yet, missing, late) and the *All users* filters except status and consent (type, appointment, group, activity, gender, anointed). One card per publisher with their report, or its status. A card opens the report form. Export of the month as PDF, DOCX or CSV. |
-| **Statistics** | A service year. Averages and totals for the congregation and for each field service group, and publishers who took part per month. |
-| **Goals** | A service year and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. **Goal settings** (next to the service year) opens a dialog with the 15-hour months of that year and the goal of each kind. |
+| **Statistics** | A service year, chosen with the same picker as meeting attendance (`‹ Service year 2026/2027 ›`, with *Today*), in the sticky bar. Averages and totals for the congregation and for each field service group, and publishers who took part per month. |
+| **Goals** | A service year (the same picker) and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. **Goal settings** opens a dialog with the 15-hour months of that year and the goal of each kind. |
 
 The person page shows the person's last 6 months, their goal progress, and every month from
 their first report to the reporting month (the last 6 first, all on request). Any month opens the

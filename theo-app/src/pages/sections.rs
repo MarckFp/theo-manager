@@ -424,10 +424,28 @@ pub fn Me() -> Element {
                     Stack {
                         if let (Some(label), Some(c)) = (biometric_label(), congregation.clone()) {
                             Switch {
-                                checked: c.biometric,
+                                checked: c.biometric || crate::platform::stored_biometric(&c.id).is_some(),
                                 onchange: move |v| {
-                                    state.set_biometric(&c.id, v);
-                                    toaster.success(if v { "Biometric unlock is on for this device." } else { "Biometric unlock is off." });
+                                    let id = c.id.clone();
+                                    if v {
+                                        // The browser asks for the fingerprint or face, then remembers it.
+                                        let username = state.account().map(|a| a.username).unwrap_or_default();
+                                        let display = state.account().map(|a| a.display_name).unwrap_or_default();
+                                        spawn(async move {
+                                            match crate::platform::biometric_register(&username, &display).await {
+                                                Ok(credential) => {
+                                                    crate::platform::store_biometric(&id, Some(&credential));
+                                                    state.set_biometric(&id, true);
+                                                    toaster.success("Biometric unlock is on for this device.");
+                                                }
+                                                Err(e) => toaster.error(format!("Biometric unlock is not on: {e}")),
+                                            }
+                                        });
+                                    } else {
+                                        crate::platform::store_biometric(&id, None);
+                                        state.set_biometric(&id, false);
+                                        toaster.success("Biometric unlock is off.");
+                                    }
                                 },
                                 label: "Unlock {c.name} with {label}",
                                 description: "The key stays in this device's secure hardware.",

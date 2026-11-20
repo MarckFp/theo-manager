@@ -1,8 +1,7 @@
-use crate::platform::biometric_label;
+use crate::platform::{biometric_label, biometric_register, biometric_verify, store_biometric, stored_biometric, SIMULATED};
 use crate::state::use_app_state;
 use crate::{Redirect, Route};
 use dioxus::prelude::*;
-use std::time::Duration;
 use theo_ui::*;
 use theo_ui::Action; // explicit: dioxus::prelude also exports an `Action`
 
@@ -37,7 +36,8 @@ pub fn Unlock() -> Element {
 
     let current = congregations.iter().find(|c| Some(&c.id) == selected().as_ref()).cloned();
     let bio = biometric_label();
-    let bio_enabled = current.as_ref().is_some_and(|c| c.biometric);
+    // On, for this congregation on this device: chosen in this session, or remembered.
+    let bio_enabled = current.as_ref().is_some_and(|c| c.biometric || stored_biometric(&c.id).is_some());
     let items: Vec<SwitcherItem> = congregations
         .iter()
         .map(|c| SwitcherItem { id: c.id.clone(), name: c.name.clone(), kind_icon: c.mode.icon(), kind_label: c.mode.label() })
@@ -61,7 +61,31 @@ pub fn Unlock() -> Element {
                         error.set(Some("Enter the congregation password.".into()));
                         return;
                     }
-                    match state.unlock(&id, &password(), remember()) {
+                    let pw = password();
+                    if remember() && state.password_matches(&id, &pw) {
+                        // Set up the biometric unlock first (the browser asks for the fingerprint or
+                        // face), then unlock: unlocking leaves this page, which would stop the setup.
+                        let account = state.account();
+                        let username = account.as_ref().map(|a| a.username.clone()).unwrap_or_default();
+                        let display = account.map(|a| a.display_name).unwrap_or_default();
+                        checking.set(true);
+                        spawn(async move {
+                            match biometric_register(&username, &display).await {
+                                Ok(credential) => {
+                                    store_biometric(&id, Some(&credential));
+                                    state.set_biometric(&id, true);
+                                    toaster.success("Biometric unlock is on for this device.");
+                                }
+                                Err(e) => toaster.error(format!("Biometric unlock is not on: {e}")),
+                            }
+                            checking.set(false);
+                            if state.unlock(&id, &pw, false).is_ok() {
+                                nav.replace(Route::Dashboard {});
+                            }
+                        });
+                        return;
+                    }
+                    match state.unlock(&id, &pw, false) {
                         Ok(()) => { nav.replace(Route::Dashboard {}); }
                         Err(e) => error.set(Some(e.to_string())),
                     }
@@ -91,13 +115,14 @@ pub fn Unlock() -> Element {
                                 let Some(id) = selected() else { return };
                                 checking.set(true);
                                 spawn(async move {
-                                    // MOCK: stands in for the platform prompt (see platform.rs).
-                                    simulated_prompt().await;
+                                    // The browser's passkey prompt on the web; simulated in the apps.
+                                    let credential = stored_biometric(&id).unwrap_or_else(|| SIMULATED.into());
+                                    let ok = biometric_verify(&credential).await;
                                     checking.set(false);
-                                    if state.unlock_with_biometrics(&id) {
+                                    if ok && state.unlock_with_biometrics(&id) {
                                         nav.replace(Route::Dashboard {});
                                     } else {
-                                        toaster.error("Biometric unlock failed. Use the password.");
+                                        toaster.error("Biometric unlock did not work. Use the password.");
                                     }
                                 });
                             },
@@ -134,6 +159,3 @@ pub fn Unlock() -> Element {
     }
 }
 
-async fn simulated_prompt() {
-    theo_ui::sleep(Duration::from_millis(700)).await;
-}

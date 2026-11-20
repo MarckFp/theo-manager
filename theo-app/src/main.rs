@@ -101,9 +101,13 @@ pub enum Route {
             /// Ministry › Public witnessing (docs/model/m16-public-witnessing.md).
             #[route("/ministry/witnessing")]
             WitnessingPage {},
+            #[route("/ministry/witnessing/presets")]
+            WitnessingPresetsPage {},
             /// Ministry › Meetings for field service (docs/model/m15-field-service-meetings.md).
             #[route("/ministry/service-meetings")]
             ServiceMeetingsPage {},
+            #[route("/ministry/service-meetings/presets")]
+            ServicePresetsPage {},
             /// Ministry › Field service groups (docs/model/m09-field-service-groups.md).
             #[route("/ministry/groups")]
             GroupList {},

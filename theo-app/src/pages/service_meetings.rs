@@ -67,12 +67,13 @@ pub fn ServiceMeetingsPage() -> Element {
     let planner = state.can_write(PAGE);
     let dir = state.directory();
     let mut view = (state.service_view)();
-    if !planner && view == "presets" {
+    // Presets have their own page now; an old "presets" choice falls back to the list.
+    if view == "presets" || (!planner && view == "statistics") {
         view = "list".into();
     }
+    let navigator = navigator();
     let month = (state.service_month)().unwrap_or_else(this_month);
     let mut editing = use_signal(|| None::<Option<u32>>);
-    let mut editing_preset = use_signal(|| None::<Option<u32>>);
     let mut confirm_send = use_signal(|| false);
     let mut confirm_clear = use_signal(|| false);
     let unsent = dir.unsent_service_changes(month);
@@ -82,8 +83,8 @@ pub fn ServiceMeetingsPage() -> Element {
 
     let on_fill = move |id: String| {
         if (id == "fill" || id == "fill-assign") && state.directory().service_presets.is_empty() {
-            toaster.error("Add the weekly meetings first (Presets tab).");
-            state.service_view.set("presets".into());
+            toaster.error("Add the weekly meetings first (Presets).");
+            navigator.push(crate::Route::ServicePresetsPage {});
             return;
         }
         match id.as_str() {
@@ -121,11 +122,47 @@ pub fn ServiceMeetingsPage() -> Element {
         }
     };
 
+    let on_export = {
+        let dir = dir.clone();
+        let prefs = state.preferences();
+        let congregation = congregation.clone();
+        move |id: String| {
+            let Some(format) = crate::export::Format::parse(&id) else { return };
+            let versions: Vec<MeetingVersion> = if planner {
+                dir.service_meetings_in(month).iter().filter(|m| !m.removed).map(|m| m.current()).collect()
+            } else {
+                dir.sent_service_meetings_in(month).into_iter().map(|(_, v)| v).collect()
+            };
+            if versions.is_empty() {
+                toaster.error("There are no meetings to export in this month.");
+                return;
+            }
+            let rows = versions
+                .iter()
+                .map(|v| vec![day_title(&v.date), v.time.clone(), v.place.clone(), name_of(&dir, &prefs, v.conductor).unwrap_or_default()])
+                .collect();
+            let columns = ["Date", "Time", "Place", "Conductor"];
+            let table = crate::export::Table {
+                title: format!("{congregation} · Meetings for field service"),
+                subtitle: month_label(month),
+                columns: columns.iter().map(|c| c.to_string()).collect(),
+                widths: vec![2.2, 1.0, 3.0, 2.2],
+                rows,
+            };
+            super::users::save_export(&table, format, &congregation, &format!("field-service-meetings-{:04}-{:02}", month.0, month.1), toaster);
+        }
+    };
+    let export = rsx! { super::users::ExportMenu { csv_description: "The meetings of the month, for spreadsheets", onselect: on_export } };
+    let presets_button = rsx! {
+        ActionButton { action: Action::Settings, variant: ButtonVariant::Secondary, label: "Presets", onclick: move |_| { navigator.push(crate::Route::ServicePresetsPage {}); } }
+    };
     let actions: Element = if planner {
-        if view == "presets" {
-            rsx! { ActionButton { action: Action::Add, label: "Add preset", onclick: move |_| editing_preset.set(Some(None)) } }
+        if view == "statistics" {
+            presets_button
         } else {
             rsx! {
+                {presets_button}
+                {export}
                 MenuButton {
                     label: "Fill month",
                     icon: Icon::Magic,
@@ -148,7 +185,7 @@ pub fn ServiceMeetingsPage() -> Element {
             }
         }
     } else {
-        rsx! {}
+        export
     };
 
     rsx! {
@@ -165,7 +202,7 @@ pub fn ServiceMeetingsPage() -> Element {
                             Segment { value: "calendar".into(), label: "Calendar".into(), icon: Some(Icon::Calendar) },
                         ];
                         if planner {
-                            o.push(Segment { value: "presets".into(), label: "Presets".into(), icon: Some(Icon::Settings) });
+                            o.push(Segment { value: "statistics".into(), label: "Statistics".into(), icon: Some(Icon::Chart) });
                         }
                         o
                     },
@@ -182,8 +219,8 @@ pub fn ServiceMeetingsPage() -> Element {
                     }
                 }
             }
-            if view == "presets" {
-                PresetsView { on_open: move |id| editing_preset.set(Some(Some(id))) }
+            if view == "statistics" {
+                StatisticsTab {}
             } else {
                 if planner {
                     PlannerSummary { month, has_presets }
@@ -199,9 +236,6 @@ pub fn ServiceMeetingsPage() -> Element {
         }
         if let Some(id) = editing() {
             MeetingDialog { key: "{id:?}", id, month, onclose: move |_| editing.set(None) }
-        }
-        if let Some(id) = editing_preset() {
-            PresetDialog { key: "{id:?}", id, onclose: move |_| editing_preset.set(None) }
         }
         ConfirmDialog {
             open: confirm_send(),
@@ -380,6 +414,148 @@ fn MeetingsCalendar(month: Ym, planner: bool, on_open: EventHandler<u32>) -> Ele
 // ---------------------------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------------------------
+
+/// `/app/ministry/service-meetings/presets`: the weekly meetings and who can conduct them.
+#[component]
+pub fn ServicePresetsPage() -> Element {
+    let state = use_app_state();
+    let navigator = navigator();
+    let congregation = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let mut editing = use_signal(|| None::<Option<u32>>);
+    let back = ("Meetings for field service".to_string(), EventHandler::new(move |_| { navigator.push(crate::Route::ServiceMeetingsPage {}); }));
+    if !state.can_write(PAGE) {
+        return rsx! {
+            Page { title: "Presets", back,
+                EmptyState { icon: Icon::Lock, title: "Only planners can change the presets", description: "Ask an administrator for write access to Meetings for field service." }
+            }
+        };
+    }
+    rsx! {
+        Page {
+            title: "Presets",
+            subtitle: "{congregation} · Meetings for field service: the weekly meetings and who can conduct them",
+            back,
+            actions: rsx! { ActionButton { action: Action::Add, label: "Add preset", onclick: move |_| editing.set(Some(None)) } },
+            PresetsView { on_open: move |id| editing.set(Some(Some(id))) }
+        }
+        if let Some(id) = editing() {
+            PresetDialog { key: "{id:?}", id, onclose: move |_| editing.set(None) }
+        }
+    }
+}
+
+/// Statistics of the last 6 or 12 months (sent meetings).
+#[component]
+fn StatisticsTab() -> Element {
+    let state = use_app_state();
+    let prefs = state.preferences();
+    let dir = state.directory();
+    let mut period = use_signal(|| "6".to_string());
+    let months: i64 = if period() == "12" { 12 } else { 6 };
+    let today = people::today_iso();
+    let from = crate::events::add_days(&today, -months * 30).unwrap_or_else(|| today.clone());
+    let (meetings, with_conductor) = dir.service_meeting_totals(&from, &today);
+    let per = dir.meetings_per_conductor(&from, &today);
+    let conductors = per.len();
+    let conducted = per.iter().filter(|(_, n)| *n > 0).count();
+    let none: Vec<String> = per.iter().filter(|(_, n)| *n == 0).filter_map(|(p, _)| dir.person(*p)).map(|p| p.display_name(&prefs)).collect();
+    let top = per.first().map(|(_, n)| *n).unwrap_or(0).max(1);
+    let pct = (with_conductor * 100).checked_div(meetings).unwrap_or(0);
+    let first = week_order(&prefs)[0];
+    let mut presets: Vec<(String, String, usize)> = dir
+        .service_presets_sorted(first)
+        .iter()
+        .map(|p| (p.label(), p.place.clone(), dir.conductors().iter().filter(|c| p.available.contains(&c.id)).count()))
+        .collect();
+    presets.sort_by_key(|p| p.2);
+    let busiest = per.first().filter(|(_, n)| *n > 0).and_then(|(p, n)| dir.person(*p).map(|x| (x.display_name(&prefs), *n)));
+    rsx! {
+        Segmented {
+            value: period(),
+            options: vec![
+                Segment { value: "6".into(), label: "Last 6 months".into(), icon: Some(Icon::Calendar) },
+                Segment { value: "12".into(), label: "Last 12 months".into(), icon: Some(Icon::History) },
+            ],
+            onchange: move |v: String| period.set(v),
+        }
+        Grid { cols: 4, gap: Gap::Sm, compact: true,
+            Card { StatTile { label: "Meetings", value: meetings.to_string(), icon: Icon::Footprints, delta: "sent meetings".to_string() } }
+            Card { StatTile { label: "With a conductor", value: format!("{pct}%"), icon: Icon::Check, delta: format!("{with_conductor} of {meetings}") } }
+            Card { StatTile { label: "Conducted", value: format!("{conducted} of {conductors}"), icon: Icon::Users, delta: "with the privilege".to_string() } }
+            Card { StatTile { label: "Meetings per conductor", value: if conductors > 0 { format!("{:.1}", with_conductor as f64 / conductors as f64) } else { "–".into() }, icon: Icon::User, delta: "on average".to_string() } }
+        }
+        Grid { cols: 2,
+            Card { title: "Meetings per conductor", icon: Icon::Users,
+                if per.is_empty() {
+                    Text { tone: TextTone::Muted, "Nobody has the privilege yet." }
+                } else {
+                    Stack { gap: Gap::Sm,
+                        for (p, n) in per.iter() {
+                            ProgressRow {
+                                key: "{p}",
+                                label: dir.person(*p).map(|x| x.display_name(&prefs)).unwrap_or_default(),
+                                detail: if *n == 1 { "1 meeting".to_string() } else { format!("{n} meetings") },
+                                value: *n as f64,
+                                max: top as f64,
+                                tone: if *n == 0 { Tone::Warning } else { Tone::Neutral },
+                            }
+                        }
+                    }
+                }
+            }
+            Stack {
+                Card { title: "Availability per preset", icon: Icon::Settings,
+                    if presets.is_empty() {
+                        Text { tone: TextTone::Muted, "No presets yet." }
+                    } else {
+                        Stack { gap: Gap::Sm,
+                            Text { tone: TextTone::Small, "Fewest available first: these are the hardest to fill." }
+                            for (i, (label, place, can)) in presets.iter().enumerate() {
+                                ProgressRow {
+                                    key: "{i}",
+                                    label: label.clone(),
+                                    detail: format!("{can} of {conductors} available"),
+                                    value: *can as f64,
+                                    max: conductors.max(1) as f64,
+                                    note: place.clone(),
+                                    tone: if *can == 0 { Tone::Error } else if *can < 3 { Tone::Warning } else { Tone::Success },
+                                }
+                            }
+                        }
+                    }
+                }
+                Card { title: "Highlights", icon: Icon::Sparkles,
+                    ItemList {
+                        items: {
+                            let mut items = Vec::new();
+                            if let (Some(low), Some(high)) = (presets.first(), presets.last()) {
+                                items.push(ListEntry { icon: Icon::Warning, title: format!("Fewest available: {}", low.0), subtitle: format!("{} · {} of {conductors}", low.1, low.2), meta: String::new() });
+                                if presets.len() > 1 {
+                                    items.push(ListEntry { icon: Icon::Check, title: format!("Most available: {}", high.0), subtitle: format!("{} · {} of {conductors}", high.1, high.2), meta: String::new() });
+                                }
+                            }
+                            if let Some((name, n)) = &busiest {
+                                items.push(ListEntry { icon: Icon::User, title: format!("Most meetings: {name}"), subtitle: format!("{n} meetings in the last {months} months"), meta: String::new() });
+                            }
+                            if meetings > with_conductor {
+                                items.push(ListEntry { icon: Icon::Warning, title: format!("{} without a conductor", meetings - with_conductor), subtitle: "Sent meetings that nobody conducted".into(), meta: String::new() });
+                            }
+                            if !none.is_empty() {
+                                items.push(ListEntry {
+                                    icon: Icon::Users,
+                                    title: format!("{} without a meeting", none.len()),
+                                    subtitle: none.iter().take(5).cloned().collect::<Vec<_>>().join(", ") + if none.len() > 5 { "…" } else { "" },
+                                    meta: String::new(),
+                                });
+                            }
+                            items
+                        },
+                    }
+                }
+            }
+        }
+    }
+}
 
 #[component]
 fn PresetsView(on_open: EventHandler<u32>) -> Element {

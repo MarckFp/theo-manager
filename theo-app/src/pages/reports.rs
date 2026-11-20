@@ -76,6 +76,17 @@ pub fn ReportsPage() -> Element {
                 }
                 if tab == "month" {
                     MonthPicker { value: ym, min, max, today: reporting_month(), full_width: true, onchange: move |v| state.report_month.set(Some(v)) }
+                } else {
+                    // Statistics and goals: the service year (September to August), like meeting attendance.
+                    YearPicker {
+                        value: report_year(&state),
+                        min: service_year(min),
+                        max: service_year(max).max(service_year(reporting_month())),
+                        current: service_year(reporting_month()),
+                        label: format!("Service year {}", service_year_label(report_year(&state))),
+                        full_width: true,
+                        onchange: move |y| state.report_year.set(Some(y)),
+                    }
                 }
             }
             match tab.as_str() {
@@ -275,26 +286,16 @@ fn MonthTab() -> Element {
     }
 }
 
-#[component]
-fn ServiceYearSelect(value: i32, onchange: EventHandler<i32>) -> Element {
-    let state = use_app_state();
-    let (min, max) = state.directory().report_range();
-    let options: Vec<SelectOption> = (service_year(min)..=service_year(max))
-        .rev()
-        .map(|y| SelectOption::new(y.to_string(), service_year_label(y)))
-        .collect();
-    rsx! {
-        Field { label: "Service year (September to August)",
-            Select { value: value.to_string(), options, onchange: move |v: String| if let Ok(y) = v.parse() { onchange.call(y) } }
-        }
-    }
+/// The service year of the Statistics and Goals tabs (the current one until another is chosen).
+fn report_year(state: &crate::state::AppState) -> i32 {
+    (state.report_year)().unwrap_or_else(|| service_year(reporting_month()))
 }
 
 #[component]
 fn StatisticsTab() -> Element {
     let state = use_app_state();
     let dir = state.directory();
-    let mut year = use_signal(|| service_year(reporting_month()));
+    let year = use_memo(move || report_year(&state));
     let months: Vec<Ym> = service_year_months(year()).into_iter().filter(|m| *m <= reporting_month()).collect();
     let sums: Vec<_> = months.iter().map(|m| (*m, dir.month_summary(*m))).collect();
     let n = sums.len().max(1) as f64;
@@ -313,9 +314,6 @@ fn StatisticsTab() -> Element {
     let studies_per_publisher = avg_studies / reporter_count;
 
     rsx! {
-        Grid { cols: 3,
-            ServiceYearSelect { value: year(), onchange: move |y| year.set(y) }
-        }
         if months.is_empty() {
             EmptyState { icon: Icon::Calendar, title: "No reports yet in this service year" }
         } else {
@@ -358,7 +356,7 @@ fn GoalsTab() -> Element {
     let state = use_app_state();
     let prefs = state.preferences();
     let dir = state.directory();
-    let mut year = use_signal(|| service_year(reporting_month()));
+    let year = use_memo(move || report_year(&state));
     let mut settings = use_signal(|| false);
     let goals = dir.goals(year());
     // One section per kind of publisher, in this order; empty sections are not shown.
@@ -383,8 +381,7 @@ fn GoalsTab() -> Element {
     .filter(|(_, l)| !l.is_empty())
     .collect();
     rsx! {
-        Cluster { align: Align::End,
-            ServiceYearSelect { value: year(), onchange: move |y| year.set(y) }
+        Cluster { justify: Justify::End,
             ActionButton { action: Action::Settings, label: "Goal settings", onclick: move |_| settings.set(true) }
         }
         if sections.is_empty() {
@@ -567,7 +564,7 @@ pub(super) fn ReportDialog(person: u32, month: Ym, onclose: EventHandler<()>) ->
                     }
                 }
                 Field { label: "Bible studies", required: true, error: err("studies"),
-                    TextInput { kind: InputKind::Number, value: d.studies.clone(), invalid: err("studies").is_some(), oninput: move |v| draft.write().studies = v }
+                    TextInput { kind: InputKind::Count, value: d.studies.clone(), invalid: err("studies").is_some(), oninput: move |v| draft.write().studies = v }
                 }
                 Field { label: "Notes", error: err("notes"), help: "Anything to know about this month.",
                     TextArea { value: d.notes.clone(), rows: 3, invalid: err("notes").is_some(), oninput: move |v| draft.write().notes = v }

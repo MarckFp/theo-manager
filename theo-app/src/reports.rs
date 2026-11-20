@@ -148,8 +148,8 @@ impl Kind {
     }
 }
 
-/// The report form. Text as typed.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// The report form. Text as typed. A new report starts with 0 Bible studies.
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReportDraft {
     /// "yes", "no" or "" (not chosen yet).
     pub took_part: String,
@@ -158,6 +158,19 @@ pub struct ReportDraft {
     pub studies: String,
     pub auxiliary: bool,
     pub notes: String,
+}
+
+impl Default for ReportDraft {
+    fn default() -> Self {
+        ReportDraft {
+            took_part: String::new(),
+            hours: String::new(),
+            credit: String::new(),
+            studies: "0".into(),
+            auxiliary: false,
+            notes: String::new(),
+        }
+    }
 }
 
 impl ReportDraft {

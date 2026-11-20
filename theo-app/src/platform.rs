@@ -18,6 +18,8 @@
 /// installed apps (Windows, macOS, Linux, iOS, Android) open on the log-in screen.
 pub const IS_WEB: bool = cfg!(target_arch = "wasm32");
 
+use dioxus::prelude::document;
+
 /// The web app runs installed (a PWA opened from the home screen or the app list), not in a tab.
 pub fn is_installed_web_app() -> bool {
     #[cfg(target_arch = "wasm32")]
@@ -30,6 +32,130 @@ pub fn is_installed_web_app() -> bool {
     {
         false
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Biometric unlock (UI level only)
+// ---------------------------------------------------------------------------------------------
+//
+// ⚠️ MOCK security: the check only answers "is it the user of this device?". It does not unlock
+// any key yet (later the root key is sealed by the platform's secure hardware).
+//
+// Web and installed web app: a real passkey (WebAuthn, platform authenticator with user
+// verification), so the browser shows its fingerprint, face or PIN prompt. The credential id is
+// kept per congregation in this browser's storage, so the choice survives reopening the app.
+// Desktop and mobile apps: a short simulated check until the native plugins exist.
+
+/// What remembers that a congregation unlocks with biometrics: the passkey id, or "simulated".
+pub const SIMULATED: &str = "simulated";
+
+fn storage_key(congregation: &str) -> String {
+    format!("theo-manager.biometric.{congregation}")
+}
+
+/// The remembered biometric unlock of a congregation on this device, if any.
+pub fn stored_biometric(congregation: &str) -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item(&storage_key(congregation)).ok().flatten())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = storage_key(congregation);
+        None
+    }
+}
+
+/// Remembers (or, with `None`, forgets) the biometric unlock of a congregation on this device.
+pub fn store_biometric(congregation: &str, credential: Option<&str>) {
+    #[cfg(target_arch = "wasm32")]
+    if let Some(s) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let key = storage_key(congregation);
+        let _ = match credential {
+            Some(c) => s.set_item(&key, c),
+            None => s.remove_item(&key),
+        };
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (storage_key(congregation), credential);
+}
+
+async fn simulated_prompt() {
+    theo_ui::sleep(std::time::Duration::from_millis(700)).await;
+}
+
+/// Sets up biometric unlock: on the web the browser asks for the fingerprint, face or PIN and
+/// creates a passkey. Returns what to remember, or a message when it did not work.
+pub async fn biometric_register(username: &str, display_name: &str) -> Result<String, String> {
+    if !cfg!(target_arch = "wasm32") {
+        simulated_prompt().await;
+        return Ok(SIMULATED.into());
+    }
+    let name = serde_json::to_string(username).unwrap_or_else(|_| "\"user\"".into());
+    let display = serde_json::to_string(display_name).unwrap_or_else(|_| "\"User\"".into());
+    let script = format!(
+        r#"
+        if (!window.PublicKeyCredential || !(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) {{
+            return {{ error: "This device has no fingerprint, face or PIN unlock for the browser." }};
+        }}
+        // Passkeys need a real site (not an IP address or an app's own scheme): simulate there.
+        const simulate = ["SecurityError", "NotSupportedError"];
+        try {{
+            const random = (n) => crypto.getRandomValues(new Uint8Array(n));
+            const credential = await navigator.credentials.create({{ publicKey: {{
+                challenge: random(32),
+                rp: {{ name: "Theo Manager" }},
+                user: {{ id: random(16), name: {name}, displayName: {display} }},
+                pubKeyCredParams: [{{ type: "public-key", alg: -7 }}, {{ type: "public-key", alg: -257 }}],
+                authenticatorSelection: {{ authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" }},
+                attestation: "none",
+                timeout: 60000,
+            }} }});
+            return {{ id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))) }};
+        }} catch (e) {{
+            if (simulate.includes(e.name)) return {{ simulated: true }};
+            return {{ error: e.name === "NotAllowedError" ? "Cancelled." : e.message }};
+        }}
+        "#
+    );
+    let value = document::eval(&script).await.map_err(|e| e.to_string())?;
+    if value.get("simulated").is_some() {
+        simulated_prompt().await;
+        return Ok(SIMULATED.into());
+    }
+    match (value.get("id").and_then(|v| v.as_str()), value.get("error").and_then(|v| v.as_str())) {
+        (Some(id), _) => Ok(id.to_string()),
+        (_, Some(e)) => Err(e.to_string()),
+        _ => Err("The browser did not answer.".into()),
+    }
+}
+
+/// Asks for the fingerprint, face or PIN of a remembered biometric unlock. True when it is the user.
+pub async fn biometric_verify(credential: &str) -> bool {
+    if credential == SIMULATED || !cfg!(target_arch = "wasm32") {
+        simulated_prompt().await;
+        return true;
+    }
+    let id = serde_json::to_string(credential).unwrap_or_default();
+    let script = format!(
+        r#"
+        try {{
+            const id = Uint8Array.from(atob({id}), (c) => c.charCodeAt(0));
+            await navigator.credentials.get({{ publicKey: {{
+                challenge: crypto.getRandomValues(new Uint8Array(32)),
+                allowCredentials: [{{ type: "public-key", id }}],
+                userVerification: "required",
+                timeout: 60000,
+            }} }});
+            return true;
+        }} catch (e) {{
+            return false;
+        }}
+        "#
+    );
+    document::eval(&script).await.ok().and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
 /// Name of the biometric method on this platform, or `None` if it has none.

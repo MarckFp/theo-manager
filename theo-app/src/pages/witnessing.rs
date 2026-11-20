@@ -72,12 +72,13 @@ pub fn WitnessingPage() -> Element {
     let planner = state.can_write(PAGE);
     let dir = state.directory();
     let mut view = (state.pw_view)();
-    if !planner && (view == "presets" || view == "statistics") {
+    // Presets have their own page now; an old "presets" choice falls back to the list.
+    if view == "presets" || (!planner && view == "statistics") {
         view = "list".into();
     }
+    let navigator = navigator();
     let month = (state.pw_month)().unwrap_or_else(this_month);
     let mut editing = use_signal(|| None::<Option<u32>>);
-    let mut editing_preset = use_signal(|| None::<Option<u32>>);
     let mut confirm_send = use_signal(|| false);
     let mut confirm_clear = use_signal(|| false);
     let unsent = dir.unsent_shift_changes(month);
@@ -86,8 +87,8 @@ pub fn WitnessingPage() -> Element {
 
     let on_fill = move |id: String| {
         if (id == "fill" || id == "fill-assign") && state.directory().shift_presets.iter().all(|p| !p.enabled) {
-            toaster.error("Add the weekly shifts first (Presets tab), or switch one on.");
-            state.pw_view.set("presets".into());
+            toaster.error("Add the weekly shifts first (Presets), or switch one on.");
+            navigator.push(crate::Route::WitnessingPresetsPage {});
             return;
         }
         match id.as_str() {
@@ -125,14 +126,45 @@ pub fn WitnessingPage() -> Element {
         }
     };
 
+    let on_export = {
+        let dir = dir.clone();
+        let prefs = state.preferences();
+        let congregation = congregation.clone();
+        move |id: String| {
+            let Some(format) = crate::export::Format::parse(&id) else { return };
+            let rows: Vec<Vec<String>> = shown_shifts(&dir, month, planner)
+                .into_iter()
+                .filter(|(_, _, s)| *s != Some(SendStatus::Removed))
+                .map(|(_, v, _)| {
+                    let sup = v.slots.iter().find(|x| x.role == Role::Supervisor).and_then(|x| x.person).and_then(|p| dir.person(p)).map(|p| p.display_name(&prefs)).unwrap_or_default();
+                    let others: Vec<String> = v.slots.iter().filter(|x| x.role != Role::Supervisor).filter_map(|x| x.person).filter_map(|p| dir.person(p)).map(|p| p.display_name(&prefs)).collect();
+                    vec![day_title(&v.date), format!("{}–{}", v.start, v.end), v.place.clone(), sup, others.join(", ")]
+                })
+                .collect();
+            if rows.is_empty() {
+                toaster.error("There are no shifts to export in this month.");
+                return;
+            }
+            let columns = ["Date", "Time", "Place", "Shift supervisor", "People"];
+            let table = crate::export::Table {
+                title: format!("{congregation} · Public witnessing"),
+                subtitle: month_label(month),
+                columns: columns.iter().map(|c| c.to_string()).collect(),
+                widths: vec![2.0, 1.2, 2.0, 1.6, 3.2],
+                rows,
+            };
+            super::users::save_export(&table, format, &congregation, &format!("public-witnessing-{:04}-{:02}", month.0, month.1), toaster);
+        }
+    };
+    let export = rsx! { super::users::ExportMenu { csv_description: "The shifts of the month, for spreadsheets", onselect: on_export } };
     let actions: Element = if !planner {
-        rsx! {}
-    } else if view == "presets" {
-        rsx! { ActionButton { action: Action::Add, label: "Add preset", onclick: move |_| editing_preset.set(Some(None)) } }
+        export
     } else if view == "statistics" {
-        rsx! {}
+        rsx! { ActionButton { action: Action::Settings, variant: ButtonVariant::Secondary, label: "Presets", onclick: move |_| { navigator.push(crate::Route::WitnessingPresetsPage {}); } } }
     } else {
         rsx! {
+            ActionButton { action: Action::Settings, variant: ButtonVariant::Secondary, label: "Presets", onclick: move |_| { navigator.push(crate::Route::WitnessingPresetsPage {}); } }
+            {export}
             MenuButton {
                 label: "Fill month",
                 icon: Icon::Magic,
@@ -169,7 +201,6 @@ pub fn WitnessingPage() -> Element {
                             Segment { value: "calendar".into(), label: "Calendar".into(), icon: Some(Icon::Calendar) },
                         ];
                         if planner {
-                            o.push(Segment { value: "presets".into(), label: "Presets".into(), icon: Some(Icon::Settings) });
                             o.push(Segment { value: "statistics".into(), label: "Statistics".into(), icon: Some(Icon::Chart) });
                         }
                         o
@@ -188,7 +219,6 @@ pub fn WitnessingPage() -> Element {
                 }
             }
             match view.as_str() {
-                "presets" => rsx! { PresetsTab { on_open: move |id| editing_preset.set(Some(Some(id))) } },
                 "statistics" => rsx! { StatisticsTab {} },
                 _ => rsx! {
                     if planner {
@@ -206,9 +236,6 @@ pub fn WitnessingPage() -> Element {
         }
         if let Some(id) = editing() {
             ShiftDialog { key: "{id:?}", id, month, onclose: move |_| editing.set(None) }
-        }
-        if let Some(id) = editing_preset() {
-            PresetDialog { key: "{id:?}", id, onclose: move |_| editing_preset.set(None) }
         }
         ConfirmDialog {
             open: confirm_send(),
@@ -424,6 +451,35 @@ fn NeedsEditor(needs: Needs, supervisors_on: bool, onchange: EventHandler<Needs>
 // ---------------------------------------------------------------------------------------------
 // Presets and shift supervisors
 // ---------------------------------------------------------------------------------------------
+
+/// `/app/ministry/witnessing/presets`: the weekly shifts and the shift supervisors (planners).
+#[component]
+pub fn WitnessingPresetsPage() -> Element {
+    let state = use_app_state();
+    let navigator = navigator();
+    let congregation = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let mut editing = use_signal(|| None::<Option<u32>>);
+    let back = ("Public witnessing".to_string(), EventHandler::new(move |_| { navigator.push(crate::Route::WitnessingPage {}); }));
+    if !state.can_write(PAGE) {
+        return rsx! {
+            Page { title: "Presets", back,
+                EmptyState { icon: Icon::Lock, title: "Only planners can change the presets", description: "Ask an administrator for write access to Public witnessing." }
+            }
+        };
+    }
+    rsx! {
+        Page {
+            title: "Presets",
+            subtitle: "{congregation} · Public witnessing: the weekly shifts and the shift supervisors",
+            back,
+            actions: rsx! { ActionButton { action: Action::Add, label: "Add preset", onclick: move |_| editing.set(Some(None)) } },
+            PresetsTab { on_open: move |id| editing.set(Some(Some(id))) }
+        }
+        if let Some(id) = editing() {
+            PresetDialog { key: "{id:?}", id, onclose: move |_| editing.set(None) }
+        }
+    }
+}
 
 #[component]
 fn PresetsTab(on_open: EventHandler<u32>) -> Element {

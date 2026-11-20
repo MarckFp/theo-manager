@@ -89,6 +89,8 @@ pub enum InputKind {
     Date,
     Tel,
     Search,
+    /// A whole number of 0 or more (a count): digits only, no sign or decimals.
+    Count,
 }
 
 /// A single-line text input.
@@ -112,7 +114,9 @@ pub fn TextInput(
         InputKind::Date => "date",
         InputKind::Tel => "tel",
         InputKind::Search => "search",
+        InputKind::Count => "number",
     };
+    let count = kind == InputKind::Count;
     let invalid_class = if invalid { "input-error" } else { "" };
     rsx! {
         div { class: "input w-full {invalid_class} focus-within:outline-primary",
@@ -127,7 +131,19 @@ pub fn TextInput(
                 autocomplete,
                 autofocus,
                 "aria-invalid": if invalid { "true" } else { "false" },
-                oninput: move |e| oninput.call(e.value()),
+                min: if count { Some("0") } else { None },
+                step: if count { Some("1") } else { None },
+                inputmode: if count { Some("numeric") } else { None },
+                // A count keeps only its digits: "-2" becomes "2", "1.5" becomes "15".
+                onkeydown: move |e| {
+                    if count && matches!(e.key(), Key::Character(ref c) if c == "-" || c == "+" || c == "." || c == "," || c == "e" || c == "E") {
+                        e.prevent_default();
+                    }
+                },
+                oninput: move |e| {
+                    let v = e.value();
+                    oninput.call(if count { v.chars().filter(char::is_ascii_digit).collect() } else { v })
+                },
             }
         }
     }

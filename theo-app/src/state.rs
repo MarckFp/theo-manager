@@ -140,6 +140,8 @@ pub struct AppState {
     pub report_month: Signal<Option<crate::reports::Ym>>,
     pub report_query: Signal<String>,
     pub report_filters: Signal<FilterSelection>,
+    /// Service year of the Statistics and Goals tabs (None = the current one).
+    pub report_year: Signal<Option<i32>>,
     /// Public witnessing: list, calendar, presets or statistics, and the month (None = this month).
     pub pw_view: Signal<String>,
     pub pw_month: Signal<Option<(i32, u32)>>,
@@ -173,6 +175,7 @@ impl AppState {
             report_month: Signal::new(None),
             report_query: Signal::new(String::new()),
             report_filters: Signal::new(FilterSelection::new()),
+            report_year: Signal::new(None),
             pw_view: Signal::new("list".into()),
             pw_month: Signal::new(None),
             service_view: Signal::new("list".into()),
@@ -332,13 +335,20 @@ impl AppState {
         Ok(())
     }
 
-    /// MOCK: a real implementation asks the platform for a biometric check (see `platform.rs`).
+    /// Is this the password of the congregation? (Checks only; does not unlock.)
+    pub fn password_matches(&self, id: &str, password: &str) -> bool {
+        self.congregations.read().iter().any(|c| c.id == id && c.password == password)
+    }
+
+    /// Opens a congregation after the platform's biometric check said it is the user
+    /// (`platform::biometric_verify`). MOCK: no key is unlocked yet.
     pub fn unlock_with_biometrics(&mut self, id: &str) -> bool {
-        let enabled = self.congregations.read().iter().any(|c| c.id == id && c.biometric);
-        if enabled {
+        let known = self.congregations.read().iter().any(|c| c.id == id);
+        if known {
+            self.set_biometric(id, true);
             self.set_unlocked(id);
         }
-        enabled
+        known
     }
 
     /// Opens a congregation. Lists start without filters (group ids differ per congregation).
