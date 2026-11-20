@@ -492,18 +492,24 @@ impl AppState {
 
     // ----- dashboard layout (per congregation) -----
 
+    /// The home widgets: changed in this session, else remembered on this device, else the default.
     pub fn layout(&self) -> Vec<WidgetLayout> {
         let id = self.unlocked.read().clone().unwrap_or_default();
-        self.layouts.read().get(&id).cloned().unwrap_or_else(crate::mock::default_layout)
+        if let Some(l) = self.layouts.read().get(&id) {
+            return l.clone();
+        }
+        load_layout(&id).unwrap_or_else(crate::mock::default_layout)
     }
 
     pub fn set_layout(&mut self, layout: Vec<WidgetLayout>) {
         let id = self.unlocked.read().clone().unwrap_or_default();
+        save_layout(&id, Some(&layout));
         self.layouts.write().insert(id, layout);
     }
 
     pub fn reset_layout(&mut self) {
         let id = self.unlocked.read().clone().unwrap_or_default();
+        save_layout(&id, None);
         self.layouts.write().remove(&id);
     }
 
@@ -566,6 +572,34 @@ pub const STAY_UNLOCKED: [(u32, &str); 5] = [
 /// *Stay unlocked* of this device, in minutes.
 pub fn stay_unlocked_minutes() -> u32 {
     crate::platform::device_get(STAY_KEY).and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
+fn layout_key(congregation: &str) -> String {
+    format!("theo-manager.layout.{congregation}")
+}
+
+/// Remembers the home widgets of a congregation on this device: `id cols rows` per line, in
+/// order (or forgets them). Only the arrangement, never congregation data.
+fn save_layout(congregation: &str, layout: Option<&[WidgetLayout]>) {
+    let text = layout.map(|l| l.iter().map(|w| format!("{} {} {}", w.id, w.cols, w.rows)).collect::<Vec<_>>().join("
+"));
+    crate::platform::device_set(&layout_key(congregation), text.as_deref());
+}
+
+/// The remembered home widgets, without widgets that no longer exist.
+fn load_layout(congregation: &str) -> Option<Vec<WidgetLayout>> {
+    let text = crate::platform::device_get(&layout_key(congregation))?;
+    let list: Vec<WidgetLayout> = text
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split_whitespace();
+            let d = crate::widgets::find(parts.next()?)?;
+            let cols = parts.next().and_then(|c| c.parse().ok()).unwrap_or(d.cols);
+            let rows = parts.next().and_then(|r| r.parse().ok()).unwrap_or(d.rows);
+            Some(WidgetLayout::new(d.id, d.title, d.icon, cols, rows))
+        })
+        .collect();
+    (!list.is_empty()).then_some(list)
 }
 
 fn seen_key(congregation: &str) -> String {
