@@ -276,12 +276,12 @@ fn char_width(c: char, size: f32, bold: bool) -> f32 {
     w * size / 1000.0 * if bold { 1.06 } else { 1.0 }
 }
 
-fn text_width(s: &str, size: f32, bold: bool) -> f32 {
+pub(crate) fn text_width(s: &str, size: f32, bold: bool) -> f32 {
     s.chars().map(|c| char_width(c, size, bold)).sum()
 }
 
 /// Cuts `s` so it fits `max` points, with "…" when cut.
-fn fit(s: &str, max: f32, size: f32, bold: bool) -> String {
+pub(crate) fn fit(s: &str, max: f32, size: f32, bold: bool) -> String {
     if text_width(s, size, bold) <= max {
         return s.to_string();
     }
@@ -300,7 +300,7 @@ fn fit(s: &str, max: f32, size: f32, bold: bool) -> String {
     out
 }
 
-fn pdf_string(s: &str) -> Vec<u8> {
+pub(crate) fn pdf_string(s: &str) -> Vec<u8> {
     let mut out = vec![b'('];
     for c in s.chars() {
         let b = win_ansi(c);

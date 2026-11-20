@@ -89,7 +89,7 @@ fn Gallery() -> Element {
                                 widgets: widgets(),
                                 editing: editing(),
                                 on_change: move |w| widgets.set(w),
-                                render: move |id: String| match id.as_str() {
+                                render: move |w: WidgetLayout| match w.id.as_str() {
                                     "a" => rsx! { StatTile { label: "Publishers", value: "84", icon: Icon::Users, delta: "+3", trend: Trend::Up } },
                                     "b" => rsx! { BarChart { data: vec![ChartPoint::new("J", 3.0), ChartPoint::new("F", 5.0), ChartPoint::new("M", 4.0)], highlight_last: true } },
                                     _ => rsx! { Skeleton { lines: 5 } },

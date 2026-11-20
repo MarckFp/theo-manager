@@ -106,3 +106,36 @@ of the reporting month are in.
 | R3 | Who may enter reports? | The publisher themselves (with an account) and users whose role has the permission (M-02). |
 | R4 | When is monthly auxiliary pioneering set? | Ahead of time, or once the month has started. Both are possible. |
 | R5 | Does a report that says "did not take part" count? | It counts as received, not as active. |
+
+## My ministry (`/app/me/ministry`)
+
+Added 2026-11-20. A publisher logs their own ministry and sends it as their report. Only they see
+the log (`ministry_day`: `person`, `date`, `minutes`, `credit_minutes`, `studies`, `note`).
+
+- **Days:** a month calendar; tapping a day (up to today) logs hours and minutes, credit hours
+  (pioneers and continuous auxiliary pioneers), Bible studies conducted that day and a private
+  note. A day with nothing is removed. *Set a goal* adds a personal goal of hours per month
+  (anyone; only they see it), shown next to the pioneer goal and in the *My goal* widget.
+- **Totals:** time, credit, the most Bible studies on one day, days logged, and the month's goal
+  (auxiliary: 30 or 15 h; pioneers: the monthly average of 50 h) and the personal goal. Bible
+  studies show the most in one week (Monday to Sunday).
+- **Send report:** makes the report from the log. Hours and credit are whole hours. The minutes left over can be
+  **carried over** to the first day of the next month (once per month, when that day has come).
+  Bible studies are the number of **different** people studied with: the field starts with the
+  most in one week (decided 2026-11-20) and can be changed. Publishers send "took part" (yes when anything was logged). The month in progress can
+  be sent early; sending again replaces the report. When the log changes after sending, the page
+  says "Changed since you sent it".
+- **Earlier months:** what was logged and what was sent.
+
+## Home widgets
+
+*For you* (everyone): My assignments, My field service reports (the reporting month sent or not,
+this month so far, earlier reports when bigger), My goal (auxiliary: this month; regular
+pioneers: the service year with the expected line, this month and month by month when bigger;
+anyone with a personal goal: that goal), My
+territories, Next meeting, Meetings for field service (next 7 days), Upcoming events.
+*Congregation* (read access to the page): Publishers (by kind when bigger), Field service reports
+(who is missing when bigger), Territories (late ones when bigger), Away this week, Meeting
+attendance, Duties this week. Every widget shows more when it is made bigger, and only what fits: never a scrollbar; when a
+list is longer, its last line says "and N more". Links (*All*, *Log today*, *Send*, *Open*) are at
+the top of the widget.

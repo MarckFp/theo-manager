@@ -23,6 +23,10 @@ mod reports;
 mod service_meetings;
 mod state;
 mod tasks;
+mod territories;
+mod territory_card;
+mod widgets;
+mod ministry;
 
 use dioxus::prelude::*;
 use dioxus_i18n::prelude::*;
@@ -57,6 +61,9 @@ pub enum Route {
             Dashboard {},
             #[route("/me")]
             Me {},
+            /// Me › My ministry: daily log and sending the report (src/ministry.rs).
+            #[route("/me/ministry")]
+            MyMinistryPage {},
             /// Settings of the open congregation (cog in the congregation switcher).
             #[route("/settings")]
             SettingsPage {},
@@ -108,6 +115,17 @@ pub enum Route {
             ServiceMeetingsPage {},
             #[route("/ministry/service-meetings/presets")]
             ServicePresetsPage {},
+            /// Ministry › Territories (docs/model/m07-territories.md).
+            #[route("/ministry/territories")]
+            TerritoriesPage {},
+            #[route("/ministry/territories/new")]
+            TerritoryNew {},
+            #[route("/ministry/territories/settings")]
+            TerritorySettingsPage {},
+            #[route("/ministry/territories/:id")]
+            TerritoryDetail { id: u32 },
+            #[route("/ministry/territories/:id/edit")]
+            TerritoryEdit { id: u32 },
             /// Ministry › Field service groups (docs/model/m09-field-service-groups.md).
             #[route("/ministry/groups")]
             GroupList {},
@@ -193,6 +211,7 @@ pub fn route_for(id: &str) -> Route {
         Some(("ministry", "reports")) => Route::ReportsPage {},
         Some(("ministry", "service-meetings")) => Route::ServiceMeetingsPage {},
         Some(("ministry", "witnessing")) => Route::WitnessingPage {},
+        Some(("ministry", "territories")) => Route::TerritoriesPage {},
         Some(("meetings", "attendance")) => Route::AttendancePage {},
         Some(("meetings", "events")) => Route::EventsPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },

@@ -94,7 +94,11 @@ pub fn ItemList(
     /// When set, each row is a button and sends its index (for example to open a record).
     #[props(default)]
     on_select: Option<EventHandler<usize>>,
+    /// Smaller rows, so more fit (small dashboard widgets).
+    #[props(default)]
+    compact: bool,
 ) -> Element {
+    let (button_pad, row_pad) = if compact { ("py-0.5", "py-1") } else { ("py-2", "py-2.5") };
     rsx! {
         ul { class: "flex flex-col divide-y divide-base-300",
             for (i, it) in items.into_iter().enumerate() {
@@ -102,17 +106,17 @@ pub fn ItemList(
                     li { key: "{i}", class: "py-0.5 first:pt-0 last:pb-0",
                         button {
                             r#type: "button",
-                            class: "group -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-field px-2 py-2 text-left transition-colors hover:bg-base-200",
+                            class: "group -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-field px-2 {button_pad} text-left transition-colors hover:bg-base-200",
                             onclick: move |_| h.call(i),
-                            ItemRow { entry: it }
+                            ItemRow { entry: it, compact }
                             span { class: "shrink-0 text-base-content/30 transition-transform group-hover:translate-x-0.5",
                                 IconView { icon: Icon::ArrowRight, size: IconSize::Xs }
                             }
                         }
                     }
                 } else {
-                    li { key: "{i}", class: "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
-                        ItemRow { entry: it }
+                    li { key: "{i}", class: "flex items-center gap-3 {row_pad} first:pt-0 last:pb-0",
+                        ItemRow { entry: it, compact }
                     }
                 }
             }
@@ -121,14 +125,16 @@ pub fn ItemList(
 }
 
 #[component]
-fn ItemRow(entry: ListEntry) -> Element {
+fn ItemRow(entry: ListEntry, compact: bool) -> Element {
     rsx! {
-        span { class: "grid size-8 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/70",
-            IconView { icon: entry.icon, size: IconSize::Sm }
+        span { class: if compact { "grid size-6 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/70" } else { "grid size-8 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/70" },
+            IconView { icon: entry.icon, size: if compact { IconSize::Xs } else { IconSize::Sm } }
         }
         span { class: "flex min-w-0 flex-1 flex-col",
-            span { class: "truncate text-sm font-medium", "{entry.title}" }
-            span { class: "truncate text-xs text-base-content/60", "{entry.subtitle}" }
+            span { class: "truncate text-sm font-medium leading-tight", "{entry.title}" }
+            if !entry.subtitle.is_empty() {
+                span { class: "truncate text-xs leading-tight text-base-content/60", "{entry.subtitle}" }
+            }
         }
         span { class: "shrink-0 text-xs text-base-content/60", "{entry.meta}" }
     }
@@ -263,22 +269,32 @@ pub struct AccentItem {
 /// A compact list where each row shows its kind in an accent colour (for example the kinds of
 /// assignment in "My assignments").
 #[component]
-pub fn AccentList(items: Vec<AccentItem>) -> Element {
+pub fn AccentList(
+    items: Vec<AccentItem>,
+    /// Bigger icons and text (for example in a wide widget).
+    #[props(default)]
+    large: bool,
+) -> Element {
+    let (tile, kind_text, main_text, row) = if large {
+        ("size-11", "text-sm", "text-base font-medium", "py-3")
+    } else {
+        ("size-8", "text-xs", "text-sm", "py-2.5")
+    };
     rsx! {
         ul { class: "flex flex-col divide-y divide-base-300",
             for (i, it) in items.into_iter().enumerate() {
-                li { key: "{i}", class: "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
-                    span { class: "grid size-8 shrink-0 place-items-center rounded-field {it.accent.tile()}",
-                        IconView { icon: it.icon, size: IconSize::Sm }
+                li { key: "{i}", class: "flex items-center gap-3 {row} first:pt-0 last:pb-0",
+                    span { class: "grid {tile} shrink-0 place-items-center rounded-field {it.accent.tile()}",
+                        IconView { icon: it.icon, size: if large { IconSize::Md } else { IconSize::Sm } }
                     }
                     span { class: "flex min-w-0 flex-1 flex-col gap-0.5",
                         span { class: "flex min-w-0 items-center gap-2",
-                            span { class: "truncate text-xs font-semibold {it.accent.text()}", "{it.kind}" }
+                            span { class: "truncate {kind_text} font-semibold {it.accent.text()}", "{it.kind}" }
                             if let Some(t) = it.badge {
                                 Badge { tone: t.tone, icon: t.icon, "{t.label}" }
                             }
                         }
-                        span { class: "truncate text-sm", "{it.text}" }
+                        span { class: if large { "{main_text}" } else { "truncate {main_text}" }, "{it.text}" }
                     }
                 }
             }

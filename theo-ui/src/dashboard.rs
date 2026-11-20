@@ -126,8 +126,8 @@ pub fn Dashboard(
     widgets: Vec<WidgetLayout>,
     editing: bool,
     on_change: EventHandler<Vec<WidgetLayout>>,
-    /// Renders the body of a widget, by id.
-    render: Callback<String, Element>,
+    /// Renders the body of a widget from its layout (id and current size, also while resizing).
+    render: Callback<WidgetLayout, Element>,
 ) -> Element {
     let mut gesture = use_signal(|| None::<Gesture>);
     let preview = use_signal(|| None::<Vec<WidgetLayout>>);
@@ -154,7 +154,6 @@ pub fn Dashboard(
             div { class: "theo-dash",
                 for (i, w) in list.iter().cloned().enumerate() {
                     {
-                        let id = w.id.clone();
                         let id_mount = w.id.clone();
                         let (style, state_class) = match active {
                             Some(Gesture::Move { from, start, cur }) if from == i => (
@@ -224,7 +223,7 @@ pub fn Dashboard(
                                         }
                                     }
                                 }
-                                div { class: if editing { "min-h-0 flex-1 overflow-auto px-4 pb-8 pt-2 pr-8" } else { "min-h-0 flex-1 overflow-auto px-4 pb-4 pt-2" }, {render.call(id)} }
+                                div { class: if editing { "min-h-0 flex-1 overflow-auto px-4 pb-8 pt-2 pr-8" } else { "min-h-0 flex-1 overflow-auto px-4 pb-3 pt-2" }, {render.call(w.clone())} }
                                 if editing {
                                     button {
                                         r#type: "button",

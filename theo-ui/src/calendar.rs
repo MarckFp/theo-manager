@@ -344,3 +344,80 @@ mod tests {
         assert_eq!(day_number((1970, 1, 2)), 1);
     }
 }
+
+/// One day of a [`DayGrid`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct DayCell {
+    /// Day of the month (1–31).
+    pub day: u32,
+    /// The main value ("2:30").
+    pub value: String,
+    /// A small second line ("1 study").
+    pub detail: String,
+}
+
+/// A month where every day can be tapped (for example to log the ministry of that day). Days
+/// with a value are tinted; today has a ring. Days after `last_day` cannot be tapped.
+#[component]
+pub fn DayGrid(
+    month: YearMonth,
+    today: Date,
+    cells: Vec<DayCell>,
+    on_day: EventHandler<u32>,
+    #[props(default)] week_starts_sunday: bool,
+    /// The last day that can be tapped (None: every day).
+    #[props(default)]
+    last_day: Option<Date>,
+) -> Element {
+    let first = day_number((month.0, month.1, 1));
+    let (ny, nm) = if month.1 == 12 { (month.0 + 1, 1) } else { (month.0, month.1 + 1) };
+    let days = (day_number((ny, nm, 1)) - first) as u32;
+    let weekday = |z: i64| (z + 4).rem_euclid(7);
+    let lead = if week_starts_sunday { weekday(first) } else { (weekday(first) + 6) % 7 } as u32;
+    let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let order: Vec<&str> = (0..7).map(|i| names[(i + if week_starts_sunday { 0 } else { 1 }) % 7]).collect();
+    let limit = last_day.map(day_number);
+    rsx! {
+        div { class: "grid grid-cols-7 gap-1 sm:gap-1.5",
+            for (i, n) in order.iter().enumerate() {
+                div { key: "h{i}", class: "pb-1 text-center text-xs font-medium text-base-content/60", "{n}" }
+            }
+            for i in 0..lead {
+                div { key: "e{i}" }
+            }
+            for d in 1..=days {
+                {
+                    let cell = cells.iter().find(|c| c.day == d).cloned();
+                    let is_today = today == (month.0, month.1, d);
+                    let future = limit.is_some_and(|l| day_number((month.0, month.1, d)) > l);
+                    let filled = cell.as_ref().is_some_and(|c| !c.value.is_empty());
+                    let class = format!(
+                        "flex aspect-square min-h-12 flex-col items-start justify-between rounded-field border p-1 text-left transition-colors sm:aspect-auto sm:min-h-20 sm:p-2 {} {} {}",
+                        if filled { "border-primary/40 bg-primary/10 hover:bg-primary/15" } else { "border-base-300 hover:bg-base-200" },
+                        if is_today { "ring-2 ring-primary" } else { "" },
+                        if future { "cursor-not-allowed opacity-40" } else { "" },
+                    );
+                    rsx! {
+                        button {
+                            key: "{d}",
+                            r#type: "button",
+                            class,
+                            disabled: future,
+                            "aria-label": "Day {d}",
+                            onclick: move |_| on_day.call(d),
+                            span { class: if is_today { "text-xs font-bold text-primary" } else { "text-xs font-medium text-base-content/70" }, "{d}" }
+                            if let Some(c) = cell {
+                                span { class: "flex w-full flex-col leading-tight",
+                                    span { class: "truncate text-xs font-semibold sm:text-sm", "{c.value}" }
+                                    if !c.detail.is_empty() {
+                                        span { class: "hidden truncate text-[10px] text-base-content/60 sm:block", "{c.detail}" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

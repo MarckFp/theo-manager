@@ -6,11 +6,12 @@ use theo_ui::*;
 /// Active section and page for the shell.
 fn active_of(route: &Route) -> (String, Option<String>) {
     match route {
-        Route::Me {} => ("me".into(), None),
+        Route::Me {} | Route::MyMinistryPage {} => ("me".into(), None),
         Route::UserList {} | Route::UserNew {} | Route::UserDetail { .. } => ("users".into(), Some("all".into())),
         Route::ReportsPage {} => ("ministry".into(), Some("reports".into())),
         Route::ServiceMeetingsPage {} | Route::ServicePresetsPage {} => ("ministry".into(), Some("service-meetings".into())),
         Route::WitnessingPage {} | Route::WitnessingPresetsPage {} => ("ministry".into(), Some("witnessing".into())),
+        Route::TerritoriesPage {} | Route::TerritoryNew {} | Route::TerritorySettingsPage {} | Route::TerritoryDetail { .. } | Route::TerritoryEdit { .. } => ("ministry".into(), Some("territories".into())),
         Route::AttendancePage {} | Route::AttendanceMonth { .. } => ("meetings".into(), Some("attendance".into())),
         Route::EventsPage {} => ("meetings".into(), Some("events".into())),
         Route::PermissionsPage {} | Route::PermissionsDetail { .. } => ("users".into(), Some("permissions".into())),
@@ -32,6 +33,12 @@ pub fn AppLayout() -> Element {
     let mut state = use_app_state();
     let navigator = navigator();
     let route = use_route::<Route>();
+    // Every page change counts as activity: *Stay unlocked* starts again from now.
+    let current = route.clone();
+    use_effect(use_reactive!(|current| {
+        let _ = &current;
+        state.remember_session();
+    }));
 
     if state.session.read().is_none() {
         return rsx! { Redirect { to: Route::Login {} } };

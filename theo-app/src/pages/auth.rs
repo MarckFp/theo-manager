@@ -67,6 +67,7 @@ pub fn Login() -> Element {
                         Err(e) => error.set(Some(e.to_string())),
                     }
                 },
+                full_width_actions: true,
                 actions: rsx! { ActionButton { action: Action::SignIn, kind: ButtonKind::Submit, full_width: true } },
                 if let Some(e) = error() {
                     Alert { tone: Tone::Error, "{e}" }
@@ -147,6 +148,7 @@ pub fn Signup() -> Element {
                         Err(e) => error.set(Some(e.to_string())),
                     }
                 },
+                full_width_actions: true,
                 actions: rsx! { ActionButton { action: Action::SignUp, kind: ButtonKind::Submit, full_width: true } },
                 if let Some(e) = error() {
                     Alert { tone: Tone::Error, "{e}" }

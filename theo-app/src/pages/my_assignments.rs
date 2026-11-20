@@ -108,7 +108,7 @@ pub fn MyAssignmentsPage() -> Element {
                             ItemList { items: cancelled }
                         }
                         Cluster {
-                            ActionButton { action: Action::Done, variant: ButtonVariant::Secondary, label: "Got it", onclick: move |_| state.update_directory(|d| d.mark_notices_seen(me)) }
+                            ActionButton { action: Action::Done, variant: ButtonVariant::Secondary, label: "Got it", onclick: move |_| state.mark_notices_seen(me) }
                         }
                     }
                 }

@@ -200,3 +200,30 @@ pub fn TextLink(
         }
     }
 }
+
+/// A link to a page outside the app (opens in a new tab or the browser).
+#[component]
+pub fn ExternalLink(href: String, children: Element) -> Element {
+    rsx! {
+        a { class: "link link-primary inline-flex items-center gap-1 break-all", href: "{href}", target: "_blank", rel: "noopener noreferrer",
+            {children}
+            IconView { icon: Icon::Link, size: IconSize::Xs }
+        }
+    }
+}
+
+/// A button that opens an address outside the app (for example directions in the map app).
+#[component]
+pub fn LinkButton(href: String, label: String, icon: Icon) -> Element {
+    let external = href.starts_with("http");
+    rsx! {
+        a {
+            class: "btn btn-soft gap-2 border-base-300 bg-base-100 font-medium hover:bg-base-200",
+            href: "{href}",
+            target: if external { "_blank" } else { "_self" },
+            rel: "noopener noreferrer",
+            IconView { icon, size: IconSize::Sm }
+            "{label}"
+        }
+    }
+}

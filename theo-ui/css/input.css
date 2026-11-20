@@ -156,7 +156,7 @@
    A dialog or sheet is open: the page behind it stays still (no scrolling through to it).
    Outside any layer, and as specific as daisyUI's own `:root:not(span) { overflow: … }`, which
    would otherwise win. */
-:root:not(span):has([data-scroll-lock]) {
+:root:not(span):has([data-scroll-lock="true"]) {
   overflow: hidden;
   overscroll-behavior: none;
 }

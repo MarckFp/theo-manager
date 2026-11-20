@@ -97,13 +97,13 @@ fn header(params: KdfParams, salt: &[u8; SALT_LEN], nonce: &[u8; NONCE_LEN]) -> 
 pub fn seal_with_password(password: &str, plaintext: &[u8], params: KdfParams) -> Result<Vec<u8>, Error> {
     let mut salt = [0u8; SALT_LEN];
     let mut nonce = [0u8; NONCE_LEN];
-    getrandom::getrandom(&mut salt).map_err(|_| Error::Random)?;
-    getrandom::getrandom(&mut nonce).map_err(|_| Error::Random)?;
+    getrandom::fill(&mut salt).map_err(|_| Error::Random)?;
+    getrandom::fill(&mut nonce).map_err(|_| Error::Random)?;
     let key = derive_key(password, &salt, params)?;
     let mut out = header(params, &salt, &nonce);
-    let cipher = XChaCha20Poly1305::new(key.as_ref().into());
+    let cipher = XChaCha20Poly1305::new_from_slice(key.as_ref()).map_err(|_| Error::WeakParameters)?;
     let ct = cipher
-        .encrypt(XNonce::from_slice(&nonce), Payload { msg: plaintext, aad: &out })
+        .encrypt(&XNonce::from(nonce), Payload { msg: plaintext, aad: &out })
         .map_err(|_| Error::WrongPasswordOrDamaged)?;
     out.extend_from_slice(&ct);
     Ok(out)
@@ -125,9 +125,9 @@ pub fn open_with_password(password: &str, sealed: &[u8]) -> Result<Vec<u8>, Erro
     let salt = &sealed[17..17 + SALT_LEN];
     let nonce = &sealed[17 + SALT_LEN..HEADER_LEN];
     let key = derive_key(password, salt, params)?;
-    let cipher = XChaCha20Poly1305::new(key.as_ref().into());
+    let cipher = XChaCha20Poly1305::new_from_slice(key.as_ref()).map_err(|_| Error::WeakParameters)?;
     cipher
-        .decrypt(XNonce::from_slice(nonce), Payload { msg: &sealed[HEADER_LEN..], aad: &sealed[..HEADER_LEN] })
+        .decrypt(&XNonce::try_from(nonce).map_err(|_| Error::NotAnEnvelope)?, Payload { msg: &sealed[HEADER_LEN..], aad: &sealed[..HEADER_LEN] })
         .map_err(|_| Error::WrongPasswordOrDamaged)
 }
 

@@ -233,3 +233,87 @@ pub fn set_document_language(code: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     let _ = code;
 }
+
+/// Draws map tiles into one JPEG image, for the territory card PDF. `tiles` are (address,
+/// left, top) in pixels. None when no tile could be read (offline, or the provider does not
+/// allow it). Exception to P1: only a canvas can read tile pixels inside the webview; this short
+/// script draws them and gives back the image. It runs the same on web, desktop and mobile.
+pub async fn render_tiles(tiles: &[(String, f64, f64)], width: u32, height: u32) -> Option<Vec<u8>> {
+    if tiles.is_empty() {
+        return None;
+    }
+    let list = serde_json::to_string(tiles).ok()?;
+    let script = format!(
+        r##"
+        const tiles = {list};
+        const canvas = document.createElement("canvas");
+        canvas.width = {width};
+        canvas.height = {height};
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#f2f3f5";
+        ctx.fillRect(0, 0, {width}, {height});
+        const load = (t) => new Promise((ok) => {{
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {{ ctx.drawImage(img, t[1], t[2], 256, 256); ok(true); }};
+            img.onerror = () => ok(false);
+            img.src = t[0];
+        }});
+        const done = await Promise.all(tiles.map(load));
+        if (!done.some(Boolean)) return null;
+        try {{ return canvas.toDataURL("image/jpeg", 0.88).split(",")[1]; }} catch (e) {{ return null; }}
+        "##
+    );
+    let value = document::eval(&script).await.ok()?;
+    crate::territory_card::base64_decode(value.as_str()?)
+}
+
+/// A link with directions to a place. Web browsers (also on phones, where it opens the Google Maps
+/// app when it is installed) and the desktop app: Google Maps. The Android app: the default map
+/// app (`geo:`). The iPhone and iPad app: Apple Maps. Only opened when the user taps it.
+pub fn directions_url(lat: f64, lon: f64, label: &str) -> String {
+    let google = format!("https://www.google.com/maps/dir/?api=1&destination={lat:.6},{lon:.6}");
+    let name: String = label.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '+' }).collect();
+    if cfg!(target_arch = "wasm32") {
+        google
+    } else if cfg!(target_os = "android") {
+        format!("geo:{lat:.6},{lon:.6}?q={lat:.6},{lon:.6}({name})")
+    } else if cfg!(target_os = "ios") {
+        format!("https://maps.apple.com/?daddr={lat:.6},{lon:.6}&q={name}")
+    } else {
+        google
+    }
+}
+
+/// A small value remembered by this device (the browser's storage on the web and the installed
+/// web app). Native apps remember nothing yet. Never congregation data: only settings of the
+/// device, which congregation is open and until when, and which notices were seen.
+pub fn device_get(key: &str) -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window().and_then(|w| w.local_storage().ok().flatten()).and_then(|s| s.get_item(key).ok().flatten())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = key;
+        None
+    }
+}
+
+/// Remembers (or, with `None`, forgets) a value on this device. See [`device_get`].
+pub fn device_set(key: &str, value: Option<&str>) {
+    #[cfg(target_arch = "wasm32")]
+    if let Some(s) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = match value {
+            Some(v) => s.set_item(key, v),
+            None => s.remove_item(key),
+        };
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (key, value);
+}
+
+/// Seconds since 1970.
+pub fn now_secs() -> u64 {
+    web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}

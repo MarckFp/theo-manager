@@ -13,9 +13,14 @@ pub fn Form(
     onsubmit: EventHandler<()>,
     #[props(default)] actions: Option<Element>,
     #[props(default)] floating_save: bool,
+    /// The buttons take the whole width on every screen (sign-in and sign-up forms).
+    #[props(default)]
+    full_width_actions: bool,
     children: Element,
 ) -> Element {
-    let actions_class = if floating_save {
+    let actions_class = if full_width_actions {
+        "flex flex-col gap-2 pt-2 [&>*]:w-full"
+    } else if floating_save {
         "hidden gap-2 pt-2 md:flex md:justify-end md:[&>*]:min-w-40"
     } else {
         "flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto sm:[&>*]:min-w-40"

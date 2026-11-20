@@ -90,6 +90,7 @@ pub fn Unlock() -> Element {
                         Err(e) => error.set(Some(e.to_string())),
                     }
                 },
+                full_width_actions: true,
                 actions: rsx! { ActionButton { action: Action::Unlock, kind: ButtonKind::Submit, full_width: true } },
                 Field { label: "Congregation",
                     if items.len() > 1 {

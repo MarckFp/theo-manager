@@ -459,6 +459,21 @@ pub struct Directory {
     pub witnessing: crate::public_witnessing::WitnessingSettings,
     pub shift_presets: Vec<crate::public_witnessing::ShiftPreset>,
     pub shifts: Vec<crate::public_witnessing::Shift>,
+    /// Territories (M-07, `src/territories.rs`): the territories, the registry of who had them,
+    /// the page settings, and the categories and labels of territories.
+    pub territories: Vec<crate::territories::Territory>,
+    pub territory_assignments: Vec<crate::territories::TerritoryAssignment>,
+    pub territory_settings: crate::territories::TerritorySettings,
+    pub territory_categories: Vec<Label>,
+    pub territory_labels: Vec<Label>,
+    /// Labels of territory assignments (for example "Memorial campaign").
+    pub assignment_labels: Vec<Label>,
+    /// *My ministry*: each publisher's daily log (`src/ministry.rs`).
+    pub ministry_log: Vec<crate::ministry::MinistryDay>,
+    /// Months whose left-over minutes were carried over to the next month.
+    pub ministry_carried: std::collections::BTreeSet<(u32, crate::reports::Ym)>,
+    /// Personal goals: hours per month, per person (*My ministry*).
+    pub personal_goals: std::collections::BTreeMap<u32, u32>,
 }
 
 impl Directory {

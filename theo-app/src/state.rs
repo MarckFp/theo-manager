@@ -154,12 +154,18 @@ pub struct AppState {
     /// Meeting attendance page: tab and service year (None = the current one).
     pub attendance_tab: Signal<String>,
     pub attendance_year: Signal<Option<i32>>,
+    /// Territories page: tab, the part of Assignments, search and filters, and list or map.
+    pub terr_tab: Signal<String>,
+    pub terr_part: Signal<String>,
+    pub terr_query: Signal<String>,
+    pub terr_filters: Signal<FilterSelection>,
+    pub terr_view: Signal<String>,
     next_id: Signal<u64>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self {
+        let mut state = Self {
             accounts: Signal::new(Vec::new()),
             congregations: Signal::new(Vec::new()),
             session: Signal::new(None),
@@ -184,8 +190,15 @@ impl AppState {
             events_month: Signal::new(None),
             attendance_tab: Signal::new("months".into()),
             attendance_year: Signal::new(None),
+            terr_tab: Signal::new("assignments".into()),
+            terr_part: Signal::new("assigned".into()),
+            terr_query: Signal::new(String::new()),
+            terr_filters: Signal::new(FilterSelection::new()),
+            terr_view: Signal::new("list".into()),
             next_id: Signal::new(1),
-        }
+        };
+        state.restore_session();
+        state
     }
 
     // ----- accounts -----
@@ -225,6 +238,7 @@ impl AppState {
     }
 
     pub fn sign_out(&mut self) {
+        self.forget_session();
         self.unlocked.set(None);
         self.session.set(None);
         self.preselect.set(None);
@@ -262,6 +276,11 @@ impl AppState {
         }
     }
 
+    /// May see `page` (`"section/page"`): administrators, and people with read or write on it.
+    pub fn can_read(&self, page: &str) -> bool {
+        self.i_am_admin() || self.me().is_some_and(|p| self.directory().access(p).level(page) != crate::access::Level::None)
+    }
+
     /// May change `page` (`"section/page"`): administrators, and people with write on it.
     pub fn can_write(&self, page: &str) -> bool {
         self.i_am_admin() || self.me().is_some_and(|p| self.directory().access(p).level(page) == crate::access::Level::Write)
@@ -292,7 +311,7 @@ impl AppState {
             password: new.password,
         });
         // The creator is a person of the congregation, linked to their account and its owner.
-        let mut dir = Directory::default();
+        let mut dir = Directory { assignment_labels: crate::territories::default_assignment_labels(), ..Directory::default() };
         let draft = crate::people::PersonDraft {
             first_name: new.my_first_name.trim().into(),
             last_name: new.my_last_name.trim().into(),
@@ -319,6 +338,7 @@ impl AppState {
         self.directories.write().remove(&id);
         self.layouts.write().remove(&id);
         self.unlocked.set(None);
+        self.forget_session();
     }
 
     pub fn unlock(&mut self, id: &str, password: &str, remember_biometric: bool) -> Result<(), AuthError> {
@@ -367,6 +387,7 @@ impl AppState {
         // good when a device with access opens the congregation.
         let today = crate::people::today_iso();
         self.update_directory(|d| d.purge_expired(&today));
+        self.remember_session();
     }
 
     pub fn set_biometric(&mut self, id: &str, on: bool) {
@@ -376,6 +397,7 @@ impl AppState {
     }
 
     pub fn lock(&mut self) {
+        self.forget_session();
         let current = self.unlocked.read().clone();
         self.preselect.set(current);
         self.unlocked.set(None);
@@ -516,11 +538,111 @@ impl AppState {
                     password: crate::mock::DEMO_CONGREGATION_PASSWORD.into(),
                 });
                 let size = if id == "demo-1" { 36 } else { 14 };
-                self.directories.write().insert(id.into(), crate::mock::demo_directory(size));
+                let mut dir = crate::mock::demo_directory(size);
+                Self::apply_seen(id, &mut dir);
+                self.directories.write().insert(id.into(), dir);
             }
         }
         self.session.set(Some(crate::mock::DEMO_USER.into()));
         self.unlocked.set(None);
+    }
+}
+
+/// Which congregation is open, by whom and until when (`user`, `congregation`, `until` seconds),
+/// one per line. Only while *Stay unlocked* is more than 0 minutes.
+const SESSION_KEY: &str = "theo-manager.session";
+/// *Stay unlocked*, in minutes (0: lock when the app is closed or reloaded).
+const STAY_KEY: &str = "theo-manager.stay-unlocked";
+
+/// The choices of *Stay unlocked*, in minutes.
+pub const STAY_UNLOCKED: [(u32, &str); 5] = [
+    (0, "Lock when the app is closed or reloaded"),
+    (5, "5 minutes"),
+    (15, "15 minutes"),
+    (60, "1 hour"),
+    (480, "8 hours"),
+];
+
+/// *Stay unlocked* of this device, in minutes.
+pub fn stay_unlocked_minutes() -> u32 {
+    crate::platform::device_get(STAY_KEY).and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
+fn seen_key(congregation: &str) -> String {
+    format!("theo-manager.seen.{congregation}")
+}
+
+fn notice_key(n: &crate::assignments::Notice) -> String {
+    format!("{}|{:?}|{}|{:?}|{}", n.person, n.what, n.record, n.kind, n.date)
+}
+
+impl AppState {
+    /// Sets *Stay unlocked* for this device.
+    pub fn set_stay_unlocked(&self, minutes: u32) {
+        crate::platform::device_set(STAY_KEY, Some(&minutes.to_string()));
+        self.remember_session();
+    }
+
+    /// Remembers the open congregation until *Stay unlocked* from now (called on unlock and on
+    /// every page change), or forgets it when the setting is 0.
+    pub fn remember_session(&self) {
+        let minutes = stay_unlocked_minutes();
+        let (Some(user), Some(id)) = (self.session.peek().clone(), self.unlocked.peek().clone()) else {
+            crate::platform::device_set(SESSION_KEY, None);
+            return;
+        };
+        if minutes == 0 {
+            crate::platform::device_set(SESSION_KEY, None);
+            return;
+        }
+        let until = crate::platform::now_secs() + minutes as u64 * 60;
+        crate::platform::device_set(SESSION_KEY, Some(&format!("{user}\n{id}\n{until}")));
+    }
+
+    fn forget_session(&self) {
+        crate::platform::device_set(SESSION_KEY, None);
+    }
+
+    /// After a reload: opens the remembered congregation again if *Stay unlocked* has not run out.
+    /// ⚠️ MOCK: only the demo can come back, because nothing else is stored on the device yet.
+    fn restore_session(&mut self) {
+        let Some(record) = crate::platform::device_get(SESSION_KEY) else { return };
+        let mut lines = record.lines();
+        let (Some(user), Some(id), Some(until)) = (lines.next(), lines.next(), lines.next().and_then(|u| u.parse::<u64>().ok())) else {
+            self.forget_session();
+            return;
+        };
+        if until < crate::platform::now_secs() || user != crate::mock::DEMO_USER {
+            self.forget_session();
+            return;
+        }
+        let id = id.to_string();
+        self.start_demo();
+        if self.congregations.peek().iter().any(|c| c.id == id) {
+            self.set_unlocked(&id);
+        }
+    }
+
+    /// "Got it": the notices of `person` are seen, also after the app is reloaded on this device.
+    pub fn mark_notices_seen(&mut self, person: u32) {
+        let Some(id) = self.unlocked.peek().clone() else { return };
+        let keys: Vec<String> = self.directory().my_notices(person).into_iter().map(notice_key).collect();
+        self.update_directory(|d| d.mark_notices_seen(person));
+        let mut seen: Vec<String> = crate::platform::device_get(&seen_key(&id)).map(|v| v.lines().map(String::from).collect()).unwrap_or_default();
+        seen.extend(keys);
+        let start = seen.len().saturating_sub(500);
+        crate::platform::device_set(&seen_key(&id), Some(&seen[start..].join("\n")));
+    }
+
+    /// Marks the notices this device has already seen (after a reload).
+    fn apply_seen(id: &str, dir: &mut Directory) {
+        let Some(seen) = crate::platform::device_get(&seen_key(id)) else { return };
+        let seen: std::collections::HashSet<&str> = seen.lines().collect();
+        for n in dir.notices.iter_mut() {
+            if seen.contains(notice_key(n).as_str()) {
+                n.seen = true;
+            }
+        }
     }
 }
 

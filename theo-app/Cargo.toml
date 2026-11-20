@@ -2,7 +2,7 @@
 name = "theo-app"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.100"
 description = "Theo Manager: the app (screens, routes, wiring). UI comes only from theo-ui."
 publish = false
 
@@ -18,7 +18,7 @@ theo-ui = { path = "../theo-ui" }
 theo-crypto = { path = "../theo-crypto" }
 # Backup payload (already in the tree through Dioxus).
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 web-time = "1"
 # UI translations (Fluent). Strings are not translated yet; the language switch works.
 dioxus-i18n = "0.6"

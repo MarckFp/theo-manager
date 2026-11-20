@@ -25,6 +25,7 @@ mod icon;
 mod illustration;
 mod landing;
 mod layout;
+mod map;
 mod menu;
 mod overlay;
 mod page;
@@ -36,10 +37,10 @@ mod timeline;
 mod typography;
 
 pub use action::{Action, ActionButton, EditActions};
-pub use calendar::{Calendar, CalendarEntry, Date};
+pub use calendar::{Calendar, CalendarEntry, Date, DayCell, DayGrid};
 pub use button::{Button, ButtonKind, ButtonSize, ButtonVariant, IconButton};
 pub use card::{Accent, AccentItem, AccentList, Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, RecordCard, Tag};
-pub use charts::{BarChart, ChartPoint, ChartSeries, LineChart, MonthMark, MonthStrip, ProgressRow, Sparkline, StatTile, Trend};
+pub use charts::{BarChart, ChartPoint, ChartSeries, LineChart, MonthMark, MonthStrip, ProgressRow, Sparkline, StatItem, StatList, StatTile, Trend};
 pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};
 pub use filter::{Facet, FacetOption, FilterBar, FilterSelection};
@@ -51,15 +52,16 @@ pub use icon::{Icon, IconSize, IconView};
 pub use illustration::{Illustration, IllustrationKind};
 pub use landing::{CompareCard, FeatureCard, Hero, PublicLayout, Section, StepCard};
 pub use layout::{Align, Cluster, Container, Divider, Gap, Grid, Justify, Spacer, Split, Stack, StickyBar};
+pub use map::{fit_camera, project, tile_grid, to_pixels, unproject, GeoPoint, MapCamera, MapShape, MapSize, MapTone, MapView, ShapeKind, TileSource};
 pub use menu::{
     MenuButton, MenuItem, Placement, Popover, Segment, Segmented, SwitcherItem, WorkspaceSwitcher,
 };
 pub use overlay::{ConfirmDialog, Dialog};
 pub use period::{month_name, MonthPicker, YearMonth, YearPicker};
 pub use rows::{ChoiceList, PickList, Row, RowGroup, RowList};
-pub use table::DataTable;
+pub use table::{DataTable, MatrixCell, MatrixTable};
 pub use timeline::{Timeline, TimelineItem};
-pub use page::{AuthLayout, Page, TextLink, WizardLayout};
+pub use page::{AuthLayout, ExternalLink, LinkButton, Page, TextLink, WizardLayout};
 pub use shell::{AppShell, NavEntry, NavHub};
 pub use typography::{Code, Heading, HeadingLevel, Text, TextTone};
 

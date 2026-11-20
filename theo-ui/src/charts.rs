@@ -34,7 +34,7 @@ pub fn BarChart(
     let slot = 100.0 / n as f64;
     let bar_w = slot * 0.72;
     rsx! {
-        div { class: "flex h-full min-h-28 flex-col gap-1.5", role: "img", "aria-label": "Bar chart",
+        div { class: "flex h-full min-h-16 flex-col gap-1.5", role: "img", "aria-label": "Bar chart",
             svg { view_box: "0 0 100 100", preserve_aspect_ratio: "none", class: "min-h-0 max-h-64 w-full flex-1 overflow-visible",
                 for (i, d) in data.iter().enumerate() {
                     {
@@ -383,6 +383,57 @@ pub fn LineChart(labels: Vec<String>, series: Vec<ChartSeries>, #[props(default)
             div { class: "ml-8 mr-8 grid text-center text-[10px] text-base-content/60", style: "{columns}", "aria-hidden": "true",
                 for (i, l) in labels.iter().enumerate() {
                     span { key: "{i}", class: "truncate", "{l}" }
+                }
+            }
+        }
+    }
+}
+
+/// One line of a [`StatList`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct StatItem {
+    /// What is counted ("Elders").
+    pub label: String,
+    /// The number ("4").
+    pub value: String,
+    /// Its colour (neutral for most).
+    pub tone: crate::feedback::Tone,
+}
+
+impl StatItem {
+    /// A neutral line.
+    pub fn new(label: impl Into<String>, value: impl Into<String>) -> Self {
+        StatItem { label: label.into(), value: value.into(), tone: crate::feedback::Tone::Neutral }
+    }
+
+    /// The same line in a colour.
+    pub fn with_tone(mut self, tone: crate::feedback::Tone) -> Self {
+        self.tone = tone;
+        self
+    }
+}
+
+/// Small numbers with their labels, in one or two columns (for example the publishers of the
+/// congregation by kind in a widget).
+#[component]
+pub fn StatList(items: Vec<StatItem>, #[props(default = 1)] columns: u8) -> Element {
+    use crate::feedback::Tone;
+    let grid = if columns >= 2 { "grid grid-cols-2 gap-x-6" } else { "grid grid-cols-1" };
+    rsx! {
+        dl { class: "{grid}",
+            for (i, it) in items.iter().enumerate() {
+                div { key: "{i}", class: "flex items-baseline justify-between gap-3 border-b border-base-300/60 py-1.5",
+                    dt { class: "truncate text-sm text-base-content/70", "{it.label}" }
+                    dd {
+                        class: match it.tone {
+                            Tone::Error => "text-sm font-semibold tabular-nums text-error",
+                            Tone::Warning => "text-sm font-semibold tabular-nums text-warning",
+                            Tone::Success => "text-sm font-semibold tabular-nums text-success",
+                            Tone::Info => "text-sm font-semibold tabular-nums text-info",
+                            Tone::Neutral => "text-sm font-semibold tabular-nums",
+                        },
+                        "{it.value}"
+                    }
                 }
             }
         }

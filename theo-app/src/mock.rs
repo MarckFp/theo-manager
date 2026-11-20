@@ -61,16 +61,7 @@ pub fn strength(pw: &str) -> u8 {
 }
 
 pub fn default_layout() -> Vec<WidgetLayout> {
-    vec![
-        WidgetLayout::new("assignments", "My assignments", Icon::Assignment, 1, 2),
-        WidgetLayout::new("next-meeting", "Next meeting", Icon::Meetings, 2, 1),
-        WidgetLayout::new("publishers", "Publishers", Icon::Users, 1, 1),
-        WidgetLayout::new("reports", "Field service reports", Icon::Footprints, 1, 1),
-        WidgetLayout::new("attendance", "Meeting attendance", Icon::Chart, 2, 1),
-        WidgetLayout::new("territories", "Territories", Icon::Map, 1, 1),
-        WidgetLayout::new("duties", "Duties this week", Icon::Audio, 2, 1),
-        WidgetLayout::new("events", "Upcoming events", Icon::Clock, 1, 1),
-    ]
+    crate::widgets::default_layout()
 }
 
 pub fn attendance() -> Vec<ChartPoint> {
@@ -98,13 +89,6 @@ pub fn duties() -> Vec<ListEntry> {
         entry(Icon::Audio, "Audio · Video", "J. Smith · M. Brown", "Thu"),
         entry(Icon::Users, "Attendants", "A. Lee · D. Clark", "Thu"),
         entry(Icon::Globe, "Zoom host", "P. Walker", "Sun"),
-    ]
-}
-
-pub fn events() -> Vec<ListEntry> {
-    vec![
-        entry(Icon::Users, "Circuit overseer visit", "Week of 8 Dec", "3 wk"),
-        entry(Icon::Globe, "Circuit assembly", "Sat 17 Jan", "9 wk"),
     ]
 }
 
@@ -324,12 +308,153 @@ pub fn demo_directory(size: usize) -> Directory {
         witnessing: Default::default(),
         shift_presets: Vec::new(),
         shifts: Vec::new(),
+        territories: Vec::new(),
+        territory_assignments: Vec::new(),
+        territory_settings: Default::default(),
+        territory_categories: Vec::new(),
+        territory_labels: Vec::new(),
+        assignment_labels: crate::territories::default_assignment_labels(),
+        ministry_log: Vec::new(),
+        ministry_carried: BTreeSet::new(),
+        personal_goals: Default::default(),
     };
     demo_events(&mut dir);
     demo_service_meetings(&mut dir);
     demo_witnessing(&mut dir);
+    demo_territories(&mut dir);
+    demo_ministry(&mut dir);
     dir
 }
+
+/// *My ministry* (invented, R-022): John Smith (the demo user) is an auxiliary pioneer this
+/// month and has logged most days so far.
+fn demo_ministry(dir: &mut Directory) {
+    let (y, m, today) = crate::prefs::today();
+    dir.aux_plans.insert((1, (y, m)));
+    for d in 1..=today {
+        let (minutes, studies) = match d % 7 {
+            0 => (0, 0),
+            1 => (150, 1),
+            2 => (60, 0),
+            3 => (105, 2),
+            4 => (0, 0),
+            5 => (90, 1),
+            _ => (120, 0),
+        };
+        if minutes > 0 {
+            let _ = dir.save_ministry_day(1, &format!("{y:04}-{m:02}-{d:02}"), minutes, 0, studies, "");
+        }
+    }
+}
+
+/// Territories (invented, R-022): a grid of blocks around a town centre, with categories,
+/// labels, markers, do-not-calls and two years of registry; some assigned now, two of them late.
+fn demo_territories(dir: &mut Directory) {
+    use crate::people::LabelColor;
+    use crate::territories::{DoNotCall, MapView, Point, Shape, ShapeKind, TagKind, TerritoryDraft};
+    let cat = |d: &mut Directory, n: &str, c: LabelColor| d.save_territory_tag(TagKind::Category, None, n, c).unwrap_or(0);
+    let residential = cat(dir, "Residential", LabelColor::Blue);
+    let business = cat(dir, "Business", LabelColor::Yellow);
+    let rural = cat(dir, "Rural", LabelColor::Green);
+    let lab = |d: &mut Directory, n: &str, c: LabelColor| d.save_territory_tag(TagKind::Label, None, n, c).unwrap_or(0);
+    let elevator = lab(dir, "Has an elevator", LabelColor::Gray);
+    let difficult = lab(dir, "Difficult access", LabelColor::Red);
+    let gated = lab(dir, "Gated", LabelColor::Yellow);
+    let apartments = lab(dir, "Apartments", LabelColor::Blue);
+    // A 4 × 3 grid of blocks; corners a little uneven so it looks drawn by hand.
+    let (lat0, lon0, dlat, dlon) = (33.9862, -117.3785, 0.0046, 0.0056);
+    let corner = |r: usize, c: usize| {
+        let j = ((r * 7 + c * 3) % 5) as f64 * 0.00012;
+        Point::new(lat0 - r as f64 * dlat + j, lon0 + c as f64 * dlon - j * 0.6)
+    };
+    dir.territory_settings.maps_on = true;
+    dir.territory_settings.home = Some(MapView { center: Point::new(lat0 - 1.5 * dlat, lon0 + 2.0 * dlon), zoom: 14 });
+    for i in 0..12usize {
+        let (r, c) = (i / 4, i % 4);
+        let mut shapes = vec![Shape { kind: ShapeKind::Area, points: vec![corner(r, c), corner(r, c + 1), corner(r + 1, c + 1), corner(r + 1, c)], title: None, color: None }];
+        let mid = Point::new(lat0 - (r as f64 + 0.5) * dlat, lon0 + (c as f64 + 0.5) * dlon);
+        let (category, labels, dnc, description): (u32, Vec<u32>, Vec<DoNotCall>, &str) = match i {
+            0 => (business, vec![elevator], vec![DoNotCall { address: "14 Market Street, flat 3B".into(), note: Some("Asked not to be visited".into()), date: Some("2026-03-02".into()) }], "Shops and offices on the ground floors, flats above. Most entrances have an intercom."),
+            1 => (business, vec![elevator, apartments], vec![], "The station area. Best on weekday mornings."),
+            2 => (residential, vec![apartments], vec![DoNotCall { address: "220 Lime Avenue".into(), note: None, date: Some("2025-11-20".into()) }, DoNotCall { address: "231 Lime Avenue, 2nd floor".into(), note: Some("Elderly man, asked by letter".into()), date: Some("2026-06-15".into()) }], ""),
+            3 => (residential, vec![gated], vec![], "Gated houses: ring at the main gate."),
+            5 => (residential, vec![apartments, elevator], vec![DoNotCall { address: "8 Orange Grove, flat 12".into(), note: None, date: None }], "Three blocks of flats around a park."),
+            7 => (residential, vec![difficult], vec![], "Steep streets. A car helps."),
+            8 => (rural, vec![difficult], vec![], "Farms along the river road, far apart."),
+            10 => (rural, vec![], vec![DoNotCall { address: "Farm at the end of Mill Lane".into(), note: Some("Dogs, do not enter".into()), date: Some("2026-08-01".into()) }], ""),
+            11 => (residential, vec![gated], vec![], ""),
+            _ => (residential, vec![], vec![], ""),
+        };
+        if i == 0 || i == 5 {
+            shapes.push(Shape { kind: ShapeKind::Marker, points: vec![mid], title: Some(if i == 0 { "Intercom at the side door" } else { "Park entrance" }.into()), color: Some(if i == 0 { LabelColor::Yellow } else { LabelColor::Green }) });
+        }
+        if i == 3 {
+            shapes.push(Shape { kind: ShapeKind::Marker, points: vec![Point::new(mid.lat + dlat * 0.3, mid.lon - dlon * 0.3)], title: Some("Main gate".into()), color: Some(LabelColor::Red) });
+        }
+        if i == 6 {
+            // Only one side of the boundary street.
+            let (a, b) = (corner(r, c), corner(r + 1, c));
+            shapes.push(Shape { kind: ShapeKind::Line, points: vec![Point::new(a.lat - 0.0004, a.lon + 0.0005), Point::new(b.lat + 0.0004, b.lon + 0.0005)], title: None, color: None });
+        }
+        let draft = TerritoryDraft {
+            title: (i + 1).to_string(),
+            category: Some(category),
+            labels: labels.into_iter().collect(),
+            shapes,
+            view: None,
+            description: description.into(),
+            do_not_calls: dnc,
+            url: if i == 4 { "https://example.org/territories/5".into() } else { String::new() },
+        };
+        let _ = dir.save_territory(None, &draft);
+    }
+    // Registry: two years of assignments, then who has which territory now.
+    let today = crate::people::today_iso();
+    let ago = |days: i64| crate::events::add_days(&today, -days).unwrap_or_else(|| today.clone());
+    let people: Vec<u32> = dir.territory_people().iter().map(|p| p.id).collect();
+    if people.is_empty() {
+        return;
+    }
+    let ids: Vec<u32> = dir.territories_sorted().iter().map(|t| t.id).collect();
+    for (i, t) in ids.iter().enumerate() {
+        // Territories 9 and 12 were never worked.
+        if i == 8 || i == 11 {
+            continue;
+        }
+        let mut start = 700 - (i as i64 * 23) % 120;
+        let mut k = i * 5;
+        while start > 220 {
+            let length = 45 + ((k * 37) % 90) as i64;
+            let person = people[(k * 7 + 3) % people.len()];
+            if let Ok(a) = dir.assign_territory(*t, person, &ago(start)) {
+                let _ = dir.complete_territory(a, &ago(start - length));
+            }
+            start -= length + 20 + ((k * 13) % 60) as i64;
+            k += 1;
+        }
+    }
+    // Campaign labels: assignments that started in March or April (Memorial), June or July
+    // (regional convention).
+    for a in dir.territory_assignments.clone() {
+        let month = a.assigned.get(5..7).unwrap_or("");
+        let label = match month {
+            "03" | "04" => Some(1),
+            "06" | "07" => Some(2),
+            _ => None,
+        };
+        if let Some(l) = label {
+            dir.set_assignment_labels(a.id, &std::iter::once(l).collect());
+        }
+    }
+    // Now: person 1 has two (one late); two are late in all.
+    for (i, (person, days)) in [(1u32, 40i64), (5, 70), (7, 150), (1, 185), (13, 20), (19, 95), (25, 10)].into_iter().enumerate() {
+        if let Some(t) = ids.get([0usize, 2, 3, 5, 6, 9, 10][i]) {
+            let p = if people.contains(&person) { person } else { people[i % people.len()] };
+            let _ = dir.assign_territory(*t, p, &ago(days));
+        }
+    }
+}
+
 
 /// Public witnessing (invented, R-022): shift supervisors on (the elders and ministerial
 /// servants among the witnesses), three weekly presets with their availability; this month

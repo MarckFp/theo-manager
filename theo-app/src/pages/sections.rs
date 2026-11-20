@@ -395,6 +395,12 @@ pub fn Me() -> Element {
                 ActionButton { action: Action::Lock, onclick: move |_| { state.lock(); navigator.replace(Route::Unlock {}); } }
                 ActionButton { action: Action::SignOut, onclick: move |_| { state.sign_out(); navigator.replace(Route::Landing {}); } }
             },
+            Card { title: "My ministry", icon: Icon::Footprints,
+                Cluster { justify: Justify::Between,
+                    Text { tone: TextTone::Muted, "Log your time, credit hours and Bible studies each day, and send the month as your report." }
+                    ActionButton { action: Action::View, label: "Open my ministry", onclick: move |_| { navigator.push(Route::MyMinistryPage {}); } }
+                }
+            }
             Card { title: "Preferences", icon: Icon::Language,
                 Stack {
                     Text { tone: TextTone::Muted, "By default you use your congregation's settings. Choose a value to use your own." }
@@ -453,7 +459,7 @@ pub fn Me() -> Element {
                         } else {
                             Text { tone: TextTone::Muted, "Biometric unlock is not available on this device." }
                         }
-                        Text { tone: TextTone::Small, "The app locks itself after 5 minutes without activity (R-310)." }
+                        StayUnlockedField {}
                     }
                 }
             }
@@ -471,6 +477,32 @@ pub fn NotFound(segments: Vec<String>) -> Element {
                 icon: Icon::Map,
                 title: "This page does not exist",
                 action: rsx! { ActionButton { action: Action::Back, label: "Go home", onclick: move |_| { navigator.replace(Route::Landing {}); } } },
+            }
+        }
+    }
+}
+
+/// *Stay unlocked* (this device): how long the congregation stays open after the app is closed or
+/// reloaded, or lock at once.
+#[component]
+fn StayUnlockedField() -> Element {
+    let state = use_app_state();
+    let toaster = use_toaster();
+    let mut minutes = use_signal(crate::state::stay_unlocked_minutes);
+    let options: Vec<SelectOption> = crate::state::STAY_UNLOCKED.iter().map(|(m, l)| SelectOption::new(m.to_string(), *l)).collect();
+    rsx! {
+        Field {
+            label: "Stay unlocked on this device",
+            help: "After closing or reloading the app, it opens without the congregation password for this long after you last used it. Lock always asks again.",
+            Select {
+                value: minutes().to_string(),
+                options,
+                onchange: move |v: String| {
+                    let m = v.parse().unwrap_or(0);
+                    minutes.set(m);
+                    state.set_stay_unlocked(m);
+                    toaster.success(if m == 0 { "The app locks when it is closed or reloaded.".to_string() } else { "Saved for this device.".to_string() });
+                },
             }
         }
     }
