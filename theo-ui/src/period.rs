@@ -179,3 +179,37 @@ pub fn YearPicker(
         }
     }
 }
+
+/// `‹  Thursday 26 November 2026  ›`: steps through items one by one (for example the weeks of a
+/// meeting), with a "Today" button when another one is shown.
+#[component]
+pub fn StepPicker(
+    /// What is shown.
+    label: String,
+    on_prev: EventHandler<()>,
+    on_next: EventHandler<()>,
+    /// Shows "Today" (back to the current one).
+    #[props(default)]
+    on_today: Option<EventHandler<()>>,
+    /// Name of the step for screen readers ("week").
+    #[props(default = "week".to_string())]
+    step: String,
+) -> Element {
+    rsx! {
+        div { class: "flex w-full items-center justify-between gap-1 rounded-box border border-base-300 bg-base-100 p-1",
+            button { r#type: "button", class: "btn btn-ghost btn-square", "aria-label": "Previous {step}", onclick: move |_| on_prev.call(()),
+                IconView { icon: Icon::ArrowLeft, size: IconSize::Sm }
+            }
+            span { class: "flex min-w-0 items-center gap-1.5 truncate px-2 text-base font-semibold",
+                IconView { icon: Icon::Calendar, size: IconSize::Sm }
+                "{label}"
+            }
+            if let Some(t) = on_today {
+                button { r#type: "button", class: "btn btn-ghost btn-sm", onclick: move |_| t.call(()), "Today" }
+            }
+            button { r#type: "button", class: "btn btn-ghost btn-square", "aria-label": "Next {step}", onclick: move |_| on_next.call(()),
+                IconView { icon: Icon::ArrowRight, size: IconSize::Sm }
+            }
+        }
+    }
+}

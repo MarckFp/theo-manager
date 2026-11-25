@@ -11,7 +11,7 @@
 
 use crate::card::{Avatar, BrandMark};
 use crate::icon::{Icon, IconSize, IconView};
-use crate::menu::{Placement, SwitcherItem, WorkspaceSwitcher};
+use crate::menu::{Placement, Popover, SwitcherItem, WorkspaceSwitcher};
 use dioxus::prelude::*;
 use std::collections::HashSet;
 
@@ -84,8 +84,44 @@ pub fn AppShell(
     on_workspace_settings: Option<EventHandler<()>>,
     /// Changes on every navigation, to replay the page transition.
     transition_key: String,
+    /// With it, the account opens a menu (*My settings*, *Sign out*) instead of going to `account`.
+    #[props(default)]
+    on_sign_out: Option<EventHandler<()>>,
     children: Element,
 ) -> Element {
+    let mut side_menu = use_signal(|| false);
+    let mut top_menu = use_signal(|| false);
+    let account_items = move |mut open: Signal<bool>, id: String| {
+        rsx! {
+            div { class: "flex flex-col", role: "menu",
+                button {
+                    r#type: "button",
+                    role: "menuitem",
+                    class: "flex items-center gap-3 rounded-field px-3 py-2 text-left text-sm transition-colors hover:bg-base-200",
+                    onclick: move |_| {
+                        open.set(false);
+                        on_navigate.call(id.clone());
+                    },
+                    IconView { icon: Icon::Settings, size: IconSize::Sm }
+                    "My settings"
+                }
+                if let Some(h) = on_sign_out {
+                    button {
+                        r#type: "button",
+                        role: "menuitem",
+                        class: "flex items-center gap-3 rounded-field px-3 py-2 text-left text-sm text-error transition-colors hover:bg-error/10",
+                        onclick: move |_| {
+                            open.set(false);
+                            h.call(());
+                        },
+                        IconView { icon: Icon::SignOut, size: IconSize::Sm }
+                        "Sign out"
+                    }
+                }
+            }
+        }
+    };
+    let has_menu = on_sign_out.is_some();
     // Sections the user opened or closed by hand. The active section is open unless closed.
     let mut opened = use_signal(HashSet::<String>::new);
     let mut closed = use_signal(HashSet::<String>::new);
@@ -222,17 +258,31 @@ pub fn AppShell(
                 }
                 {
                     let id = account.id.clone();
+                    let id_menu = account.id.clone();
                     rsx! {
-                        button {
-                            r#type: "button",
-                            class: if account_active { "flex items-center gap-3 rounded-field bg-primary/10 p-2 text-left md:max-lg:justify-center" } else { "flex items-center gap-3 rounded-field p-2 text-left transition-colors hover:bg-base-200 md:max-lg:justify-center" },
-                            title: "{account.label}",
-                            onclick: move |_| on_navigate.call(id.clone()),
-                            Avatar { name: account.label.clone() }
-                            span { class: "hidden min-w-0 flex-1 flex-col lg:flex",
-                                span { class: "truncate text-sm font-semibold", "{account.label}" }
-                                span { class: "truncate text-xs text-base-content/60", "{account_detail}" }
-                            }
+                        Popover {
+                            open: side_menu(),
+                            onclose: move |_| side_menu.set(false),
+                            placement: Placement::Above,
+                            trigger: rsx! {
+                                button {
+                                    r#type: "button",
+                                    class: if account_active { "flex w-full items-center gap-3 rounded-field bg-primary/10 p-2 text-left md:max-lg:justify-center" } else { "flex w-full items-center gap-3 rounded-field p-2 text-left transition-colors hover:bg-base-200 md:max-lg:justify-center" },
+                                    title: "{account.label}",
+                                    "aria-haspopup": if has_menu { "menu" } else { "false" },
+                                    "aria-expanded": if side_menu() { "true" } else { "false" },
+                                    onclick: move |_| if has_menu { side_menu.set(!side_menu()) } else { on_navigate.call(id.clone()) },
+                                    Avatar { name: account.label.clone() }
+                                    span { class: "hidden min-w-0 flex-1 flex-col lg:flex",
+                                        span { class: "truncate text-sm font-semibold", "{account.label}" }
+                                        span { class: "truncate text-xs text-base-content/60", "{account_detail}" }
+                                    }
+                                    if has_menu {
+                                        span { class: "hidden text-base-content/50 lg:block", IconView { icon: Icon::ChevronsUpDown, size: IconSize::Sm } }
+                                    }
+                                }
+                            },
+                            {account_items(side_menu, id_menu)}
                         }
                     }
                 }
@@ -256,13 +306,23 @@ pub fn AppShell(
                     div { class: "flex-1" }
                     {
                         let id = account.id.clone();
+                        let id_menu = account.id.clone();
                         rsx! {
-                            button {
-                                r#type: "button",
-                                class: "rounded-full transition-transform active:scale-90",
-                                "aria-label": "{account.label}",
-                                onclick: move |_| on_navigate.call(id.clone()),
-                                Avatar { name: account.label.clone() }
+                            Popover {
+                                open: top_menu(),
+                                onclose: move |_| top_menu.set(false),
+                                placement: Placement::End,
+                                trigger: rsx! {
+                                    button {
+                                        r#type: "button",
+                                        class: "rounded-full transition-transform active:scale-90",
+                                        "aria-label": "{account.label}",
+                                        "aria-haspopup": if has_menu { "menu" } else { "false" },
+                                        onclick: move |_| if has_menu { top_menu.set(!top_menu()) } else { on_navigate.call(id.clone()) },
+                                        Avatar { name: account.label.clone() }
+                                    }
+                                },
+                                {account_items(top_menu, id_menu)}
                             }
                         }
                     }

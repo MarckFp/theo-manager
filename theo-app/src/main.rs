@@ -26,6 +26,8 @@ mod tasks;
 mod territories;
 mod territory_card;
 mod widgets;
+mod midweek;
+mod workbook;
 mod ministry;
 
 use dioxus::prelude::*;
@@ -102,6 +104,9 @@ pub enum Route {
             /// One month of attendance, `month` as `YYYY-MM`.
             #[route("/meetings/attendance/:month")]
             AttendanceMonth { month: String },
+            /// Meetings › Midweek meeting (docs/model/m03-midweek-meeting.md).
+            #[route("/meetings/midweek")]
+            MidweekPage {},
             /// Ministry › Field service reports (docs/model/m10-field-service-reports.md).
             #[route("/ministry/reports")]
             ReportsPage {},
@@ -214,6 +219,7 @@ pub fn route_for(id: &str) -> Route {
         Some(("ministry", "territories")) => Route::TerritoriesPage {},
         Some(("meetings", "attendance")) => Route::AttendancePage {},
         Some(("meetings", "events")) => Route::EventsPage {},
+        Some(("meetings", "midweek")) => Route::MidweekPage {},
         Some((section, page)) => Route::SectionPage { section: section.into(), page: page.into() },
         None => match id {
             "home" => Route::Dashboard {},

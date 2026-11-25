@@ -317,13 +317,78 @@ pub fn demo_directory(size: usize) -> Directory {
         ministry_log: Vec::new(),
         ministry_carried: BTreeSet::new(),
         personal_goals: Default::default(),
+        midweek_weeks: Vec::new(),
+        midweek_settings: Default::default(),
     };
     demo_events(&mut dir);
     demo_service_meetings(&mut dir);
     demo_witnessing(&mut dir);
     demo_territories(&mut dir);
     demo_ministry(&mut dir);
+    demo_midweek(&mut dir);
     dir
+}
+
+/// Midweek meeting (invented, R-022): sample weeks from four weeks ago to eight weeks ahead,
+/// with **invented sample text** (never jw.org content, which may not be distributed: the real
+/// workbook is downloaded on each device). Past weeks and this month are filled and sent; the
+/// next weeks are filled but not sent.
+fn demo_midweek(dir: &mut Directory) {
+    use crate::midweek::{monday_of, PartKind, SectionKind};
+    use crate::workbook::{PartContent, WeekContent};
+    let today = crate::people::today_iso();
+    let this = monday_of(&today);
+    let ministry = [
+        [PartKind::StartingConversation, PartKind::FollowingUp, PartKind::MakingDisciples],
+        [PartKind::StartingConversation, PartKind::StartingConversation, PartKind::StudentTalk],
+        [PartKind::StartingConversation, PartKind::FollowingUp, PartKind::ExplainingBeliefs],
+    ];
+    for i in -4i64..8 {
+        let monday = crate::events::add_days(&this, i * 7).unwrap_or_else(|| this.clone());
+        let n = (i + 8) as usize;
+        let sample = |number: u8, section: SectionKind, kind: PartKind, title: &str, minutes: u8| PartContent {
+            number,
+            section,
+            kind,
+            title: title.into(),
+            description: "Sample part of the demo. The real workbook is downloaded from jw.org on each device.".into(),
+            minutes,
+        };
+        let m = ministry[n % 3];
+        let content = WeekContent {
+            doc: String::new(),
+            monday: monday.clone(),
+            label: String::new(),
+            reading: format!("SAMPLE READING {}-{}", n * 2 + 1, n * 2 + 2),
+            songs: [Some((n * 7 % 150 + 1) as u16), Some((n * 13 % 150 + 1) as u16), Some((n * 29 % 150 + 1) as u16)],
+            parts: vec![
+                sample(1, SectionKind::Treasures, PartKind::TreasuresTalk, "Talk on the week's Bible reading", 10),
+                sample(2, SectionKind::Treasures, PartKind::SpiritualGems, "Spiritual Gems", 10),
+                sample(3, SectionKind::Treasures, PartKind::BibleReading, "Bible Reading", 4),
+                sample(4, SectionKind::Ministry, m[0], m[0].label(), 3),
+                sample(5, SectionKind::Ministry, m[1], m[1].label(), 4),
+                sample(6, SectionKind::Ministry, m[2], m[2].label(), 5),
+                sample(7, SectionKind::Living, PartKind::Living, "Part on Christian living", 15),
+                sample(8, SectionKind::Living, PartKind::BibleStudy, "Congregation Bible Study", 30),
+            ],
+        };
+        dir.import_midweek_week(&content, None);
+        // Demo weeks have no workbook on the device: the sample text is kept with the plan.
+        if let Some(w) = dir.midweek_weeks.iter_mut().find(|w| w.monday == monday) {
+            for p in w.sections.iter_mut().flat_map(|s| s.parts.iter_mut()) {
+                if let Some(c) = content.parts.iter().find(|c| Some(c.number) == p.source) {
+                    p.title = Some(c.title.clone());
+                    p.description = Some(c.description.clone());
+                }
+            }
+        }
+    }
+    let all: Vec<String> = dir.midweek_weeks.iter().map(|w| w.monday.clone()).collect();
+    dir.autofill_midweek(&all, 3);
+    let upto: Vec<String> = all.iter().filter(|m| m.as_str() <= this.as_str()).cloned().collect();
+    dir.send_midweek(&upto, 3);
+    // The demo starts without notices from past weeks.
+    dir.notices.retain(|n| n.date >= today);
 }
 
 /// *My ministry* (invented, R-022): John Smith (the demo user) is an auxiliary pioneer this

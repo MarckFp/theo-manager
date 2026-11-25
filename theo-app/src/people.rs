@@ -474,6 +474,9 @@ pub struct Directory {
     pub ministry_carried: std::collections::BTreeSet<(u32, crate::reports::Ym)>,
     /// Personal goals: hours per month, per person (*My ministry*).
     pub personal_goals: std::collections::BTreeMap<u32, u32>,
+    /// The midweek meeting (M-03, `src/midweek.rs`): the plan of each week, and its settings.
+    pub midweek_weeks: Vec<crate::midweek::MidweekWeek>,
+    pub midweek_settings: crate::midweek::MidweekSettings,
 }
 
 impl Directory {

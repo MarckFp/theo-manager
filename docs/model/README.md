@@ -10,6 +10,7 @@ do not exist yet.
 | M-02 Users and access | [m02-users-and-access.md](m02-users-and-access.md) | Reviewed 2026-11-18 |
 | M-09 Field service groups | [m09-field-service-groups.md](m09-field-service-groups.md) | Reviewed 2026-11-17, all decided |
 | M-10 Field service reports | [m10-field-service-reports.md](m10-field-service-reports.md) | Reviewed 2026-11-17, all decided |
+| M-03 Midweek meeting | [m03-midweek-meeting.md](m03-midweek-meeting.md) | First version 2026-11-24, 2 open questions |
 | M-07 Territories | [m07-territories.md](m07-territories.md) | First version 2026-11-20, 2 open questions |
 | M-08 Public witnessing | [m16-public-witnessing.md](m16-public-witnessing.md) | First version 2026-11-19 |
 | M-11 Meeting attendance | [m11-meeting-attendance.md](m11-meeting-attendance.md) | First version 2026-11-19, 2 open questions |

@@ -9,6 +9,7 @@ use crate::people::Directory;
 pub enum AssignmentKind {
     FieldServiceMeeting,
     PublicWitnessing,
+    MidweekMeeting,
 }
 
 impl AssignmentKind {
@@ -16,6 +17,7 @@ impl AssignmentKind {
         match self {
             AssignmentKind::FieldServiceMeeting => "Meeting for field service",
             AssignmentKind::PublicWitnessing => "Public witnessing",
+            AssignmentKind::MidweekMeeting => "Midweek meeting",
         }
     }
 
@@ -24,6 +26,7 @@ impl AssignmentKind {
         match self {
             AssignmentKind::FieldServiceMeeting => theo_ui::Accent::One,
             AssignmentKind::PublicWitnessing => theo_ui::Accent::Two,
+            AssignmentKind::MidweekMeeting => theo_ui::Accent::Three,
         }
     }
 
@@ -31,6 +34,7 @@ impl AssignmentKind {
         match self {
             AssignmentKind::FieldServiceMeeting => theo_ui::Icon::Footprints,
             AssignmentKind::PublicWitnessing => theo_ui::Icon::PublicWitnessing,
+            AssignmentKind::MidweekMeeting => theo_ui::Icon::BookOpen,
         }
     }
 }
@@ -115,6 +119,11 @@ impl Directory {
                 time: None,
                 detail: format!("{}–{} · {}{role}", v.start, v.end, v.place),
             })
+        }));
+        // The midweek meeting: one line per week with what they do.
+        v.extend(self.midweek_weeks.iter().filter_map(|w| w.sent.as_ref().map(|s| (w.id, s))).filter(|(_, s)| !s.no_meeting).filter_map(|(id, s)| {
+            let roles: Vec<&str> = s.roles.iter().filter(|(p, _)| *p == person).map(|(_, r)| r.as_str()).collect();
+            (!roles.is_empty()).then(|| Assignment { kind: AssignmentKind::MidweekMeeting, record: id, date: s.date.clone(), time: None, detail: roles.join(", ") })
         }));
         v.sort_by(|a, b| (&a.date, &a.time).cmp(&(&b.date, &b.time)));
         v

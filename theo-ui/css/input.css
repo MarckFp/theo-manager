@@ -39,6 +39,7 @@
   --color-error-content: oklch(98% 0.01 25);
   --chart-1: oklch(51% 0.2 268);
   --chart-2: oklch(60% 0.13 162);
+  --chart-3: oklch(62% 0.16 50);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
   --radius-box: 0.75rem;
@@ -76,6 +77,7 @@
   --color-error-content: oklch(16% 0.03 25);
   --chart-1: oklch(62% 0.17 268);
   --chart-2: oklch(64% 0.13 162);
+  --chart-3: oklch(72% 0.14 55);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
   --radius-box: 0.75rem;
@@ -92,6 +94,7 @@
 @theme inline {
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
 }
 
 /* ---------- Tokens (R-415, R-433) ---------- */

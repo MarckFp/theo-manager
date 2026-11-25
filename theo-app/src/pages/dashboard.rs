@@ -571,30 +571,71 @@ fn away(dir: &Directory, prefs: &crate::prefs::Preferences, w: &WidgetLayout) ->
     }
 }
 
+/// "Midweek meeting": who has a part this week, as sent; my name stands out. *Show all* opens
+/// the whole list (also for people who cannot open the meeting page).
+#[component]
+fn MidweekWidget(cols: u8, rows: u8) -> Element {
+    let state = use_app_state();
+    let navigator = navigator();
+    let mut all = use_signal(|| false);
+    // The widget lists who does what; the times are in "Show all".
+    let Some((title, lines)) = super::midweek::next_meeting_lines(&state, false) else {
+        return rsx! { Text { tone: TextTone::Muted, "The plan of this week's meeting is not sent yet." } };
+    };
+    let mine: Vec<String> = lines.iter().filter(|l| l.2).map(|l| l.0.clone()).collect();
+    let every_line = super::midweek::next_meeting_lines(&state, true).map(|x| x.1).unwrap_or_default();
+    let item = |l: &super::midweek::SentLine| {
+        let it = StatItem::new(l.0.clone(), l.1.clone());
+        if l.2 { it.with_tone(Tone::Info) } else { it }
+    };
+    // One column: part names and pairs of names are too long for two.
+    let _ = cols;
+    let per_line = 1;
+    let fit = capacity(rows, 33.0, if mine.is_empty() { 1 } else { 2 }) * per_line;
+    let shown: Vec<StatItem> = lines.iter().take(fit).map(item).collect();
+    let hidden = lines.len().saturating_sub(shown.len());
+    let every: Vec<StatItem> = every_line.iter().map(item).collect();
+    let can_open = state.can_read("meetings/midweek");
+    rsx! {
+        Stack { gap: Gap::Sm,
+            Cluster { justify: Justify::Between,
+                Text { tone: TextTone::Small, "{title}" }
+                TextLink { icon: Icon::ArrowRight, onclick: move |_| all.set(true), "Show all" }
+            }
+            if !mine.is_empty() {
+                Badge { tone: Tone::Info, icon: Icon::Sparkles, "You: {mine.join(\", \")}" }
+            }
+            if lines.is_empty() {
+                Text { tone: TextTone::Muted, "No meeting this week." }
+            } else {
+                StatList { items: shown, columns: per_line as u8 }
+                {more(hidden)}
+            }
+        }
+        if all() {
+            Dialog {
+                open: true,
+                onclose: move |_| all.set(false),
+                title: "Midweek meeting",
+                description: title.clone(),
+                actions: rsx! {
+                    if can_open {
+                        ActionButton { action: Action::View, label: "Open the meeting", onclick: move |_| { navigator.push(crate::Route::MidweekPage {}); } }
+                    }
+                    ActionButton { action: Action::Done, onclick: move |_| all.set(false) }
+                },
+                StatList { items: every }
+            }
+        }
+    }
+}
+
 fn widget(w: &WidgetLayout, state: &AppState) -> Element {
     let p = state.preferences();
     let dir = state.directory();
-    let meeting = state
-        .active_congregation()
-        .map(|c| format!("Midweek meeting · {} {}", c.midweek.day, p.format_hhmm(&c.midweek.time)))
-        .unwrap_or_default();
-    let names = format!(
-        "Chairman: {} · Bible reading: {} · Congregation Bible Study: {}",
-        p.format_name("John", "Smith"),
-        p.format_name("Mark", "Brown"),
-        p.format_name("Anna", "Lee")
-    );
     let (cols, rows) = (w.cols, w.rows);
     match w.id.as_str() {
-        "next-meeting" => rsx! {
-            Stack { gap: Gap::Sm,
-                Cluster { justify: Justify::Between,
-                    Heading { level: HeadingLevel::H3, "{meeting}" }
-                    Badge { tone: Tone::Success, icon: Icon::Check, "All parts assigned" }
-                }
-                Text { tone: TextTone::Muted, "{names}" }
-            }
-        },
+        "next-meeting" => rsx! { MidweekWidget { cols, rows } },
         "assignments" => rsx! { MyAssignments { cols, rows } },
         "my-reports" => rsx! { MyReports { cols, rows } },
         "my-goal" => rsx! { MyGoal { cols, rows } },

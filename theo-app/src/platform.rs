@@ -317,3 +317,36 @@ pub fn device_set(key: &str, value: Option<&str>) {
 pub fn now_secs() -> u64 {
     web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
+
+/// Downloads a file (the meeting workbook, R-034). Desktop and phone: in a background thread, so
+/// the app keeps working. Web: the browser's own download (some servers do not allow it).
+pub async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::JsCast;
+        let window = web_sys::window().ok_or("No browser window.")?;
+        let resp = wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(url)).await.map_err(|_| "The browser could not download it.".to_string())?;
+        let resp: web_sys::Response = resp.dyn_into().map_err(|_| "No answer.".to_string())?;
+        if !resp.ok() {
+            return Err(format!("The server answered {}.", resp.status()));
+        }
+        let buffer = wasm_bindgen_futures::JsFuture::from(resp.array_buffer().map_err(|_| "No data.".to_string())?).await.map_err(|_| "No data.".to_string())?;
+        Ok(js_sys::Uint8Array::new(&buffer).to_vec())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let url = url.to_string();
+        let (tx, rx) = futures_channel::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = (|| -> Result<Vec<u8>, String> {
+                let mut resp = ureq::get(&url)
+                    .header("User-Agent", concat!("TheoManager/", env!("CARGO_PKG_VERSION"), " (+https://github.com/MarckFp/theo-manager)"))
+                    .call()
+                    .map_err(|e| e.to_string())?;
+                resp.body_mut().with_config().limit(60 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())
+            })();
+            let _ = tx.send(result);
+        });
+        rx.await.map_err(|_| "The download stopped.".to_string())?
+    }
+}

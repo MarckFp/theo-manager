@@ -65,6 +65,7 @@ The debug web build is large (about 70 MB of WebAssembly) and loads slowly. Use
 | `/app/meetings/attendance` | Meeting attendance: months of a service year, statistics, export | Same |
 | `/app/meetings/attendance/<YYYY-MM>` | One month: 5 weeks × midweek and weekend meeting | Same |
 | `/app/ministry/witnessing/presets`, `/app/ministry/service-meetings/presets` | Presets of public witnessing and of meetings for field service | Same |
+| `/app/meetings/midweek` | Midweek meeting: week (meeting day to meeting day) and month plans from the workbook EPUB, assigning with candidates, auxiliary classroom, autofill, send, statistics | Same |
 | `/app/me/ministry` | My ministry: log each day (time, credit, Bible studies), send the month as the report, earlier months | Same |
 | `/app/ministry/territories` | Territories: assignments (available, assigned and late, registry), the territories (list or map), statistics, export of cards and the registry | Same |
 | `/app/ministry/territories/:id`, `…/:id/edit`, `…/new`, `…/settings` | One territory (map, do-not-calls, history, card PDF), the editor (map drawing, GeoJSON/KML import), the settings (late limit, map provider, categories, labels) | Same |

@@ -14,6 +14,7 @@ fn active_of(route: &Route) -> (String, Option<String>) {
         Route::TerritoriesPage {} | Route::TerritoryNew {} | Route::TerritorySettingsPage {} | Route::TerritoryDetail { .. } | Route::TerritoryEdit { .. } => ("ministry".into(), Some("territories".into())),
         Route::AttendancePage {} | Route::AttendanceMonth { .. } => ("meetings".into(), Some("attendance".into())),
         Route::EventsPage {} => ("meetings".into(), Some("events".into())),
+        Route::MidweekPage {} => ("meetings".into(), Some("midweek".into())),
         Route::PermissionsPage {} | Route::PermissionsDetail { .. } => ("users".into(), Some("permissions".into())),
         Route::PrivilegesPage {} => ("users".into(), Some("privileges".into())),
         Route::FamilyDetail { .. } => ("users".into(), Some("all".into())),
@@ -78,6 +79,10 @@ pub fn AppLayout() -> Element {
             on_create_workspace: move |_| { navigator.push(Route::NewCongregation {}); },
             on_workspace_settings: move |_| { navigator.push(Route::SettingsPage {}); },
             transition_key: route.to_string(),
+            on_sign_out: move |_| {
+                state.sign_out();
+                navigator.replace(Route::Landing {});
+            },
             Outlet::<Route> {}
         }
     }

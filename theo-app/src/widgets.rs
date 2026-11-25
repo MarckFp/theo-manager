@@ -27,7 +27,7 @@ pub const ALL: [WidgetDef; 13] = [
     def("my-reports", "My field service reports", Icon::Footprints, 1, 1, None),
     def("my-goal", "My goal", Icon::Sparkles, 1, 1, None),
     def("my-territories", "My territories", Icon::Map, 1, 1, None),
-    def("next-meeting", "Next meeting", Icon::Meetings, 2, 1, None),
+    def("next-meeting", "Midweek meeting", Icon::BookOpen, 2, 2, None),
     def("service-meetings", "Meetings for field service", Icon::Group, 1, 1, None),
     def("events", "Upcoming events", Icon::Calendar, 1, 1, None),
     // Congregation

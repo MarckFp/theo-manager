@@ -18,6 +18,8 @@ pub enum Placement {
     Start,
     /// Below, aligned with the right edge of the trigger (page action menus).
     End,
+    /// Above, aligned with the left edge (a trigger at the bottom of the screen).
+    Above,
 }
 
 /// A popover that closes on outside click or Escape.
@@ -34,6 +36,7 @@ pub fn Popover(
         Placement::Side => "left-0 top-full mt-2 w-72 md:max-lg:left-full md:max-lg:top-0 md:max-lg:mt-0 md:max-lg:ml-3 lg:right-0",
         Placement::Start => "left-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)]",
         Placement::End => "right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)]",
+        Placement::Above => "left-0 bottom-full mb-2 w-64 max-w-[calc(100vw-2rem)]",
     };
     rsx! {
         div {

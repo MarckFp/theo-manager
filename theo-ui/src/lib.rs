@@ -39,7 +39,7 @@ mod typography;
 pub use action::{Action, ActionButton, EditActions};
 pub use calendar::{Calendar, CalendarEntry, Date, DayCell, DayGrid};
 pub use button::{Button, ButtonKind, ButtonSize, ButtonVariant, IconButton};
-pub use card::{Accent, AccentItem, AccentList, Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, RecordCard, Tag};
+pub use card::{Accent, AccentItem, AccentList, AssignmentRow, Avatar, BrandMark, Card, CheckList, ItemList, ListEntry, MeetingSection, RecordCard, SectionTone, SlotView, Tag};
 pub use charts::{BarChart, ChartPoint, ChartSeries, LineChart, MonthMark, MonthStrip, ProgressRow, Sparkline, StatItem, StatList, StatTile, Trend};
 pub use dashboard::{Dashboard, WidgetLayout};
 pub use feedback::{use_toaster, Alert, Badge, EmptyState, Skeleton, Spinner, Toaster, Tone};
@@ -57,7 +57,7 @@ pub use menu::{
     MenuButton, MenuItem, Placement, Popover, Segment, Segmented, SwitcherItem, WorkspaceSwitcher,
 };
 pub use overlay::{ConfirmDialog, Dialog};
-pub use period::{month_name, MonthPicker, YearMonth, YearPicker};
+pub use period::{month_name, MonthPicker, StepPicker, YearMonth, YearPicker};
 pub use rows::{ChoiceList, PickList, Row, RowGroup, RowList};
 pub use table::{DataTable, MatrixCell, MatrixTable};
 pub use timeline::{Timeline, TimelineItem};

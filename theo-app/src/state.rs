@@ -160,6 +160,12 @@ pub struct AppState {
     pub terr_query: Signal<String>,
     pub terr_filters: Signal<FilterSelection>,
     pub terr_view: Signal<String>,
+    /// Midweek meeting page: tab, the week shown (its Monday) and the month.
+    pub mw_tab: Signal<String>,
+    pub mw_monday: Signal<Option<String>>,
+    pub mw_month: Signal<Option<(i32, u32)>>,
+    /// Workbooks read on this device (never uploaded, R-032), by `issue-lang`.
+    workbooks: Signal<HashMap<String, crate::workbook::Workbook>>,
     next_id: Signal<u64>,
 }
 
@@ -195,6 +201,10 @@ impl AppState {
             terr_query: Signal::new(String::new()),
             terr_filters: Signal::new(FilterSelection::new()),
             terr_view: Signal::new("list".into()),
+            mw_tab: Signal::new("week".into()),
+            mw_monday: Signal::new(None),
+            mw_month: Signal::new(None),
+            workbooks: Signal::new(HashMap::new()),
             next_id: Signal::new(1),
         };
         state.restore_session();
@@ -611,6 +621,23 @@ fn notice_key(n: &crate::assignments::Notice) -> String {
 }
 
 impl AppState {
+    /// A workbook on this device: read in this session, else kept in this browser.
+    pub fn workbook(&self, issue: &str, lang: &str) -> Option<crate::workbook::Workbook> {
+        let key = crate::workbook::key(issue, lang);
+        if let Some(w) = self.workbooks.read().get(&key) {
+            return Some(w.clone());
+        }
+        crate::platform::device_get(&format!("theo-manager.workbook.{key}")).and_then(|j| serde_json::from_str(&j).ok())
+    }
+
+    /// Keeps a workbook on this device (and in this browser for the next time).
+    pub fn store_workbook(&mut self, wb: crate::workbook::Workbook) {
+        if let Ok(json) = serde_json::to_string(&wb) {
+            crate::platform::device_set(&format!("theo-manager.workbook.{}", wb.key()), Some(&json));
+        }
+        self.workbooks.write().insert(wb.key(), wb);
+    }
+
     /// Sets *Stay unlocked* for this device.
     pub fn set_stay_unlocked(&self, minutes: u32) {
         crate::platform::device_set(STAY_KEY, Some(&minutes.to_string()));

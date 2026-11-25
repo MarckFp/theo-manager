@@ -120,6 +120,9 @@ pub enum Icon {
     ExitFullScreen,
     RemovePoint,
     Directions,
+    MoveUp,
+    MoveDown,
+    Song,
 }
 
 /// Icon sizes, in pixels.
@@ -267,6 +270,9 @@ pub fn IconView(
         Icon::ExitFullScreen => rsx!(Svg { icon: ld::LdShrink, width: px, height: px, title: label }),
         Icon::RemovePoint => rsx!(Svg { icon: ld::LdCircleMinus, width: px, height: px, title: label }),
         Icon::Directions => rsx!(Svg { icon: ld::LdNavigation, width: px, height: px, title: label }),
+        Icon::MoveUp => rsx!(Svg { icon: ld::LdArrowUp, width: px, height: px, title: label }),
+        Icon::MoveDown => rsx!(Svg { icon: ld::LdArrowDown, width: px, height: px, title: label }),
+        Icon::Song => rsx!(Svg { icon: ld::LdMusic, width: px, height: px, title: label }),
     };
     rsx! {
         span { class: "inline-flex shrink-0 items-center justify-center", "aria-hidden": hidden, {svg} }

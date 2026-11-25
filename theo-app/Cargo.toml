@@ -20,17 +20,25 @@ theo-crypto = { path = "../theo-crypto" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 web-time = "1"
+# Reading the workbook EPUB (src/workbook.rs): deflate only, pure Rust (also in the browser).
+miniz_oxide = "0.8"
 # UI translations (Fluent). Strings are not translated yet; the language switch works.
 dioxus-i18n = "0.6"
 unic-langid = { version = "0.9", features = ["macros"] }
 sys-locale = "0.3"
 
+# Desktop and phone: downloading the workbook EPUB in the background (R-034).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+futures-channel = "0.3"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4"
 sys-locale = { version = "0.3", features = ["js"] }
 # Saving exports as a download (already in the tree through dioxus-web).
 wasm-bindgen = "0.2"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "MediaQueryList", "Storage"] }
+web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "MediaQueryList", "Storage", "Response"] }
 
 [features]
 default = ["web"]

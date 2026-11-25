@@ -233,6 +233,8 @@ pub enum Accent {
     One,
     /// The second colour (`--chart-2`).
     Two,
+    /// The third colour (`--chart-3`).
+    Three,
 }
 
 impl Accent {
@@ -240,6 +242,7 @@ impl Accent {
         match self {
             Accent::One => "bg-chart-1/15 text-chart-1",
             Accent::Two => "bg-chart-2/15 text-chart-2",
+            Accent::Three => "bg-chart-3/15 text-chart-3",
         }
     }
 
@@ -247,6 +250,7 @@ impl Accent {
         match self {
             Accent::One => "text-chart-1",
             Accent::Two => "text-chart-2",
+            Accent::Three => "text-chart-3",
         }
     }
 }
@@ -298,6 +302,173 @@ pub fn AccentList(
                     }
                 }
             }
+        }
+    }
+}
+
+/// One place of an [`AssignmentRow`] ("Student: Anna Lee").
+#[derive(Clone, Debug, PartialEq)]
+pub struct SlotView {
+    /// What the place is ("Student", "Assistant", "Auxiliary classroom").
+    pub label: String,
+    /// Who has it (None: nobody yet).
+    pub person: Option<String>,
+    /// A short warning (for example "Away").
+    pub warning: Option<String>,
+}
+
+/// A part of a meeting: number, title, minutes, a short description and its places. With
+/// `on_slot` each place is a button that opens the choice of a person.
+#[component]
+pub fn AssignmentRow(
+    /// "3." or "".
+    number: String,
+    title: String,
+    /// "4 min".
+    #[props(default)]
+    minutes: String,
+    #[props(default)] detail: String,
+    slots: Vec<SlotView>,
+    #[props(default)] on_slot: Option<EventHandler<usize>>,
+    #[props(default)] on_edit: Option<EventHandler<()>>,
+    /// Move the part up or down (shown next to the number).
+    #[props(default)]
+    on_up: Option<EventHandler<()>>,
+    #[props(default)] on_down: Option<EventHandler<()>>,
+    /// An icon instead of the number (for example a song).
+    #[props(default)]
+    icon: Option<Icon>,
+) -> Element {
+    let mover = |h: Option<EventHandler<()>>, icon: Icon, label: &'static str| match h {
+        Some(h) => rsx! {
+            button { r#type: "button", class: "grid size-5 place-items-center rounded text-base-content/40 hover:bg-base-200 hover:text-base-content", "aria-label": label, title: label, onclick: move |_| h.call(()),
+                IconView { icon, size: IconSize::Xs }
+            }
+        },
+        None => rsx! { span { class: "size-5" } },
+    };
+    let movable = on_up.is_some() || on_down.is_some();
+    rsx! {
+        div { class: "flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-start md:gap-4",
+            div { class: "flex min-w-0 flex-1 items-start gap-2",
+                if movable {
+                    span { class: "flex shrink-0 flex-col",
+                        {mover(on_up, Icon::MoveUp, "Move up")}
+                        {mover(on_down, Icon::MoveDown, "Move down")}
+                    }
+                }
+                if let Some(i) = icon {
+                    span { class: "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-base-200 text-base-content/70",
+                        IconView { icon: i, size: IconSize::Xs }
+                    }
+                } else if !number.is_empty() {
+                    span { class: "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-base-200 text-xs font-semibold", "{number}" }
+                }
+                div { class: "flex min-w-0 flex-1 flex-col gap-0.5",
+                    div { class: "flex min-w-0 items-center gap-2",
+                        span { class: "min-w-0 font-medium", "{title}" }
+                        if !minutes.is_empty() {
+                            span { class: "shrink-0 rounded-full bg-base-200 px-2 py-0.5 text-xs text-base-content/70", "{minutes}" }
+                        }
+                        if let Some(h) = on_edit {
+                            button { r#type: "button", class: "btn btn-ghost btn-square btn-xs text-base-content/50", "aria-label": "Edit {title}", title: "Edit", onclick: move |_| h.call(()),
+                                IconView { icon: Icon::Edit, size: IconSize::Xs }
+                            }
+                        }
+                    }
+                    if !detail.is_empty() {
+                        span { class: "line-clamp-2 text-xs text-base-content/60", "{detail}" }
+                    }
+                }
+            }
+            div { class: "flex flex-wrap gap-2 md:max-w-[55%] md:justify-end",
+                for (i, s) in slots.iter().enumerate() {
+                    {
+                        let filled = s.person.is_some();
+                        let name = s.person.clone().unwrap_or_else(|| "Choose".to_string());
+                        let class = match (filled, s.warning.is_some()) {
+                            (_, true) => "border-warning/60 bg-warning/10",
+                            (true, false) => "border-base-300 bg-base-100",
+                            (false, false) => "border-dashed border-primary/50 text-primary",
+                        };
+                        let inner = rsx! {
+                            span { class: "text-[10px] font-medium uppercase tracking-wide text-base-content/60", "{s.label}" }
+                            span { class: "truncate text-sm font-medium", "{name}" }
+                            if let Some(w) = &s.warning {
+                                span { class: "truncate text-[10px] text-warning", "{w}" }
+                            }
+                        };
+                        match on_slot {
+                            Some(h) => rsx! {
+                                button { key: "{i}", r#type: "button", class: "flex min-w-36 max-w-full flex-col items-start rounded-field border px-3 py-1.5 text-left transition-colors hover:bg-base-200 {class}", onclick: move |_| h.call(i), {inner} }
+                            },
+                            None => rsx! {
+                                div { key: "{i}", class: "flex min-w-36 max-w-full flex-col items-start rounded-field border px-3 py-1.5 {class}", {inner} }
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The colour of a section of a meeting, as in the printed workbook and on wol.jw.org.
+#[allow(missing_docs)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SectionTone {
+    /// Opening and closing.
+    #[default]
+    Neutral,
+    /// Treasures from God's Word (teal).
+    Teal,
+    /// Apply yourself to the field ministry (gold).
+    Gold,
+    /// Living as Christians (maroon).
+    Maroon,
+}
+
+impl SectionTone {
+    /// (accent colour, light background).
+    fn colors(self) -> (&'static str, &'static str) {
+        match self {
+            SectionTone::Neutral => ("", ""),
+            SectionTone::Teal => ("#3c7f8b", "rgba(60, 127, 139, 0.10)"),
+            SectionTone::Gold => ("#c18626", "rgba(193, 134, 38, 0.10)"),
+            SectionTone::Maroon => ("#942926", "rgba(148, 41, 38, 0.10)"),
+        }
+    }
+}
+
+/// A section of a meeting: a header band in the section's colour (title, minutes, actions) and
+/// its parts.
+#[component]
+pub fn MeetingSection(
+    title: String,
+    #[props(default)] subtitle: String,
+    #[props(default)] tone: SectionTone,
+    #[props(default)] icon: Option<Icon>,
+    #[props(default)] actions: Option<Element>,
+    children: Element,
+) -> Element {
+    let (accent, bg) = tone.colors();
+    let header_style = if accent.is_empty() { String::new() } else { format!("background: {bg}; border-left: 4px solid {accent};") };
+    let title_style = if accent.is_empty() { String::new() } else { format!("color: {accent};") };
+    rsx! {
+        section { class: "overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xs",
+            div { class: "flex flex-wrap items-center gap-2 px-5 py-3", style: "{header_style}",
+                if let Some(i) = icon {
+                    span { style: "{title_style}", IconView { icon: i, size: IconSize::Sm } }
+                }
+                h3 { class: "min-w-0 flex-1 text-sm font-bold uppercase tracking-wide", style: "{title_style}", "{title}" }
+                if !subtitle.is_empty() {
+                    span { class: "text-xs text-base-content/60", "{subtitle}" }
+                }
+                if let Some(a) = actions {
+                    div { class: "flex items-center gap-1", {a} }
+                }
+            }
+            div { class: "flex flex-col divide-y divide-base-300 px-5 py-3", {children} }
         }
     }
 }
