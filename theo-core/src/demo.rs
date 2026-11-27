@@ -110,6 +110,7 @@ pub fn demo_directory(size: usize) -> Directory {
             let local = fold_ascii(&format!("{first}.{last}"));
             let born: i32 = birthday[..4].parse().unwrap_or(1990);
             Person {
+                type_history: Vec::new(),
                 id: n,
                 first_name: first.into(),
                 last_name: last.into(),

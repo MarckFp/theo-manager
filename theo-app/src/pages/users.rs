@@ -419,6 +419,32 @@ fn invite_options() -> Vec<SelectOption> {
     out
 }
 
+/// The current month (a type starts at the latest in it).
+fn this_month() -> (i32, u32) {
+    let (y, m, _) = crate::prefs::today();
+    (y, m)
+}
+
+/// The "Type since" field of an existing person: shown when the type is being changed, or when it
+/// changed before. (previous type, month the current one started.)
+fn type_since_view(existing: Option<&Person>, d: &PersonDraft) -> Option<(String, (i32, u32))> {
+    let p = existing?;
+    let ty = PublisherType::parse(&d.publisher_type)?;
+    let since = crate::people::parse_month(&d.type_since).or(p.type_since()).unwrap_or_else(this_month);
+    let previous = if p.publisher_type != ty {
+        p.publisher_type
+    } else {
+        // The type before the current stretch.
+        let before = crate::reports::shift(since, -1);
+        let prev = p.type_in(before);
+        if prev == ty {
+            return None;
+        }
+        prev
+    };
+    Some((previous.label().to_string(), since))
+}
+
 /// What a save also changes (values that no longer apply, roles and privileges that are lost).
 /// "overseer of North" and the like: the group roles of a person.
 fn leads_of(dir: &Directory, id: Option<u32>) -> Vec<String> {
@@ -694,6 +720,21 @@ fn PersonEditor(id: Option<u32>) -> Element {
                                 Field { label: "Type", required: true,
                                     Select { value: d.publisher_type.clone(), options: type_options, onchange: move |v| draft.write().publisher_type = v }
                                 }
+                                // Since when (existing people whose type changed): field service
+                                // reports of the months before follow the previous type (D-52).
+                                if let Some((previous, since)) = type_since_view(existing.as_ref(), &d) {
+                                    Field { label: "Type since", error: err("type_since"),
+                                        help: format!("Reports before this month follow the previous type: {previous}."),
+                                        MonthPicker {
+                                            value: since,
+                                            min: crate::reports::shift(this_month(), -12 * 10),
+                                            max: this_month(),
+                                            today: this_month(),
+                                            full_width: true,
+                                            onchange: move |(y, m): (i32, u32)| draft.write().type_since = format!("{y}-{m:02}"),
+                                        }
+                                    }
+                                }
                                 if ty.is_baptised() {
                                     Field { label: "Baptism date", error: err("baptism_date"), help: years_text(&d.baptism_date, "Baptised"),
                                         TextInput { kind: InputKind::Date, value: d.baptism_date.clone(), invalid: err("baptism_date").is_some(), oninput: move |v| draft.write().baptism_date = v }
@@ -727,11 +768,14 @@ fn PersonEditor(id: Option<u32>) -> Element {
                             if ty.is_baptised() {
                                 Switch { checked: d.anointed, label: "Anointed", onchange: move |v| draft.write().anointed = v }
                             }
-                            Switch {
-                                checked: d.infirm,
-                                label: "Infirm",
-                                description: "Cannot go out in the ministry as usual, for example because of age or illness.",
-                                onchange: move |v| draft.write().infirm = v,
+                            // Only for those with a yearly hour goal: it frees them from it.
+                            if ty.has_pioneer_number() {
+                                Switch {
+                                    checked: d.infirm,
+                                    label: "Infirm",
+                                    description: "Cannot go out in the ministry as usual, for example because of age or illness. Their hour goal then counts as met.",
+                                    onchange: move |v| draft.write().infirm = v,
+                                }
                             }
                         }
                         Card { title: "Data protection and notes", icon: Icon::Shield,
@@ -995,6 +1039,7 @@ fn PersonEditor(id: Option<u32>) -> Element {
                             Code { "{new_password}" }
                         }
                         Cluster { gap: Gap::Sm,
+                            super::CopyButton { text: new_password() }
                             ActionButton { action: Action::Regenerate, variant: ButtonVariant::Secondary, onclick: move |_| new_password.set(crate::password::generate()) }
                         }
                     },
@@ -1110,8 +1155,8 @@ fn FamilyCard(id: u32) -> Element {
             })
         })
         .collect();
-    let mut others: Vec<(String, String)> =
-        dir.people.iter().filter(|p| p.id != id).map(|p| (p.id.to_string(), p.display_name(&prefs))).collect();
+    // Never someone in another family: nobody ends up in two families.
+    let mut others: Vec<(String, String)> = dir.relative_candidates(id).into_iter().map(|p| (p.id.to_string(), p.display_name(&prefs))).collect();
     others.sort_by_key(|(_, n)| people::fold(n));
     let mut person_options = vec![SelectOption::new("", "Choose a person…")];
     person_options.extend(others.into_iter().map(|(v, l)| SelectOption::new(v, l)));

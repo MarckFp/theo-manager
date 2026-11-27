@@ -60,6 +60,14 @@ pub fn shift((y, m): Ym, by: i32) -> Ym {
     (idx.div_euclid(12), idx.rem_euclid(12) as u32 + 1)
 }
 
+/// How far back reports can be entered or changed: 3 years (36 months before the reporting month).
+pub const YEARS_BACK: i32 = 3;
+
+/// The earliest month a report can still be entered or changed.
+pub fn earliest_report_month() -> Ym {
+    shift(reporting_month(), -12 * YEARS_BACK)
+}
+
 /// The month publishers report now: the month before today.
 pub fn reporting_month() -> Ym {
     let (y, m, _) = prefs::today();
@@ -143,8 +151,9 @@ impl Kind {
     pub fn reports_hours(self) -> bool {
         self != Kind::Publisher
     }
+    /// Credit hours: regular and special pioneers and missionaries only (`Kind::Pioneer`).
     pub fn has_credit(self) -> bool {
-        matches!(self, Kind::ContinuousAuxiliary | Kind::Pioneer)
+        self == Kind::Pioneer
     }
 }
 
@@ -163,7 +172,8 @@ pub struct ReportDraft {
 impl Default for ReportDraft {
     fn default() -> Self {
         ReportDraft {
-            took_part: String::new(),
+            // Most publishers took part: "yes" until they say otherwise.
+            took_part: "yes".into(),
             hours: String::new(),
             credit: String::new(),
             studies: "0".into(),
@@ -246,11 +256,14 @@ pub struct GoalProgress {
     /// Months in the period that met their monthly goal (auxiliary pioneers).
     pub months_met: usize,
     pub months: usize,
+    /// Infirm (regular and special pioneers and missionaries): no hour goal to reach, so the
+    /// goal counts as met.
+    pub exempt: bool,
 }
 
 impl GoalProgress {
     pub fn on_track(&self) -> bool {
-        self.hours >= self.expected
+        self.exempt || self.hours >= self.expected
     }
 }
 
@@ -285,13 +298,16 @@ impl Directory {
         self.aux_plans.contains(&(person, ym)) || self.report(person, ym).is_some_and(|r| r.auxiliary)
     }
 
+    /// What the person reports for `ym`: from their publisher type **in that month** (a
+    /// publisher who became a pioneer later keeps reporting "took part" for the months before).
     pub fn kind_for(&self, p: &Person, ym: Ym) -> Kind {
-        Kind::of(p.publisher_type, self.is_aux(p.id, ym))
+        Kind::of(p.type_in(ym), self.is_aux(p.id, ym))
     }
 
     /// Plans (or removes) monthly auxiliary pioneering. Baptised publishers only.
     pub fn set_aux_plan(&mut self, person: u32, ym: Ym, on: bool) {
-        let ok = self.person(person).is_some_and(|p| p.publisher_type == PublisherType::BaptisedPublisher);
+        // A baptised publisher in that month (not a pioneer then).
+        let ok = self.person(person).is_some_and(|p| p.type_in(ym) == PublisherType::BaptisedPublisher);
         if on && ok {
             self.aux_plans.insert((person, ym));
         } else {
@@ -322,9 +338,11 @@ impl Directory {
 
     /// From the first month with a report to the reporting month (for month pickers and service
     /// year lists). Earlier months would only show every publisher as late.
+    /// The months the report page shows: the last 3 years (where reports can be entered), and
+    /// older months that still have reports (to read them).
     pub fn report_range(&self) -> (Ym, Ym) {
         let last = reporting_month();
-        let first = self.reports.iter().map(|r| r.month).min().unwrap_or(last).min(last);
+        let first = self.reports.iter().map(|r| r.month).min().unwrap_or(last).min(earliest_report_month());
         (first, last)
     }
 
@@ -333,8 +351,12 @@ impl Directory {
         if ym > reporting_month() {
             return Err(vec![("month", "Reports are for past months only.".into())]);
         }
-        let auxiliary = d.auxiliary && p.publisher_type == PublisherType::BaptisedPublisher;
-        let kind = Kind::of(p.publisher_type, auxiliary);
+        if ym < earliest_report_month() {
+            return Err(vec![("month", format!("Reports can be entered or changed for the last {YEARS_BACK} years only."))]);
+        }
+        let ty = p.type_in(ym);
+        let auxiliary = d.auxiliary && ty == PublisherType::BaptisedPublisher;
+        let kind = Kind::of(ty, auxiliary);
         let errors = d.validate(kind);
         if !errors.is_empty() {
             return Err(errors);
@@ -393,17 +415,31 @@ impl Directory {
             return None;
         }
         let kind = Kind::of(p.publisher_type, false);
+        // Only the months of the year with the person's current kind count (a publisher who
+        // became a pioneer in the year has a goal for the months they pioneer).
+        let same_kind = |m: &Ym| Kind::of(p.type_in(*m), false) == kind;
+        let months: Vec<Ym> = months.into_iter().filter(same_kind).collect();
         let reports: Vec<&Report> = self.reports.iter().filter(|r| r.person == person && months.contains(&r.month)).collect();
         let hours: u32 = reports.iter().map(|r| r.total()).sum();
         match kind {
             Kind::Pioneer => {
+                // 600 h a year: 50 h for each month of the service year they pioneer, the months
+                // still to come included (they are expected to go on).
+                let year_months = service_year_months(start).into_iter().filter(|m| *m > last || same_kind(m)).count() as u32;
+                let goal = YEARLY_GOAL * year_months / 12;
                 let expected = YEARLY_GOAL * months.len() as u32 / 12;
-                Some(GoalProgress { person, kind, hours, goal: YEARLY_GOAL, expected, months_met: 0, months: months.len() })
+                if months.is_empty() {
+                    return None;
+                }
+                Some(GoalProgress { person, kind, hours, goal, expected, months_met: 0, months: months.len(), exempt: p.infirm })
             }
             Kind::ContinuousAuxiliary => {
+                if months.is_empty() {
+                    return None;
+                }
                 let goal: u32 = months.iter().map(|m| self.aux_goal(*m)).sum();
                 let met = months.iter().filter(|m| reports.iter().any(|r| r.month == **m && r.total() >= self.aux_goal(**m))).count();
-                Some(GoalProgress { person, kind, hours, goal, expected: goal, months_met: met, months: months.len() })
+                Some(GoalProgress { person, kind, hours, goal, expected: goal, months_met: met, months: months.len(), exempt: false })
             }
             _ => {
                 // Monthly auxiliary pioneering: only the months they were auxiliary pioneers.
@@ -414,7 +450,7 @@ impl Directory {
                 let hours = aux.iter().map(|r| r.total()).sum();
                 let goal = aux.iter().map(|r| self.aux_goal(r.month)).sum();
                 let met = aux.iter().filter(|r| r.total() >= self.aux_goal(r.month)).count();
-                Some(GoalProgress { person, kind: Kind::AuxiliaryMonth, hours, goal, expected: goal, months_met: met, months: aux.len() })
+                Some(GoalProgress { person, kind: Kind::AuxiliaryMonth, hours, goal, expected: goal, months_met: met, months: aux.len(), exempt: false })
             }
         }
     }
@@ -501,6 +537,27 @@ impl Directory {
             .collect()
     }
 
+    /// Auxiliary pioneers (continuous, and those auxiliary that month) in one month: their hours
+    /// against that month's goal (30, or 15 in the months the congregation marks).
+    pub fn aux_goals_in_month(&self, ym: Ym) -> Vec<GoalProgress> {
+        let goal = self.aux_goal(ym);
+        let mut out: Vec<GoalProgress> = self
+            .reporters()
+            .iter()
+            .filter_map(|p| {
+                let report = self.report(p.id, ym);
+                let kind = match Kind::of(p.type_in(ym), report.is_some_and(|r| r.auxiliary)) {
+                    k @ (Kind::ContinuousAuxiliary | Kind::AuxiliaryMonth) => k,
+                    _ => return None,
+                };
+                let hours = report.map(Report::total).unwrap_or(0);
+                Some(GoalProgress { person: p.id, kind, hours, goal, expected: goal, months_met: usize::from(hours >= goal), months: 1, exempt: false })
+            })
+            .collect();
+        out.sort_by_cached_key(|g| (g.kind != Kind::ContinuousAuxiliary, self.person(g.person).map(|p| fold(&format!("{} {}", p.first_name, p.last_name))).unwrap_or_default()));
+        out
+    }
+
     /// Everyone with a goal in the service year, pioneers first, then by name.
     pub fn goals(&self, start: i32) -> Vec<GoalProgress> {
         let mut out: Vec<GoalProgress> = self.reporters().iter().filter_map(|p| self.goal_progress(p.id, start)).collect();
@@ -538,6 +595,79 @@ mod tests {
         assert!(draft("", "40", "51", "1").validate(Kind::Pioneer).iter().any(|(f, _)| *f == "credit"));
         assert!(draft("", "40", "50", "1").validate(Kind::Pioneer).is_empty());
         assert!(!Kind::AuxiliaryMonth.has_credit());
+        // Credit hours: regular and special pioneers and missionaries only.
+        assert!(!Kind::ContinuousAuxiliary.has_credit() && !Kind::Publisher.has_credit());
+        for ty in [PublisherType::RegularPioneer, PublisherType::SpecialPioneer, PublisherType::Missionary] {
+            assert!(Kind::of(ty, false).has_credit());
+        }
+    }
+
+    #[test]
+    fn earlier_months_follow_the_earlier_type() {
+        let mut d = crate::demo::demo_directory(12);
+        let Some(p) = d.people.iter().find(|p| p.publisher_type == PublisherType::BaptisedPublisher).cloned() else { panic!("a publisher") };
+        let now = reporting_month();
+        let before = shift(now, -2);
+        // A continuous auxiliary pioneer since last month; a publisher before.
+        let mut draft = crate::people::PersonDraft::from_person(&p, &d);
+        draft.publisher_type = PublisherType::ContinuousAuxiliaryPioneer.value().into();
+        draft.type_since = format!("{}-{:02}", shift(now, -1).0, shift(now, -1).1);
+        assert!(d.save(Some(p.id), &draft).is_ok());
+        let p = d.person(p.id).cloned().unwrap_or(p);
+        assert_eq!(d.kind_for(&p, before), Kind::Publisher);
+        assert_eq!(d.kind_for(&p, now), Kind::ContinuousAuxiliary);
+        // An old month takes "took part" only; a recent one needs hours.
+        let took_part = ReportDraft::default();
+        assert_eq!(took_part.took_part, "yes");
+        assert!(d.save_report(p.id, before, &took_part).is_ok_and(|_| d.report(p.id, before).is_some_and(|r| r.hours.is_none())));
+        let hours = ReportDraft { hours: "31".into(), ..Default::default() };
+        assert!(d.save_report(p.id, now, &hours).is_ok());
+        // The goal counts only the months as a continuous auxiliary pioneer.
+        let g = d.goal_progress(p.id, service_year(now));
+        assert!(g.is_some_and(|g| g.months <= 2 && g.hours == 31));
+    }
+
+    #[test]
+    fn a_pioneer_from_mid_year_has_a_goal_for_those_months_and_infirm_ones_meet_it() {
+        let mut d = crate::demo::demo_directory(12);
+        let Some(p) = d.people.iter().find(|p| p.publisher_type == PublisherType::BaptisedPublisher).cloned() else { panic!("a publisher") };
+        let start = service_year(reporting_month());
+        let mut draft = crate::people::PersonDraft::from_person(&p, &d);
+        draft.publisher_type = PublisherType::RegularPioneer.value().into();
+        draft.type_since = format!("{}-{:02}", reporting_month().0, reporting_month().1);
+        assert!(d.save(Some(p.id), &draft).is_ok());
+        let year = start - 1;
+        // In last year's service year they were a pioneer from March: 6 months, 300 h.
+        let mut q = d.person(p.id).cloned().unwrap_or(p.clone());
+        q.type_history = vec![
+            crate::people::TypeChange { from: crate::people::SINCE_ALWAYS, publisher_type: PublisherType::BaptisedPublisher },
+            crate::people::TypeChange { from: (year + 1, 3), publisher_type: PublisherType::RegularPioneer },
+        ];
+        if let Some(x) = d.people.iter_mut().find(|x| x.id == p.id) {
+            *x = q.clone();
+        }
+        let g = d.goal_progress(p.id, year);
+        assert!(g.as_ref().is_some_and(|g| g.goal == 300 && g.months == 6), "{g:?}");
+        assert!(g.is_some_and(|g| !g.exempt));
+        // Infirm: no hour goal, counted as met.
+        if let Some(x) = d.people.iter_mut().find(|x| x.id == p.id) {
+            x.infirm = true;
+        }
+        let g = d.goal_progress(p.id, year);
+        assert!(g.is_some_and(|g| g.exempt && g.on_track()));
+    }
+
+    #[test]
+    fn reports_go_back_three_years_at_most() {
+        let mut d = crate::demo::demo_directory(10);
+        let p = d.people.iter().find(|p| p.publisher_type == PublisherType::BaptisedPublisher).map(|p| p.id).unwrap_or(1);
+        let draft = ReportDraft { took_part: "yes".into(), studies: "0".into(), ..Default::default() };
+        let earliest = earliest_report_month();
+        assert_eq!(earliest, shift(reporting_month(), -36));
+        assert!(d.save_report(p, earliest, &draft).is_ok());
+        assert!(d.save_report(p, shift(earliest, -1), &draft).is_err());
+        // The page offers the whole 3 years, even before any report exists.
+        assert!(d.report_range().0 <= earliest);
     }
 
     #[test]
@@ -555,6 +685,31 @@ mod tests {
         assert!(d.report(21, ym).is_some_and(|r| r.auxiliary && r.hours == Some(16) && r.credit.is_none()));
         // Future months are refused.
         assert!(d.save_report(2, shift(ym, 1), &draft("", "1", "", "0")).is_err());
+    }
+
+    #[test]
+    fn auxiliary_pioneers_are_shown_month_by_month() {
+        let mut d = crate::demo::demo_directory(12);
+        let ym = reporting_month();
+        let (cont, aux) = (d.people[0].id, d.people[1].id);
+        d.people[0].publisher_type = PublisherType::ContinuousAuxiliaryPioneer;
+        d.people[1].publisher_type = PublisherType::BaptisedPublisher;
+        d.reports.retain(|r| r.month != ym);
+        let hours = |h: &str, auxiliary: bool| ReportDraft { took_part: "yes".into(), hours: h.into(), studies: "0".into(), auxiliary, ..Default::default() };
+        assert!(d.save_report(cont, ym, &hours("31", false)).is_ok());
+        assert!(d.save_report(aux, ym, &hours("12", true)).is_ok());
+        d.set_aux_goal(ym, true);
+        let month = d.aux_goals_in_month(ym);
+        let of = |p: u32| month.iter().find(|g| g.person == p).cloned();
+        assert!(of(cont).is_some_and(|g| g.kind == Kind::ContinuousAuxiliary && g.hours == 31 && g.goal == AUX_GOAL_SHORT && g.months_met == 1));
+        assert!(of(aux).is_some_and(|g| g.kind == Kind::AuxiliaryMonth && g.hours == 12 && g.months_met == 0));
+        // A publisher who was not auxiliary that month is not listed; continuous ones come first.
+        let plain = d.people[2].id;
+        d.people[2].publisher_type = PublisherType::BaptisedPublisher;
+        assert!(d.save_report(plain, ym, &hours("", false)).is_ok());
+        let month = d.aux_goals_in_month(ym);
+        assert!(!month.iter().any(|g| g.person == plain));
+        assert!(month.iter().position(|g| g.kind == Kind::AuxiliaryMonth) > month.iter().rposition(|g| g.kind == Kind::ContinuousAuxiliary));
     }
 
     #[test]

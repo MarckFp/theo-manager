@@ -344,8 +344,7 @@ fn GroupEditor(id: Option<u32>) -> Element {
                             }
                         }
                     }
-                },
-                side: rsx! {
+                    // The members, under the group and as wide as it: the list can be long.
                     if let Some(gid) = id {
                         Card {
                             title: "Members",
@@ -372,6 +371,10 @@ fn GroupEditor(id: Option<u32>) -> Element {
                             }
                             ActionButton { action: Action::AddMembers, variant: ButtonVariant::Secondary, onclick: move |_| adding.set(true) }
                         }
+                    }
+                },
+                side: rsx! {
+                    if let Some(gid) = id {
                         Card { title: "Activity", icon: Icon::Report,
                             ItemList {
                                 items: vec![

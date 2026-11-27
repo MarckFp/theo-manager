@@ -168,8 +168,11 @@ fn as_values(p: &Preferences) -> Overrides {
 pub fn SettingsPage() -> Element {
     let mut state = use_app_state();
     let toaster = use_toaster();
+    let mut editing = use_signal(|| false);
     let Some(c) = state.active_congregation() else { return rsx! {} };
     let p = state.preferences();
+    // Administrators, and whoever may write Congregation settings.
+    let can_edit = state.can_write("settings");
     let (mode_title, mode_sub) = match &c.mode {
         StorageMode::Local => ("Local".to_string(), "Stored only on this device".to_string()),
         StorageMode::Cloud { server } => ("Cloud".to_string(), server.clone()),
@@ -178,6 +181,7 @@ pub fn SettingsPage() -> Element {
         Page { title: "Settings", subtitle: "{c.name} · Congregation settings",
             Grid { cols: 2,
                 Card { title: "Details", icon: Icon::Congregation,
+                    actions: if can_edit { Some(rsx! { ActionButton { action: Action::Edit, variant: ButtonVariant::Ghost, onclick: move |_| editing.set(true) } }) } else { None },
                     ItemList {
                         items: vec![
                             ListEntry { icon: Icon::Congregation, title: c.name.clone(), subtitle: if c.number.is_empty() { "No number".into() } else { format!("Number {}", c.number) }, meta: c.language.to_uppercase() },
@@ -187,6 +191,7 @@ pub fn SettingsPage() -> Element {
                     }
                 }
                 Card { title: "Meetings", icon: Icon::Meetings,
+                    actions: if can_edit { Some(rsx! { ActionButton { action: Action::Edit, variant: ButtonVariant::Ghost, onclick: move |_| editing.set(true) } }) } else { None },
                     ItemList {
                         items: vec![
                             ListEntry { icon: Icon::BookOpen, title: "Midweek meeting".into(), subtitle: c.midweek.day.clone(), meta: p.format_hhmm(&c.midweek.time) },
@@ -210,6 +215,9 @@ pub fn SettingsPage() -> Element {
             }
             if state.can_manage_data() {
                 DataCard {}
+            }
+            if editing() {
+                EditDetailsDialog { onclose: move |_| editing.set(false) }
             }
             if state.manages_cloud() {
                 ServerLogCard {}
@@ -301,6 +309,91 @@ fn ServerLogCard() -> Element {
 
 /// Lines of the server log per page.
 const PAGE: u32 = 50;
+
+/// The congregation's details: name, number, language, time zone and meeting times. Saved like
+/// all its data (encrypted); a Cloud congregation's name is also renamed for this account.
+#[component]
+fn EditDetailsDialog(onclose: EventHandler<()>) -> Element {
+    let mut state = use_app_state();
+    let toaster = use_toaster();
+    let c = state.active_congregation();
+    let start = c.clone();
+    let mut name = use_signal(|| start.as_ref().map(|c| c.name.clone()).unwrap_or_default());
+    let mut number = use_signal(|| start.as_ref().map(|c| c.number.clone()).unwrap_or_default());
+    let mut language = use_signal(|| start.as_ref().map(|c| c.language.clone()).unwrap_or_else(|| "en".into()));
+    let mut tz = use_signal(|| start.as_ref().map(|c| c.time_zone.clone()).unwrap_or_else(|| "UTC".into()));
+    let mut mid_day = use_signal(|| start.as_ref().map(|c| c.midweek.day.clone()).unwrap_or_else(|| "Thursday".into()));
+    let mut mid_time = use_signal(|| start.as_ref().map(|c| c.midweek.time.clone()).unwrap_or_else(|| "19:00".into()));
+    let mut wk_day = use_signal(|| start.as_ref().map(|c| c.weekend.day.clone()).unwrap_or_else(|| "Sunday".into()));
+    let mut wk_time = use_signal(|| start.as_ref().map(|c| c.weekend.time.clone()).unwrap_or_else(|| "10:00".into()));
+    let mut submitted = use_signal(|| false);
+    let s = submitted();
+    let name_err = (s && name().trim().is_empty()).then(|| "Enter the congregation name.".to_string());
+    let time_ok = |t: &str| t.len() == 5 && t.as_bytes()[2] == b':' && t[..2].parse::<u8>().is_ok_and(|h| h < 24) && t[3..].parse::<u8>().is_ok_and(|m| m < 60);
+    let mid_err = (s && !time_ok(&mid_time())).then(|| "Enter a time, for example 19:00.".to_string());
+    let wk_err = (s && !time_ok(&wk_time())).then(|| "Enter a time, for example 10:00.".to_string());
+    // A time zone not in the list (set elsewhere) is kept as a choice.
+    let mut zones = super::wizard::time_zones();
+    if !zones.iter().any(|o| o.value == tz()) {
+        zones.insert(0, SelectOption::new(tz(), tz()));
+    }
+    let save = move |_| {
+        submitted.set(true);
+        if name().trim().is_empty() || !time_ok(&mid_time()) || !time_ok(&wk_time()) {
+            return;
+        }
+        state.update_details(|c| {
+            c.name = name().trim().to_string();
+            c.number = number().trim().to_string();
+            c.language = language();
+            c.time_zone = tz();
+            c.midweek = crate::state::MeetingSlot { day: mid_day(), time: mid_time() };
+            c.weekend = crate::state::MeetingSlot { day: wk_day(), time: wk_time() };
+        });
+        toaster.success("Congregation details saved.");
+        onclose.call(());
+    };
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: "Congregation details",
+            description: "Everyone in the congregation sees these.",
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
+                ActionButton { action: Action::Save, onclick: save }
+            },
+            Stack {
+                Field { label: "Congregation name", required: true, error: name_err.clone(),
+                    TextInput { value: name(), oninput: move |v| name.set(v), invalid: name_err.is_some() }
+                }
+                Field { label: "Congregation number", help: "Optional. The number your congregation uses, if any.",
+                    TextInput { value: number(), oninput: move |v| number.set(v) }
+                }
+                Grid { cols: 2,
+                    Field { label: "Meeting language", required: true, help: "Used to import meeting content.",
+                        Select { value: language(), options: super::wizard::languages(), onchange: move |v| language.set(v) }
+                    }
+                    Field { label: "Time zone", required: true,
+                        Select { value: tz(), options: zones, onchange: move |v| tz.set(v) }
+                    }
+                    Field { label: "Midweek meeting", required: true,
+                        Select { value: mid_day(), options: super::wizard::weekdays(), onchange: move |v| mid_day.set(v) }
+                    }
+                    Field { label: "Time", required: true, error: mid_err.clone(),
+                        TextInput { value: mid_time(), oninput: move |v| mid_time.set(v), kind: InputKind::Time, icon: Icon::Clock, invalid: mid_err.is_some() }
+                    }
+                    Field { label: "Weekend meeting", required: true,
+                        Select { value: wk_day(), options: super::wizard::weekend_days(), onchange: move |v| wk_day.set(v) }
+                    }
+                    Field { label: "Time", required: true, error: wk_err.clone(),
+                        TextInput { value: wk_time(), oninput: move |v| wk_time.set(v), kind: InputKind::Time, icon: Icon::Clock, invalid: wk_err.is_some() }
+                    }
+                }
+            }
+        }
+    }
+}
 
 /// Export, import, and where the congregation lives (D-51). For those who may manage its data:
 /// the user of a Local congregation, the owner and full-access members of a Cloud one.
@@ -441,6 +534,7 @@ fn ExportDialog(onclose: EventHandler<()>) -> Element {
                         Code { "{generated}" }
                     }
                     Cluster { gap: Gap::Sm,
+                        super::CopyButton { text: generated() }
                         ActionButton { action: Action::Regenerate, variant: ButtonVariant::Secondary, onclick: move |_| { generated.set(crate::password::generate()); saved.set(false); } }
                     }
                     Switch { checked: saved(), onchange: move |v| { saved.set(v); error.set(None); }, label: "I have written this password down", description: "It is shown only now." }

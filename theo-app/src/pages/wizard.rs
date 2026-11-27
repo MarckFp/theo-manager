@@ -10,7 +10,7 @@ fn options(list: &[(&str, &str)]) -> Vec<SelectOption> {
     list.iter().map(|(v, l)| SelectOption::new(*v, *l)).collect()
 }
 
-fn languages() -> Vec<SelectOption> {
+pub(super) fn languages() -> Vec<SelectOption> {
     options(&[
         ("en", "English"),
         ("es", "Español"),
@@ -25,7 +25,7 @@ fn languages() -> Vec<SelectOption> {
     ])
 }
 
-fn time_zones() -> Vec<SelectOption> {
+pub(super) fn time_zones() -> Vec<SelectOption> {
     options(&[
         ("Europe/London", "Europe/London"),
         ("Europe/Madrid", "Europe/Madrid"),
@@ -41,11 +41,11 @@ fn time_zones() -> Vec<SelectOption> {
     ])
 }
 
-fn weekdays() -> Vec<SelectOption> {
+pub(super) fn weekdays() -> Vec<SelectOption> {
     options(&[("Monday", "Monday"), ("Tuesday", "Tuesday"), ("Wednesday", "Wednesday"), ("Thursday", "Thursday"), ("Friday", "Friday")])
 }
 
-fn weekend_days() -> Vec<SelectOption> {
+pub(super) fn weekend_days() -> Vec<SelectOption> {
     options(&[("Saturday", "Saturday"), ("Sunday", "Sunday")])
 }
 
@@ -263,6 +263,7 @@ pub fn NewCongregation() -> Element {
                                 Text { tone: TextTone::Strong, "Your generated password" }
                                 Code { "{generated}" }
                                 Cluster {
+                                    super::CopyButton { text: generated() }
                                     ActionButton { action: Action::Regenerate, onclick: move |_| generated.set(crate::password::generate()) }
                                 }
                             }

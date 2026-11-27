@@ -1669,6 +1669,22 @@ impl AppState {
         }
     }
 
+    /// Changes the open congregation's details (name, number, language, time zone, meetings) and
+    /// saves them with its data. A Cloud congregation's new name is also stored, encrypted, in
+    /// this account's membership (`persist`).
+    pub fn update_details(&mut self, f: impl FnOnce(&mut Congregation)) {
+        let Some(id) = self.unlocked.read().clone() else { return };
+        let before = self.active_congregation();
+        if let Some(c) = self.congregations.write().iter_mut().find(|c| c.id == id) {
+            f(c);
+        }
+        let after = self.active_congregation();
+        if before != after {
+            self.persist();
+            self.log("Changed the congregation details.");
+        }
+    }
+
     pub fn update_congregation_defaults(&mut self, f: impl FnOnce(&mut Preferences)) {
         let Some(id) = self.unlocked.read().clone() else { return };
         if let Some(c) = self.congregations.write().iter_mut().find(|c| c.id == id) {

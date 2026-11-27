@@ -328,10 +328,16 @@ fn MyGoal(cols: u8, rows: u8) -> Element {
         }
         Kind::Pioneer => {
             let start = service_year(now);
-            let reported = dir.goal_progress(me, start).map(|g| g.hours).unwrap_or(0);
+            let progress = dir.goal_progress(me, start);
+            let reported = progress.as_ref().map(|g| g.hours).unwrap_or(0);
             let hours = reported + if dir.report(me, now).is_none() { done } else { 0 };
-            let months_done = crate::reports::service_year_months(start).iter().filter(|m| **m <= now).count() as u32;
+            // Only the months they pioneer count (600 h a year: 50 per month), and an infirm
+            // pioneer has no hour goal (D-52).
+            let pioneering = |m: &(i32, u32)| dir.person(me).is_some_and(|p| Kind::of(p.type_in(*m), false) == Kind::Pioneer);
+            let months_done = crate::reports::service_year_months(start).iter().filter(|m| **m <= now && pioneering(m)).count() as u32;
             let expected = YEARLY_GOAL * months_done / 12;
+            let year_goal = progress.as_ref().map(|g| g.goal).unwrap_or(YEARLY_GOAL).max(1);
+            let exempt = progress.as_ref().is_some_and(|g| g.exempt);
             let months: Vec<StatItem> = crate::reports::service_year_months(start)
                 .into_iter()
                 .filter(|m| *m <= now)
@@ -345,12 +351,12 @@ fn MyGoal(cols: u8, rows: u8) -> Element {
                     {top}
                     ProgressRow {
                         label: format!("Service year {}", service_year_label(start)),
-                        detail: format!("{hours} / {YEARLY_GOAL} h"),
-                        value: hours as f64,
-                        max: YEARLY_GOAL as f64,
-                        marker: expected as f64,
-                        note: if hours >= expected { "On track".to_string() } else { format!("{} h behind", expected - hours) },
-                        tone: if hours >= expected { Tone::Success } else { Tone::Warning },
+                        detail: if exempt { format!("{hours} h") } else { format!("{hours} / {year_goal} h") },
+                        value: if exempt { 1.0 } else { hours as f64 },
+                        max: if exempt { 1.0 } else { year_goal as f64 },
+                        marker: (!exempt).then_some(expected as f64),
+                        note: if exempt { "Infirm: no hour goal, counted as met".to_string() } else if hours >= expected { "On track".to_string() } else { format!("{} h behind", expected - hours) },
+                        tone: if exempt || hours >= expected { Tone::Success } else { Tone::Warning },
                     }
                     if tall {
                         {bar(format!("{month} · monthly average"), done, YEARLY_GOAL / 12)}

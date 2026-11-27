@@ -11,6 +11,8 @@
 # SQLite, the browser bindings). This check is how we keep watch over them.
 
 [graph]
+# Every build: web, desktop and phone features (the desktop webview brings its own crates).
+all-features = true
 # Every platform the app ships on.
 targets = [
     "x86_64-unknown-linux-gnu",
@@ -24,7 +26,28 @@ targets = [
 [advisories]
 # Any advisory fails the check. An exception needs its id here and a reason next to it.
 yanked = "deny"
-ignore = []
+# "Unsound" and "unmaintained" advisories count for every crate in the tree, not only the ones we
+# name ourselves: an unsound crate deep down is still in the app.
+unsound = "all"
+unmaintained = "all"
+ignore = [
+    # glib 0.18: Linux desktop only (GTK 3, through the webview crates wry and tao). Unsound only in
+    # `VariantStrIter`, which no crate in the app calls (searched 2026-11-27). The fix is glib 0.20,
+    # which exists only for GTK 4; the GTK 3 bindings end at 0.18. Revisit when wry moves to GTK 4.
+    { id = "RUSTSEC-2024-0429", reason = "glib 0.18 via GTK 3 (wry/tao, Linux desktop); the unsound VariantStrIter is not called by any crate here; no GTK 3 fix exists" },
+    # rand 0.7.3: only while compiling (phf_codegen, a build dependency of selectors <- kuchikiki <-
+    # wry); it never runs in the app, and the unsound case needs a custom logger that uses rand.
+    # Every copy of rand that runs in the app (0.8.8, 0.9.5, 0.10.4) is patched.
+    { id = "RUSTSEC-2026-0097", reason = "rand 0.7.3 is a build-time dependency only (phf_codegen via wry); the runtime rand versions are patched" },
+    # chrono: unmaintained (no vulnerability). Only zxcvbn uses it (dates inside passwords).
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained, not vulnerable; only zxcvbn uses it" },
+    # Unmaintained (no vulnerability), brought by the Dioxus desktop stack; they change when it does.
+    # proc-macro-error and paste only run while compiling; fxhash is a hash in the webview's HTML
+    # selector library (wry).
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: compile-time only, via glib-macros (GTK 3, Linux desktop)" },
+    { id = "RUSTSEC-2024-0436", reason = "paste: compile-time only, via rav1e <- image <- dioxus-desktop" },
+    { id = "RUSTSEC-2025-0057", reason = "fxhash: unmaintained hash in selectors <- kuchikiki <- wry (desktop)" },
+]
 
 [licenses]
 allow = [

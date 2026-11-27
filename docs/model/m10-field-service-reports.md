@@ -16,10 +16,14 @@ People who moved away do not report.
 |---|---|---|---|---|---|---|
 | Publisher (baptised or not) | ✅ required | | | ✅ required | optional | none |
 | Auxiliary pioneer **for that month** (baptised publishers) | | ✅ required | | ✅ required | optional | 30 h or 15 h for that month |
-| Continuous auxiliary pioneer | | ✅ required | ✅ optional | ✅ required | optional | 30 h or 15 h every month |
+| Continuous auxiliary pioneer | | ✅ required | | ✅ required | optional | 30 h or 15 h every month |
 | Regular pioneer, special pioneer, missionary | | ✅ required | ✅ optional | ✅ required | optional | 600 h per service year |
 
 - **Total hours** = hours + credit hours. Goals use the total.
+- **Credit hours** only for regular and special pioneers and missionaries (2026-11-27: no longer
+  for continuous auxiliary pioneers).
+- Reports can be entered or changed for the **last 3 years** only (36 months before the reporting
+  month); older reports stay readable.
 - **Credit hours** are at most **50 per month**.
 - Hours, credit hours and Bible studies are whole numbers from 0. The Bible studies field takes
   digits only (no sign or decimals) and starts at 0 in a new report.
@@ -39,7 +43,7 @@ Collection `fs_report`, key domain `reports`, `scope_id` = the person's home gro
 | `month` | year and month | Not after the reporting month. One report per person and month. |
 | `took_part` | bool | Required for publishers; derived from the hours for the others. |
 | `hours` | `Option<u32>` | Required for pioneers and monthly auxiliary pioneers; none for others. |
-| `credit_hours` | `Option<u32>` | Continuous auxiliary, regular and special pioneers and missionaries only. At most 50. |
+| `credit_hours` | `Option<u32>` | Regular and special pioneers and missionaries only. At most 50. |
 | `bible_studies` | `u32` | Required. |
 | `auxiliary_pioneer` | bool | Only for baptised publishers; makes `hours` required. |
 | `notes` | `Option<text>` | At most 1,000 characters. |
@@ -88,9 +92,9 @@ than 0 hours). Months before the person's first report do not count.
 
 | Tab | What it shows |
 |---|---|
-| **Month** | A month picker across the full width (previous, next, and a popover to jump to any month and year; starts at the reporting month). Totals: reports received, publishers who took part, hours, Bible studies. Search and filters: **Report status** (received, not in yet, missing, late) and the *All users* filters except status and consent (type, appointment, group, activity, gender, anointed). One card per publisher with their report, or its status. A card opens the report form. Export of the month as PDF, DOCX or CSV. |
+| **Month** | A month picker across the full width (previous, next, and a popover to jump to a month and year; starts at the reporting month and goes back 3 years, further only to read older reports). Totals: reports received, publishers who took part, hours, Bible studies. Search and filters: **Report status** (received, not in yet, missing, late) and the *All users* filters except status and consent (type, appointment, group, activity, gender, anointed). One card per publisher with their report, or its status. A card opens the report form. Export of the month as PDF, DOCX or CSV. |
 | **Statistics** | A service year, chosen with the same picker as meeting attendance (`‹ Service year 2026/2027 ›`, with *Today*), in the sticky bar. Averages and totals for the congregation and for each field service group, and publishers who took part per month. |
-| **Goals** | A service year (the same picker) and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. **Goal settings** opens a dialog with the 15-hour months of that year and the goal of each kind. |
+| **Goals** | A service year (the same picker) and the goal progress of everyone with a goal, grouped by kind: regular pioneers, special pioneers, missionaries, continuous auxiliary pioneers, auxiliary pioneers for single months. Empty groups are not shown. Pioneers have a yearly goal; for **auxiliary pioneers** (continuous and single months) a month choice shows one month of the service year instead: each one's hours against that month's goal (30 or 15). **Goal settings** opens a dialog with the 15-hour months of that year and the goal of each kind. |
 
 The person page shows the person's last 6 months, their goal progress, and every month from
 their first report to the reporting month (the last 6 first, all on request). Any month opens the

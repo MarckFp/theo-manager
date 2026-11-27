@@ -295,6 +295,68 @@ pub struct Person {
     pub emergency_contacts: Vec<EmergencyContact>,
     /// Labels of the congregation (ids into `Directory::labels`).
     pub labels: std::collections::BTreeSet<u32>,
+    /// Earlier publisher types and the month each one started (oldest first). Empty: the person
+    /// always had `publisher_type`. A month's field service report follows the type of that
+    /// month ([`Person::type_in`]), so a publisher who becomes a pioneer keeps their old reports.
+    #[serde(default)]
+    pub type_history: Vec<TypeChange>,
+}
+
+/// A publisher type and the first month it applies from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TypeChange {
+    pub from: crate::reports::Ym,
+    pub publisher_type: PublisherType,
+}
+
+/// The type history after a save: a new type starts in `since` (`YYYY-MM`, default the current
+/// month), and the old one is kept for the months before; with the same type, `since` moves the
+/// start of the current one.
+fn type_history(existing: Option<&Person>, ty: PublisherType, since: &str) -> Vec<TypeChange> {
+    let Some(old) = existing else { return Vec::new() };
+    let (y, m, _) = crate::prefs::today();
+    let since = parse_month(since).unwrap_or((y, m));
+    let mut history = old.type_history.clone();
+    if old.publisher_type != ty {
+        if history.is_empty() {
+            history.push(TypeChange { from: SINCE_ALWAYS, publisher_type: old.publisher_type });
+        }
+        history.retain(|c| c.from < since);
+        history.push(TypeChange { from: since, publisher_type: ty });
+    } else if let Some(last) = history.last().copied().filter(|c| c.from != SINCE_ALWAYS && c.from != since) {
+        history.pop();
+        history.retain(|c| c.from < since);
+        history.push(TypeChange { from: since, ..last });
+    }
+    // Two months in a row with the same type are one stretch; a history of one type says nothing.
+    history.dedup_by(|later, earlier| later.publisher_type == earlier.publisher_type);
+    if history.len() == 1 {
+        history.clear();
+    }
+    history
+}
+
+/// `YYYY-MM` to a month.
+pub fn parse_month(s: &str) -> Option<crate::reports::Ym> {
+    let (y, m) = s.trim().split_once('-')?;
+    let (y, m) = (y.parse::<i32>().ok()?, m.parse::<u32>().ok()?);
+    (1900..=2200).contains(&y).then_some(())?;
+    (1..=12).contains(&m).then_some((y, m))
+}
+
+/// "Since always": the `from` of the type a person had before their first recorded change.
+pub const SINCE_ALWAYS: crate::reports::Ym = (0, 1);
+
+impl Person {
+    /// The publisher type in month `ym` (for field service reports and goals).
+    pub fn type_in(&self, ym: crate::reports::Ym) -> PublisherType {
+        self.type_history.iter().rev().find(|c| c.from <= ym).map(|c| c.publisher_type).unwrap_or(self.publisher_type)
+    }
+
+    /// The month the current type started, if it changed at some point.
+    pub fn type_since(&self) -> Option<crate::reports::Ym> {
+        self.type_history.last().map(|c| c.from).filter(|f| *f != SINCE_ALWAYS)
+    }
 }
 
 /// Someone to call in an emergency. Usually not a member of the congregation.
@@ -704,6 +766,7 @@ impl Directory {
         let n = id.unwrap_or_else(|| self.next_id());
         let ty = PublisherType::parse(&d.publisher_type).unwrap_or_default();
         let existing = self.person(n).cloned();
+        let type_history = type_history(existing.as_ref(), ty, &d.type_since);
         let person = Person {
             id: n,
             first_name: d.first_name.trim().into(),
@@ -715,7 +778,9 @@ impl Directory {
             mobile_phone: opt(&d.mobile_phone),
             baptism_date: opt(&d.baptism_date),
             publisher_type: ty,
-            infirm: d.infirm,
+            // Infirm only applies to those with an hour goal of 600: regular and special pioneers
+            // and missionaries (it frees them from it).
+            infirm: d.infirm && ty.has_pioneer_number(),
             pioneer_number: opt(&d.pioneer_number),
             appointment: Appointment::parse(&d.appointment),
             anointed: d.anointed,
@@ -730,6 +795,7 @@ impl Directory {
             privileges: existing.as_ref().map(|p| p.privileges.clone()).unwrap_or_default(),
             emergency_contacts: existing.as_ref().map(|p| p.emergency_contacts.clone()).unwrap_or_default(),
             labels: existing.as_ref().map(|p| p.labels.clone()).unwrap_or_default(),
+            type_history,
         };
         let moved = person.moved_away.is_some();
         match self.people.iter_mut().find(|p| p.id == n) {
@@ -1138,6 +1204,21 @@ impl Directory {
     }
 
     /// Current people who are in no family (they can join or start one).
+    /// Who can become a relative of `n` (*Add relative*): never someone in another family, so
+    /// nobody ends up in two families. With a family: people without one, and its own members (to
+    /// say how two of them are related). Without one: anyone (they join that person's family).
+    pub fn relative_candidates(&self, n: u32) -> Vec<&Person> {
+        let mine = self.family_of(n).map(|f| f.id);
+        self.people
+            .iter()
+            .filter(|p| p.id != n && p.moved_away.is_none())
+            .filter(|p| match (mine, self.family_of(p.id).map(|f| f.id)) {
+                (Some(a), Some(b)) => a == b,
+                _ => true,
+            })
+            .collect()
+    }
+
     pub fn without_family(&self) -> Vec<&Person> {
         self.people.iter().filter(|p| p.moved_away.is_none() && self.family_of(p.id).is_none()).collect()
     }
@@ -1291,6 +1372,9 @@ pub struct PersonDraft {
     pub notes: String,
     /// Plain group membership: a group id, or empty.
     pub group: String,
+    /// The first month of the current publisher type (`YYYY-MM`). Empty: the current month when
+    /// the type changes now, or no change.
+    pub type_since: String,
 }
 
 impl Default for PersonDraft {
@@ -1304,7 +1388,8 @@ impl Default for PersonDraft {
             telephone: String::new(),
             mobile_phone: String::new(),
             baptism_date: String::new(),
-            publisher_type: PublisherType::Student.value().into(),
+            // New people are most often baptised publishers.
+            publisher_type: PublisherType::BaptisedPublisher.value().into(),
             infirm: false,
             pioneer_number: String::new(),
             appointment: String::new(),
@@ -1316,6 +1401,7 @@ impl Default for PersonDraft {
             consent_date: String::new(),
             notes: String::new(),
             group: String::new(),
+            type_since: String::new(),
         }
     }
 }
@@ -1356,7 +1442,10 @@ impl PersonDraft {
             city: s(&p.city),
             consent_date: s(&p.consent_date),
             notes: s(&p.notes),
-            group: dir.member_group(p.id).map(|g| g.to_string()).unwrap_or_default(),
+            // Their group: plain membership, else the group they lead (an overseer or assistant
+            // is in that group too, without being listed as a plain member).
+            group: dir.member_group(p.id).or_else(|| dir.home_group(p.id).map(|g| g.id)).map(|g| g.to_string()).unwrap_or_default(),
+            type_since: p.type_since().map(|(y, m)| format!("{y}-{m:02}")).unwrap_or_default(),
         }
     }
 
@@ -1373,6 +1462,14 @@ impl PersonDraft {
     pub fn validate(&self) -> Vec<(&'static str, String)> {
         let mut e = Vec::new();
         let today = today_iso();
+        if !self.type_since.trim().is_empty() {
+            let (y, m, _) = crate::prefs::today();
+            match parse_month(&self.type_since) {
+                None => e.push(("type_since", "Choose the month the type started.".into())),
+                Some(since) if since > (y, m) => e.push(("type_since", "The type cannot start in a future month.".into())),
+                Some(_) => {}
+            }
+        }
         if self.first_name.trim().is_empty() {
             e.push(("first_name", "Enter the first name.".into()));
         }
@@ -1417,6 +1514,9 @@ impl PersonDraft {
         }
         if !self.appointment.is_empty() && !self.may_be_appointed() {
             out.push("The appointment will be removed (only for baptised brothers).".into());
+        }
+        if self.infirm && !ty.has_pioneer_number() {
+            out.push("\"Infirm\" will be turned off (only for regular and special pioneers and missionaries).".into());
         }
         if self.anointed && !ty.is_baptised() {
             out.push("\"Anointed\" will be turned off (only for baptised persons).".into());
@@ -1482,6 +1582,76 @@ pub fn fold(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_type_change_keeps_the_old_type_for_earlier_months() {
+        let mut d = crate::demo::demo_directory(12);
+        let Some(p) = d.people.iter().find(|p| p.publisher_type == PublisherType::BaptisedPublisher && p.type_history.is_empty()).cloned() else { panic!("a baptised publisher") };
+        let mut draft = PersonDraft::from_person(&p, &d);
+        draft.publisher_type = PublisherType::ContinuousAuxiliaryPioneer.value().into();
+        draft.type_since = "2026-10".into();
+        assert!(d.save(Some(p.id), &draft).is_ok());
+        let now = d.person(p.id).cloned().unwrap_or(p.clone());
+        assert_eq!(now.type_in((2026, 9)), PublisherType::BaptisedPublisher);
+        assert_eq!(now.type_in((2026, 10)), PublisherType::ContinuousAuxiliaryPioneer);
+        assert_eq!(now.type_in((2020, 1)), PublisherType::BaptisedPublisher);
+        assert_eq!(now.type_since(), Some((2026, 10)));
+        // Moving the start, with the same type.
+        let mut draft = PersonDraft::from_person(&now, &d);
+        draft.type_since = "2026-08".into();
+        assert!(d.save(Some(p.id), &draft).is_ok());
+        let now = d.person(p.id).cloned().unwrap_or(p.clone());
+        assert_eq!(now.type_in((2026, 8)), PublisherType::ContinuousAuxiliaryPioneer);
+        assert_eq!(now.type_in((2026, 7)), PublisherType::BaptisedPublisher);
+        // Back to the first type: the history says nothing any more.
+        let mut draft = PersonDraft::from_person(&now, &d);
+        draft.publisher_type = PublisherType::BaptisedPublisher.value().into();
+        draft.type_since = "2026-08".into();
+        assert!(d.save(Some(p.id), &draft).is_ok());
+        assert!(d.person(p.id).is_some_and(|x| x.type_history.is_empty()));
+    }
+
+    #[test]
+    fn infirm_is_only_for_pioneers_with_a_yearly_goal_and_new_people_are_publishers() {
+        assert_eq!(PersonDraft::default().publisher_type, PublisherType::BaptisedPublisher.value());
+        let mut d = crate::demo::demo_directory(12);
+        let mut draft = PersonDraft { first_name: "Ina".into(), last_name: "Firm".into(), gender: "female".into(), infirm: true, ..Default::default() };
+        let id = d.save(None, &draft).unwrap_or(0);
+        assert!(d.person(id).is_some_and(|p| !p.infirm));
+        draft.publisher_type = PublisherType::RegularPioneer.value().into();
+        assert!(d.save(Some(id), &draft).is_ok());
+        assert!(d.person(id).is_some_and(|p| p.infirm));
+    }
+
+    #[test]
+    fn relatives_offered_never_belong_to_another_family() {
+        let d = crate::demo::demo_directory(36);
+        let Some(f) = d.families.first() else { panic!("the demo has families") };
+        let member = f.head;
+        let offered = d.relative_candidates(member);
+        // Nobody from another family; people without one, and this family's own members.
+        assert!(offered.iter().all(|p| d.family_of(p.id).is_none_or(|x| x.id == f.id)));
+        assert!(offered.iter().any(|p| d.family_of(p.id).is_none()));
+        assert!(!offered.iter().any(|p| p.id == member));
+        // Someone without a family may join any family.
+        if let Some(loner) = d.without_family().first().map(|p| p.id) {
+            assert!(d.relative_candidates(loner).iter().any(|p| d.family_of(p.id).is_some()));
+        }
+    }
+
+    #[test]
+    fn a_group_leader_shows_their_group_and_saving_it_keeps_them_leading() {
+        let mut d = crate::demo::demo_directory(36);
+        let Some((gid, leader)) = d.groups.iter().find_map(|g| g.overseer.filter(|o| d.member_group(*o).is_none()).map(|o| (g.id, o))) else {
+            panic!("the demo has an overseer who is not a plain member");
+        };
+        let draft = d.person(leader).map(|p| PersonDraft::from_person(p, &d)).unwrap_or_default();
+        assert_eq!(draft.group, gid.to_string());
+        // Saving the form unchanged keeps them leading that group, without a second membership.
+        assert!(d.save(Some(leader), &draft).is_ok());
+        assert!(d.group(gid).is_some_and(|g| g.overseer == Some(leader) && !g.members.contains(&leader)));
+        assert_eq!(d.groups_of(leader).len(), 1);
+    }
 
     fn dir() -> Directory {
         crate::demo::demo_directory(40)

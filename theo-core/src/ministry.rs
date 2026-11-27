@@ -150,7 +150,7 @@ impl Directory {
 
     fn save_report_unchecked(&mut self, person: u32, ym: Ym, d: &ReportDraft) -> Result<(), String> {
         let p = self.person(person).ok_or("Unknown person.")?;
-        let kind = Kind::of(p.publisher_type, d.auxiliary);
+        let kind = Kind::of(p.type_in(ym), d.auxiliary);
         if let Some(e) = d.validate(kind).first() {
             return Err(e.1.clone());
         }

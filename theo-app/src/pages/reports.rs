@@ -37,6 +37,9 @@ fn summary(r: &Report) -> String {
 }
 
 fn goal_note(g: &GoalProgress) -> (String, Tone) {
+    if g.exempt {
+        return ("Infirm: no hour goal, counted as met".to_string(), Tone::Success);
+    }
     match g.kind {
         Kind::Pioneer if g.on_track() => (format!("On track · {} h expected by now", g.expected), Tone::Success),
         Kind::Pioneer => (format!("{} h behind · {} h expected by now", g.expected - g.hours, g.expected), Tone::Warning),
@@ -358,57 +361,91 @@ fn GoalsTab() -> Element {
     let dir = state.directory();
     let year = use_memo(move || report_year(&state));
     let mut settings = use_signal(|| false);
+    // Auxiliary pioneers are followed month by month (pioneers have a yearly goal). The month
+    // starts at the reporting month, or the last month of a past service year.
+    let mut aux_month = use_signal(|| None::<Ym>);
+    let months: Vec<Ym> = service_year_months(year()).into_iter().filter(|m| *m <= reporting_month()).collect();
+    let month = aux_month().filter(|m| months.contains(m)).or_else(|| months.last().copied());
     let goals = dir.goals(year());
-    // One section per kind of publisher, in this order; empty sections are not shown.
-    let sections: Vec<(&str, Vec<&GoalProgress>)> = [
-        ("Regular pioneers", Some(PublisherType::RegularPioneer)),
-        ("Special pioneers", Some(PublisherType::SpecialPioneer)),
-        ("Missionaries", Some(PublisherType::Missionary)),
-        ("Continuous auxiliary pioneers", Some(PublisherType::ContinuousAuxiliaryPioneer)),
-        ("Auxiliary pioneers (single months)", None),
+    let aux = month.map(|m| dir.aux_goals_in_month(m)).unwrap_or_default();
+    let month_options: Vec<SelectOption> = months.iter().rev().map(|m| SelectOption::new(format!("{}-{:02}", m.0, m.1), month_label(*m))).collect();
+    let month_value = month.map(|m| format!("{}-{:02}", m.0, m.1)).unwrap_or_default();
+    let of_type = |list: &[GoalProgress], t: PublisherType| -> Vec<GoalProgress> {
+        list.iter().filter(|g| dir.person(g.person).is_some_and(|p| p.publisher_type == t)).cloned().collect()
+    };
+    // Pioneers (yearly), then the auxiliary pioneers of the chosen month. Empty ones are not shown.
+    let pioneers: Vec<(String, Vec<GoalProgress>)> = [
+        ("Regular pioneers", PublisherType::RegularPioneer),
+        ("Special pioneers", PublisherType::SpecialPioneer),
+        ("Missionaries", PublisherType::Missionary),
     ]
     .into_iter()
-    .map(|(title, ty)| {
-        let list: Vec<&GoalProgress> = goals
-            .iter()
-            .filter(|g| match ty {
-                Some(t) => g.kind != Kind::AuxiliaryMonth && dir.person(g.person).is_some_and(|p| p.publisher_type == t),
-                None => g.kind == Kind::AuxiliaryMonth,
-            })
-            .collect();
-        (title, list)
-    })
+    .map(|(title, t)| (title.to_string(), of_type(&goals.iter().filter(|g| g.kind == Kind::Pioneer).cloned().collect::<Vec<_>>(), t)))
     .filter(|(_, l)| !l.is_empty())
     .collect();
-    rsx! {
-        Cluster { justify: Justify::End,
-            ActionButton { action: Action::Settings, label: "Goal settings", onclick: move |_| settings.set(true) }
-        }
-        if sections.is_empty() {
-            EmptyState { icon: Icon::Privilege, title: "Nobody has a goal in this service year" }
-        }
-        for (title, list) in sections {
-            Card { key: "{title}", title: "{title}", icon: Icon::Privilege, actions: rsx! { Badge { tone: Tone::Neutral, "{list.len()}" } },
-                Grid { cols: 2, gap: Gap::Lg,
-                    for g in list {
-                        {
-                            let (note, tone) = goal_note(g);
-                            let name = dir.person(g.person).map(|p| p.display_name(&prefs)).unwrap_or_default();
-                            rsx! {
-                                ProgressRow {
-                                    key: "{g.person}",
-                                    label: name,
-                                    detail: format!("{} / {} h", g.hours, g.goal),
-                                    value: f64::from(g.hours),
-                                    max: f64::from(g.goal),
-                                    marker: (g.kind == Kind::Pioneer).then_some(f64::from(g.expected)),
-                                    note,
-                                    tone,
-                                }
+    let auxiliaries: Vec<(String, Vec<GoalProgress>)> = month
+        .map(|m| {
+            vec![
+                (format!("Continuous auxiliary pioneers · {}", month_label(m)), aux.iter().filter(|g| g.kind == Kind::ContinuousAuxiliary).cloned().collect::<Vec<_>>()),
+                (format!("Auxiliary pioneers · {}", month_label(m)), aux.iter().filter(|g| g.kind == Kind::AuxiliaryMonth).cloned().collect()),
+            ]
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|(_, l)| !l.is_empty())
+        .collect();
+    let rows = move |list: Vec<GoalProgress>| {
+        rsx! {
+            Grid { cols: 2, gap: Gap::Lg,
+                for g in list {
+                    {
+                        let (note, tone) = goal_note(&g);
+                        let name = dir.person(g.person).map(|p| p.display_name(&prefs)).unwrap_or_default();
+                        rsx! {
+                            ProgressRow {
+                                key: "{g.person}",
+                                label: name,
+                                detail: if g.exempt { format!("{} h", g.hours) } else { format!("{} / {} h", g.hours, g.goal) },
+                                // Infirm pioneers have no hour goal: shown as met.
+                                value: if g.exempt { 1.0 } else { f64::from(g.hours) },
+                                max: if g.exempt { 1.0 } else { f64::from(g.goal) },
+                                marker: (g.kind == Kind::Pioneer && !g.exempt).then_some(f64::from(g.expected)),
+                                note,
+                                tone,
                             }
                         }
                     }
                 }
+            }
+        }
+    };
+    rsx! {
+        Cluster { justify: Justify::End,
+            ActionButton { action: Action::Settings, label: "Goal settings", onclick: move |_| settings.set(true) }
+        }
+        if pioneers.is_empty() && auxiliaries.is_empty() && month.is_none() {
+            EmptyState { icon: Icon::Privilege, title: "Nobody has a goal in this service year" }
+        }
+        for (title, list) in pioneers {
+            Card { key: "{title}", title: "{title}", icon: Icon::Privilege, actions: rsx! { Badge { tone: Tone::Neutral, "{list.len()}" } },
+                {rows(list)}
+            }
+        }
+        if !month_options.is_empty() {
+            Field { label: "Auxiliary pioneers in", help: "Auxiliary pioneers have a goal for each month: 30 hours, or 15 in the months set in Goal settings.",
+                Select {
+                    value: month_value,
+                    options: month_options,
+                    onchange: move |v: String| aux_month.set(crate::people::parse_month(&v)),
+                }
+            }
+            if auxiliaries.is_empty() {
+                Text { tone: TextTone::Muted, "No auxiliary pioneers in this month." }
+            }
+        }
+        for (title, list) in auxiliaries {
+            Card { key: "{title}", title: "{title}", icon: Icon::Privilege, actions: rsx! { Badge { tone: Tone::Neutral, "{list.len()}" } },
+                {rows(list)}
             }
         }
         if settings() {
@@ -486,8 +523,10 @@ pub(super) fn ReportDialog(person: u32, month: Ym, onclose: EventHandler<()>) ->
 
     let d = draft();
     let err = move |f: &str| errors.read().iter().find(|(k, _)| *k == f).map(|(_, m)| m.clone());
-    let can_aux = p.publisher_type == PublisherType::BaptisedPublisher;
-    let kind = Kind::of(p.publisher_type, can_aux && d.auxiliary);
+    // What they report this month follows their type in that month (D-52).
+    let ty = p.type_in(month);
+    let can_aux = ty == PublisherType::BaptisedPublisher;
+    let kind = Kind::of(ty, can_aux && d.auxiliary);
     let goal = match kind {
         Kind::AuxiliaryMonth | Kind::ContinuousAuxiliary => Some(dir.aux_goal(month)),
         _ => None,

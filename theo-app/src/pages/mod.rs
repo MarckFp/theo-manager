@@ -50,3 +50,28 @@ pub use sections::{Me, NotFound, SectionHub, SectionPage, SettingsPage};
 pub use unlock::Unlock;
 pub use users::{MovedAway, UserDetail, UserList, UserNew};
 pub use wizard::NewCongregation;
+
+use dioxus::prelude::*;
+use theo_ui::{use_toaster, ActionButton, ButtonVariant};
+
+/// Copies `text` (a generated password) to the clipboard, and says so.
+#[component]
+pub(crate) fn CopyButton(text: String) -> Element {
+    let toaster = use_toaster();
+    rsx! {
+        ActionButton {
+            action: theo_ui::Action::Copy,
+            variant: ButtonVariant::Secondary,
+            onclick: move |_| {
+                let text = text.clone();
+                spawn(async move {
+                    if crate::platform::copy_text(&text).await {
+                        toaster.success("Copied. Paste it somewhere safe.");
+                    } else {
+                        toaster.error("It could not be copied. Select it and copy it.");
+                    }
+                });
+            },
+        }
+    }
+}

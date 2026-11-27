@@ -183,8 +183,27 @@ async fn post_access(server: &Server, path: &str, body: String) -> Result<Sessio
     let (status, text) = crate::http::post(&format!("{}/{path}", server.url), &headers, body).await?;
     match token_of(&text) {
         Some(token) if status < 300 => Ok(Session { server: server.clone(), token }),
-        _ if path == "signup" => Err(DbError::Auth("This username is taken, or the server refused the account.".into())),
-        _ => Err(DbError::Auth("Username or password is not correct.".into())),
+        _ => Err(access_error(path == "signup", status, &text)),
+    }
+}
+
+/// Why a sign-up or sign-in failed, from the server's answer. Only a real "no" about the account
+/// is [`DbError::Auth`] (shown as "username taken" or "wrong password"); a server that is not set
+/// up, busy or failing says so, so nobody is told their username is taken when it is not.
+fn access_error(signup: bool, status: u16, text: &str) -> DbError {
+    let info = serde_json::from_str::<Value>(text).ok().and_then(|v| v.get("information").and_then(Value::as_str).map(str::to_lowercase)).unwrap_or_default();
+    let not_set_up = || DbError::Service("The Cloud server is not set up for Theo Manager yet (its owner must apply the schema). Try again later.".into());
+    match status {
+        429 => DbError::Service("Too many attempts. Wait a minute, then try again.".into()),
+        500.. => DbError::Service(format!("The Cloud server has a problem right now ({status}). Try again later.")),
+        _ if info.contains("access method does not exist") || (info.contains("does not exist") && (info.contains("database") || info.contains("namespace"))) => not_set_up(),
+        // A server that hides the reason (SurrealDB Cloud answers a plain 401 when sign-ups are
+        // not possible): not "username taken", which would send people the wrong way.
+        401 | 403 if signup => DbError::Service("The Cloud server refused to create the account. It may not be ready for new accounts yet; try again later. If it keeps happening, contact the people who run Theo Manager.".into()),
+        400 if signup && info.contains("signup query failed") => DbError::Auth("This username is already taken. Choose another one.".into()),
+        _ if signup => DbError::Service(format!("The account could not be created (the server answered {status}). Try again later.")),
+        400 | 401 | 403 | 404 => DbError::Auth("Username or password is not correct.".into()),
+        _ => DbError::Service(format!("Signing in failed (the server answered {status}). Try again later.")),
     }
 }
 
@@ -204,10 +223,12 @@ pub async fn sign_in(server: &Server, username: &str, auth_key_hex: &str) -> Res
 /// the congregation is then in [`Session::memberships`].
 pub async fn join(server: &Server, username: &str, auth_key_hex: &str, proof: &str) -> Result<(), DbError> {
     let body = json!({ "NS": server.namespace, "DB": server.database, "AC": JOIN, "user": username, "pass": auth_key_hex, "proof": proof }).to_string();
-    post_access(server, "signin", body)
-        .await
-        .map(|_| ())
-        .map_err(|_| DbError::Auth("This invite cannot be used: it was used already, it expired or was cancelled, or you are already a member. Ask an administrator for a new one.".into()))
+    post_access(server, "signin", body).await.map(|_| ()).map_err(|e| match e {
+        // The server refused this invite (or this account): say what that usually means.
+        DbError::Auth(_) => DbError::Auth("This invite cannot be used: it was used already, it expired or was cancelled, or you are already a member. Ask an administrator for a new one.".into()),
+        // A server that cannot serve now, or no connection: that message, not "invite used".
+        e => e,
+    })
 }
 
 /// The text of a failed statement ("An error occurred: conflict:3").
@@ -750,6 +771,25 @@ mod tests {
         assert_eq!(parse_rpc(200, rpc_error), Err(DbError::Conflict { current: 2 }));
         assert!(matches!(parse_rpc(401, ""), Err(DbError::Auth(_))));
         assert!(matches!(parse_rpc(500, "<html>"), Err(DbError::Storage(_))));
+    }
+
+    #[test]
+    fn sign_up_and_sign_in_failures_say_what_happened() {
+        // The answers a SurrealDB 4 server gives (taken from a real server).
+        let taken = r#"{"code":400,"details":"Request problems detected","information":"The record access signup query failed"}"#;
+        let no_access = r#"{"code":400,"information":"The access method does not exist"}"#;
+        let no_db = r#"{"code":404,"information":"The database 'theo' does not exist"}"#;
+        let hidden = r#"{"code":401,"description":"There was a problem with authentication","details":"Authentication failed"}"#;
+        let no_record = r#"{"code":404,"information":"No record was returned"}"#;
+        assert!(matches!(access_error(true, 400, taken), DbError::Auth(m) if m.contains("already taken")));
+        assert!(matches!(access_error(true, 400, no_access), DbError::Service(m) if m.contains("not set up")));
+        assert!(matches!(access_error(false, 404, no_db), DbError::Service(m) if m.contains("not set up")));
+        // A plain 401 on sign-up is never reported as a taken username.
+        assert!(matches!(access_error(true, 401, hidden), DbError::Service(m) if !m.contains("taken")));
+        assert!(matches!(access_error(false, 401, hidden), DbError::Auth(m) if m.contains("not correct")));
+        assert!(matches!(access_error(false, 404, no_record), DbError::Auth(_)));
+        assert!(matches!(access_error(false, 503, ""), DbError::Service(m) if m.contains("problem")));
+        assert!(matches!(access_error(true, 429, ""), DbError::Service(m) if m.contains("Too many")));
     }
 
     #[test]

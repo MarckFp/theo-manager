@@ -168,6 +168,9 @@ pub enum DbError {
     Denied,
     /// The server could not be reached (no network, wrong address, or blocked by the browser).
     Unreachable(String),
+    /// The server answered, but cannot serve the app now (not set up, busy, failing). The text
+    /// says what to do.
+    Service(String),
 }
 
 impl fmt::Display for DbError {
@@ -179,6 +182,7 @@ impl fmt::Display for DbError {
             DbError::Unsupported => f.write_str("This storage is not available on this device."),
             DbError::Auth(e) => f.write_str(e),
             DbError::Unreachable(e) => f.write_str(e),
+            DbError::Service(e) => f.write_str(e),
             DbError::Denied => f.write_str("Your role in this congregation does not allow this change."),
         }
     }
