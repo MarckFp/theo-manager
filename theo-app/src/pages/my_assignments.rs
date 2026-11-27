@@ -1,6 +1,7 @@
 //! `/app/me/assignments`: everything assigned to me, as a timeline (from the home widget).
 //! Rules: `docs/model/m15-field-service-meetings.md`, "Notices and My assignments".
 
+use crate::assignments::AssignmentStyle as _;
 use crate::assignments::{Assignment, NoticeKind};
 use crate::people::parse_date;
 use crate::reports::month_label;

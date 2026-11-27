@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Weekly as well: new security advisories appear for crates we already use.
+  schedule:
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -47,6 +50,20 @@ jobs:
 
       - name: Tests (includes the UI consistency rules) 🧪
         run: cargo test --workspace
+
+  dependencies:
+    name: Dependencies are safe to use 🔒
+    # Known vulnerabilities (RustSec), licenses and crate sources of every dependency: deny.toml.
+    # Our code has no `unsafe` (forbidden in every crate); this is how we watch the crates that do.
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v7
+
+      - name: cargo-deny 🔒
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
 
   css:
     name: Stylesheet is up to date 🎨

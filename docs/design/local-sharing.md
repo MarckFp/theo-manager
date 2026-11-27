@@ -4,7 +4,7 @@ A **Local** congregation keeps its data off every cloud. Several people still ne
 the secretary on reports, a brother on the audio schedule. This page proposes how they share data
 without a server, and how permissions work when nothing central can enforce them.
 
-Status: reviewed on 2026-11-18 (decisions at the end). **Built:** the encrypted backup (section *Backup*). **Later:** packages for sharing and nearby sync, documented here so the design is not lost.
+Status: reviewed on 2026-11-18 (decisions at the end). **Built:** export, import and moving between Local and Cloud (section *Backup*). **Later:** packages for sharing and nearby sync, documented here so the design is not lost.
 
 ## The problem
 
@@ -98,17 +98,21 @@ proposed for group rosters in M-09), so a device can hold it without holding the
 A **package** for page X then contains the data of X and its reference data, encrypted to the
 receiving device, and the receiver keeps only what its own permissions allow.
 
-## Backup
+## Backup: export, import and moving (updated 2026-11-27, D-51)
 
-Built now, in the congregation *Settings* (cog in the congregation switcher) (administrators):
+In the congregation *Settings*, card *Export, import and storage*. For whoever may manage the
+congregation's data: the user of a Local congregation, the owner and full-access members of a
+Cloud one.
 
-| Action | What happens |
+| Action | What it does |
 |---|---|
-| **Create backup** | One file (`.theobackup`) with everything in the congregation: people, families, groups, reports, privileges, permissions, settings and the activity log. Encrypted with the congregation password: Argon2id (64 MiB, 3 passes, 4 lanes, R-301) and XChaCha20-Poly1305 (`theo-crypto`). The file header (format version, Argon2 parameters, salt, nonce) is authenticated, so it cannot be weakened. |
-| **Restore backup** | Choose the file, type the password it was made with. It **replaces all data** of the open congregation on this device; the storage mode, the current congregation password and biometric unlock stay. A wrong password or a changed file is refused. |
+| **Export** | One small file (`.theobackup`) with everything: people, families, groups, meetings, duties, talks, reports, territories, privileges, permissions, settings and the activity log. **Always encrypted**, with a password chosen at export: a generated six-word passphrase (default, about 77 bits, shown once) or a strong password of your own (zxcvbn 3 or more). It is not the congregation password, so the file can be handed on without giving that away. Inside: CBOR, compressed with deflate, then Argon2id (64 MiB, 3 passes, 4 lanes, R-301) and XChaCha20-Poly1305 (`theo-crypto`); the header (format, Argon2 parameters, salt, nonce) is authenticated, so it cannot be weakened. Older files (JSON inside) still import. |
+| **Import** | Only `.theobackup` files. Type the file's password. It **replaces all data** of the open congregation, for everyone who uses it; the storage mode and the congregation password stay. A wrong password or a changed file is refused, and a crafted file cannot unpack to more than 256 MB. If the file comes from another account or storage, its creator's person becomes you, so you keep your access. |
+| **Move to the Cloud** (Local) | Signs in to (or creates) the Cloud account, copies everything to the Cloud with the **same congregation id, keys and congregation password**, makes the account its owner (root grant), and only then deletes the copy on this device. A failure before the copy is complete changes nothing. Afterwards it opens with the Cloud account, on any device. |
+| **Move to this device** (Cloud, owner only) | Warns that **everybody else loses access** and must be confirmed. Copies everything to this device for a device account (existing, or new), then deletes the congregation on the server: memberships, invites and key grants end. Only the owner's person stays linked. Afterwards it opens with the congregation password on this device. |
 
-Both are recorded in the activity log. A backup is also how a Local congregation moves to a new
-device today.
+Export and import are recorded in the activity log; the server's audit log records the Cloud side
+of a move.
 
 ## Decisions (2026-11-18)
 

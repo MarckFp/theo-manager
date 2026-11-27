@@ -1,6 +1,7 @@
 //! *Users › All users*: the list with filters and export, and the person page (new and edit).
 //! Behaviour: `docs/model/m01-people.md` in the meta repo.
 
+use crate::people::LabelTone as _;
 use crate::export::{self, Format, Table};
 use crate::people::{
     self, AccountLink, Activity, Appointment, Directory, Gender, GroupRole, Person, PersonDraft, PublisherType,
@@ -411,6 +412,13 @@ fn options(pairs: &[(&str, &str)]) -> Vec<SelectOption> {
     pairs.iter().map(|(v, l)| SelectOption::new(*v, *l)).collect()
 }
 
+/// Full access, then the permission presets (M-02).
+fn invite_options() -> Vec<SelectOption> {
+    let mut out = vec![SelectOption::new("admin", "Administrator: full access")];
+    out.extend(crate::access::PRESETS.iter().rev().map(|p| SelectOption::new(p.id, format!("{}: {}", p.label, p.description))));
+    out
+}
+
 /// What a save also changes (values that no longer apply, roles and privileges that are lost).
 /// "overseer of North" and the like: the group roles of a person.
 fn leads_of(dir: &Directory, id: Option<u32>) -> Vec<String> {
@@ -455,6 +463,21 @@ fn PersonEditor(id: Option<u32>) -> Element {
     let mut errors = use_signal(Vec::<(&'static str, String)>::new);
     let mut confirm_delete = use_signal(|| false);
     let mut invite_open = use_signal(|| false);
+    let mut invite_preset = use_signal(|| "publisher".to_string());
+    let mut invite_link = use_signal(|| None::<String>);
+    let mut invite_busy = use_signal(|| false);
+    let mut invite_error = use_signal(|| None::<String>);
+    let mut revoke_busy = use_signal(|| false);
+    let mut remove_open = use_signal(|| false);
+    let mut remove_busy = use_signal(|| false);
+    let mut remove_error = use_signal(|| None::<String>);
+    // Their role on the server (asked when the dialog opens): full access needs a new password.
+    let mut remove_role = use_signal(|| None::<String>);
+    let mut new_password = use_signal(crate::password::generate);
+    let manages = state.manages_cloud();
+    let invite_states = state.invite_states.read().clone();
+    // Real invites need a stored Cloud congregation; the demo makes sample links.
+    let real_invites = cloud && state.active_congregation().is_some_and(|c| c.stored);
     let mut move_open = use_signal(|| false);
     let mut move_date = use_signal(people::today_iso);
     let mut move_family = use_signal(|| true);
@@ -569,6 +592,8 @@ fn PersonEditor(id: Option<u32>) -> Element {
     } else {
         None
     };
+    // In a Cloud congregation, someone with an account must lose it before they leave the data.
+    let account_block = id.filter(|_| !is_me).and_then(|n| state.account_still_member(&[n]));
     let congregation_name = state.active_congregation().map(|c| c.name).unwrap_or_default();
     let delete_name = name.clone().unwrap_or_default();
     let invite_name = name.clone().unwrap_or_default();
@@ -758,7 +783,41 @@ fn PersonEditor(id: Option<u32>) -> Element {
                             }
                         }
                         if cloud && p.moved_away.is_none() {
-                            AccountCard { account: p.account.clone(), person: p.id, permissions: super::permissions::access_summary(&dir.access(p.id)), on_invite: move |_| invite_open.set(true) }
+                            AccountCard {
+                                account: p.account.clone(),
+                                person: p.id,
+                                permissions: super::permissions::access_summary(&dir.access(p.id)),
+                                busy: revoke_busy(),
+                                invite_expires: match &p.account {
+                                    AccountLink::Invited { invite, .. } => invite_states.get(invite).map(|s| (s.expired, s.expires.get(..10).unwrap_or(&s.expires).to_string())),
+                                    _ => None,
+                                },
+                                can_remove: manages && !is_me && !dir.is_owner(p.id),
+                                on_remove: move |_| {
+                                    let Some(n) = id else { return };
+                                    remove_error.set(None);
+                                    remove_role.set(None);
+                                    new_password.set(crate::password::generate());
+                                    remove_open.set(true);
+                                    spawn(async move {
+                                        let role = state.member_role(n).await;
+                                        remove_role.set(Some(role.unwrap_or_else(|| "member".into())));
+                                    });
+                                },
+                                on_invite: move |_| { invite_link.set(None); invite_error.set(None); invite_open.set(true); },
+                                on_revoke: move |_| {
+                                    let Some(n) = id else { return };
+                                    revoke_busy.set(true);
+                                    spawn(async move {
+                                        let result = state.revoke_invite(n).await;
+                                        revoke_busy.set(false);
+                                        match result {
+                                            Ok(()) => toaster.success("The invite was cancelled. Its link no longer works."),
+                                            Err(e) => toaster.error(e),
+                                        }
+                                    });
+                                },
+                            }
                         }
                     } else {
                         Card { title: "After saving", icon: Icon::Info,
@@ -788,9 +847,24 @@ fn PersonEditor(id: Option<u32>) -> Element {
                         }
                         if let Some(n) = id {
                             let with_family = move_family();
-                            state.update_directory(|d| d.move_away(n, &date, with_family));
-                            move_open.set(false);
-                            toaster.success("Marked as moved away.");
+                            let mut leaving = vec![n];
+                            if with_family {
+                                leaving.extend(state.directory().family_to_move(n));
+                            }
+                            // Their accounts must end first, or they would keep access.
+                            if let Some(reason) = state.account_still_member(&leaving) {
+                                move_error.set(Some(reason));
+                                return;
+                            }
+                            spawn(async move {
+                                if let Err(e) = state.cancel_invites(&leaving).await {
+                                    move_error.set(Some(format!("The invite could not be cancelled, so nothing changed: {e}")));
+                                    return;
+                                }
+                                state.update_directory(|d| d.move_away(n, &date, with_family));
+                                move_open.set(false);
+                                toaster.success("Marked as moved away.");
+                            });
                         }
                     },
                 }
@@ -843,21 +917,89 @@ fn PersonEditor(id: Option<u32>) -> Element {
                     }
                 },
             }
+        } else if let Some(reason) = account_block.clone() {
+            Dialog {
+                open: confirm_delete(),
+                onclose: move |_| confirm_delete.set(false),
+                title: "Remove the account first",
+                actions: rsx! { ActionButton { action: Action::Done, onclick: move |_| confirm_delete.set(false) } },
+                Alert { tone: Tone::Warning, "{reason}" }
+            }
         } else {
             ConfirmDialog {
                 open: confirm_delete(),
                 title: "Delete {delete_name}?",
-                message: "They disappear from lists, filters and exports. Past assignments and reports keep their name.",
+                message: "They disappear from lists, filters and exports. Past assignments and reports keep their name. An open invite stops working.",
                 confirm: Action::Delete,
                 consequences: delete_consequences,
                 oncancel: move |_| confirm_delete.set(false),
                 onconfirm: move |_| {
                     if let Some(n) = id {
-                        state.update_directory(|d| d.delete(n));
-                        toaster.success(format!("{delete_name} was deleted."));
-                        navigator.replace(Route::UserList {});
+                        let name = delete_name.clone();
+                        spawn(async move {
+                            if let Err(e) = state.cancel_invites(&[n]).await {
+                                toaster.error(format!("The invite could not be cancelled, so nothing was deleted: {e}"));
+                                return;
+                            }
+                            state.update_directory(|d| d.delete(n));
+                            toaster.success(format!("{name} was deleted."));
+                            navigator.replace(Route::UserList {});
+                        });
                     }
                 },
+            }
+        }
+        Dialog {
+            open: remove_open(),
+            onclose: move |_| remove_open.set(false),
+            title: "Remove the account of {invite_name}?",
+            description: "They can no longer open this congregation. Their person stays in All users.",
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, onclick: move |_| remove_open.set(false) }
+                ActionButton {
+                    action: Action::Remove,
+                    label: "Remove account",
+                    loading: remove_busy() || remove_role().is_none(),
+                    onclick: move |_| {
+                        let Some(n) = id else { return };
+                        let full = remove_role().is_some_and(|r| r != "member");
+                        let pw = full.then(|| new_password.read().clone());
+                        remove_busy.set(true);
+                        remove_error.set(None);
+                        spawn(async move {
+                            let result = state.remove_member(n, pw.as_deref()).await;
+                            remove_busy.set(false);
+                            match result {
+                                Ok(()) => {
+                                    remove_open.set(false);
+                                    toaster.success(if full { "Account removed. Tell the new congregation password in person to the other full-access members." } else { "Account removed. Their keys were replaced." });
+                                }
+                                Err(e) => remove_error.set(Some(e)),
+                            }
+                        });
+                    },
+                }
+            },
+            Stack {
+                if let Some(e) = remove_error() {
+                    Alert { tone: Tone::Error, "{e}" }
+                }
+                Text { tone: TextTone::Muted, "The server refuses them at once. The keys they held are replaced: new data uses new keys that only the remaining members get. What is already on their devices cannot be called back." }
+                match remove_role() {
+                    None => rsx! { Text { tone: TextTone::Muted, "Checking their access…" } },
+                    Some(r) if r != "member" => rsx! {
+                        Alert { tone: Tone::Warning, title: "They have full access",
+                            "They know the congregation password, so it is replaced too. Note the new one now and tell it in person to the other full-access members; they keep opening the congregation with their account password."
+                        }
+                        Field { label: "New congregation password",
+                            Code { "{new_password}" }
+                        }
+                        Cluster { gap: Gap::Sm,
+                            ActionButton { action: Action::Regenerate, variant: ButtonVariant::Secondary, onclick: move |_| new_password.set(crate::password::generate()) }
+                        }
+                    },
+                    Some(_) => rsx! {},
+                }
             }
         }
         Dialog {
@@ -866,25 +1008,73 @@ fn PersonEditor(id: Option<u32>) -> Element {
             title: "Invite {invite_name}",
             description: "They get their own account, linked to this person.",
             actions: rsx! {
-                ActionButton { action: Action::Cancel, onclick: move |_| invite_open.set(false) }
-                ActionButton {
-                    action: Action::Invite,
-                    label: "Create invitation",
-                    onclick: move |_| {
-                        if let Some(n) = id {
-                            let link = format!("https://app.example.org/join#t={}", crate::mock::token());
-                            state.update_directory(|d| d.set_account(n, AccountLink::Invited { link }));
-                            invite_open.set(false);
-                            toaster.success("Invitation created. Send the link privately.");
-                        }
-                    },
+                if let Some(link) = invite_link() {
+                    ActionButton {
+                        action: Action::CopyLink,
+                        variant: ButtonVariant::Secondary,
+                        onclick: move |_| {
+                            let link = link.clone();
+                            spawn(async move {
+                                if crate::platform::copy_text(&link).await {
+                                    toaster.success("Link copied.");
+                                } else {
+                                    toaster.error("The link could not be copied. Select it and copy it.");
+                                }
+                            });
+                        },
+                    }
+                    ActionButton { action: Action::Done, onclick: move |_| { invite_link.set(None); invite_open.set(false); } }
+                } else {
+                    ActionButton { action: Action::Cancel, onclick: move |_| invite_open.set(false) }
+                    ActionButton {
+                        action: Action::Invite,
+                        label: "Create invitation",
+                        loading: invite_busy(),
+                        onclick: move |_| {
+                            let Some(n) = id else { return };
+                            if !real_invites {
+                                let link = format!("https://app.example.org/join#t={}", crate::mock::token());
+                                state.update_directory(|d| d.set_account(n, AccountLink::Invited { link, invite: String::new() }));
+                                invite_open.set(false);
+                                toaster.success("Invitation created. Send the link privately.");
+                                return;
+                            }
+                            invite_busy.set(true);
+                            invite_error.set(None);
+                            spawn(async move {
+                                let result = state.create_invite(n, &invite_preset()).await;
+                                invite_busy.set(false);
+                                match result {
+                                    Ok(link) => invite_link.set(Some(link)),
+                                    Err(e) => invite_error.set(Some(e)),
+                                }
+                            });
+                        },
+                    }
                 }
             },
-            Stack {
-                Field { label: "Role", help: "Roles and their permissions are set up in Users › Permissions.",
-                    Select { value: "publisher", options: options(&[("publisher", "Publisher: own assignments, absences and reports")]), onchange: move |_| {} }
+            if let Some(link) = invite_link() {
+                Stack {
+                    Alert { tone: Tone::Success, title: "Send this link to {invite_name} privately",
+                        "In person or in a private message. It is shown only now: copy it before you close this window. It works once and expires after 7 days."
+                    }
+                    Code { "{link}" }
                 }
-                Text { tone: TextTone::Small, "The link works once and expires after 7 days. It does not contain the congregation password (R-252)." }
+            } else {
+                Stack {
+                    if let Some(e) = invite_error() {
+                        Alert { tone: Tone::Error, "{e}" }
+                    }
+                    Field { label: "What they may do", help: "A starting point: you can change their permissions after they join, in Users › Permissions.",
+                        Select { value: invite_preset(), options: invite_options(), onchange: move |v| invite_preset.set(v) }
+                    }
+                    if invite_preset() == "admin" {
+                        Alert { tone: Tone::Warning, "Full access: after joining, they also type the congregation password. Tell it to them in person, never in the link or a message." }
+                    } else {
+                        Text { tone: TextTone::Small, "They open the congregation with their own account password; they never need the congregation password. The link gives them only the keys of what they may read." }
+                    }
+                    Text { tone: TextTone::Small, "The link works once and expires after 7 days. It never contains the congregation password." }
+                }
             }
         }
     }
@@ -987,7 +1177,18 @@ fn FamilyCard(id: u32) -> Element {
 
 /// Account and invitation (Cloud congregations only).
 #[component]
-fn AccountCard(account: AccountLink, person: u32, permissions: String, on_invite: EventHandler<()>) -> Element {
+fn AccountCard(
+    account: AccountLink,
+    person: u32,
+    permissions: String,
+    busy: bool,
+    /// (expired, expiry date) of an open invite, when the server was asked.
+    invite_expires: Option<(bool, String)>,
+    can_remove: bool,
+    on_invite: EventHandler<()>,
+    on_revoke: EventHandler<()>,
+    on_remove: EventHandler<()>,
+) -> Element {
     let navigator = navigator();
     rsx! {
         Card { title: "Account", icon: Icon::Key,
@@ -996,15 +1197,39 @@ fn AccountCard(account: AccountLink, person: u32, permissions: String, on_invite
                     Text { tone: TextTone::Muted, "No account. Invite them so they can see their assignments, add absences and submit their reports." }
                     ActionButton { action: Action::Invite, variant: ButtonVariant::Secondary, onclick: move |_| on_invite.call(()) }
                 },
-                AccountLink::Invited { link } => rsx! {
-                    Cluster { gap: Gap::Sm, Badge { tone: Tone::Info, icon: Icon::Invitation, "Invited" } }
-                    Text { tone: TextTone::Small, "Send this link privately, for example in person or in a private message. It works once and expires after 7 days." }
-                    Code { "{link}" }
+                AccountLink::Invited { link, .. } => rsx! {
+                    if let Some((true, date)) = invite_expires.clone() {
+                        Cluster { gap: Gap::Sm, Badge { tone: Tone::Warning, icon: Icon::Invitation, "Invite expired" } }
+                        Text { tone: TextTone::Small, "The link expired on {date} without being used. Cancel it, then make a new one." }
+                        Cluster { gap: Gap::Sm,
+                            ActionButton { action: Action::Remove, variant: ButtonVariant::Secondary, label: "Cancel invite", loading: busy, onclick: move |_| on_revoke.call(()) }
+                        }
+                    } else if link.is_empty() {
+                        Cluster { gap: Gap::Sm, Badge { tone: Tone::Info, icon: Icon::Invitation, "Invited" } }
+                        Text { tone: TextTone::Small,
+                            match invite_expires.clone() {
+                                Some((_, date)) => format!("Waiting for them to join; the link works until {date}. It was shown once, when it was made. Lost it? Cancel the invite and make a new one."),
+                                None => "Waiting for them to join. The link was shown once, when it was made; it works once and expires after 7 days. Lost it? Cancel the invite and make a new one.".to_string(),
+                            }
+                        }
+                        Cluster { gap: Gap::Sm,
+                            ActionButton { action: Action::Remove, variant: ButtonVariant::Secondary, label: "Cancel invite", loading: busy, onclick: move |_| on_revoke.call(()) }
+                        }
+                    } else {
+                        Cluster { gap: Gap::Sm, Badge { tone: Tone::Info, icon: Icon::Invitation, "Invited" } }
+                        Text { tone: TextTone::Small, "Send this link privately, for example in person or in a private message. It works once and expires after 7 days." }
+                        Code { "{link}" }
+                    }
                 },
                 AccountLink::Linked { username } => rsx! {
                     Cluster { gap: Gap::Sm, Badge { tone: Tone::Success, icon: Icon::Check, "Linked" } }
                     Text { tone: TextTone::Muted, "Signs in as @{username}. Permissions: {permissions}." }
-                    ActionButton { action: Action::Edit, variant: ButtonVariant::Secondary, label: "Edit permissions", onclick: move |_| { navigator.push(Route::PermissionsDetail { id: person }); } }
+                    Cluster { gap: Gap::Sm,
+                        ActionButton { action: Action::Edit, variant: ButtonVariant::Secondary, label: "Edit permissions", onclick: move |_| { navigator.push(Route::PermissionsDetail { id: person }); } }
+                        if can_remove {
+                            ActionButton { action: Action::Remove, variant: ButtonVariant::Ghost, label: "Remove account", onclick: move |_| on_remove.call(()) }
+                        }
+                    }
                 },
             }
         }

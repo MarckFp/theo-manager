@@ -81,7 +81,7 @@ optional. Requirement IDs (`R-xxx`) are stable. Never renumber them; mark them `
 | **M-03 Midweek meeting** | Life and Ministry meeting schedule per week: chairman, prayers, all parts, student assignments with assistants, auxiliary classrooms, Congregation Bible Study conductor and reader. Reads the events of each week (M-12, decision E1): no meeting in an assembly or convention week, the circuit overseer's visit, the Memorial |
 | **M-04 Weekend meeting** | Chairman, public talk (link to M-06), Watchtower Study conductor and reader, prayers. Reads the events of each week (M-12, decision E1) |
 | **M-05 Duties** | Audio, video and stage (with Zoom attendants and hosts), attendants, roving microphones, cleaning (groups and rota), Kingdom Hall maintenance. Each has its own page under *Departments* (D-28) |
-| **M-06 Public talks** | Talk catalog (number and title), local and visiting speakers, incoming schedule, outgoing talks (local speakers to other congregations), directory of other congregations and their coordinators |
+| **M-06 Public talks** | Talks by number only (D-45), the talks of local and visiting speakers, incoming schedule, outgoing talks (local speakers to other congregations), directory of other congregations and their coordinators |
 | **M-07 Territories** | Territory cards, boundaries, check-out and return, coverage history, campaigns |
 | **M-08 Public witnessing** | Locations, carts, time slots, shift sign-ups and assignments |
 | **M-09 Field service groups** | Groups, overseers and assistants, members |
@@ -127,8 +127,9 @@ optional. Requirement IDs (`R-xxx`) are stable. Never renumber them; mark them `
 | R-085 | **My assignments** (home page widget, first by default): the signed-in person's upcoming assignments (only what was sent) and, on top, their notices of new, changed and cancelled assignments with *Got it*. *All my assignments* opens a full-page timeline (coming up and past, grouped by month). Field service meetings now; meeting parts and duties join with their modules. |
 | R-089 | **Public witnessing** (*Ministry › Public witnessing*): shifts with date, start, end, place and people, as a list or a calendar. Optional **shift supervisors** (on or off, and who can be one). Weekly presets say how many supervisors, brothers, sisters and anyone a shift needs, and who is available (nobody until ticked); presets can be switched off. Fill, fill and assign, assign the empty places, clear; the assignment respects the privilege, gender, supervisors, absences, availability and one shift a day, and spreads shifts over the week and month. Send a month: only the people concerned get a notice; their shifts appear in *My assignments*. Statistics for the last 6 or 12 months. Details: `docs/model/m16-public-witnessing.md`. |
 | R-090 | **Installable web app (PWA)**: the web build on GitHub Pages has a manifest, icons (made from the one icon source) and a service worker that keeps the app's files, so browsers offer "Install" and the installed app opens offline. Installed, it opens on the log-in screen like the native apps. Done when publishing (`scripts/web-postbuild.py`); `dx serve` is unchanged. |
-| R-092 | **Stay unlocked** (per device, *Me › Security*): lock when the app is closed or reloaded (default), or stay unlocked for 5 or 15 minutes, 1 or 8 hours after the last use. The device remembers only which congregation is open and until when. ⚠️ MOCK: only the demo comes back after a reload, because nothing else is stored on the device yet. Notices marked *Got it* are remembered per device the same way. |
-| R-091 | **Biometric unlock (UI level)**: on the web and the installed web app, turning it on creates a passkey (WebAuthn, the device's fingerprint, face or PIN) and unlocking asks for it; the choice is remembered on that device. It only checks that it is the user: no key is unlocked yet. Where passkeys are not possible (an IP address, the native apps for now) the check is simulated. |
+| R-092 | **Stay unlocked** (per device, *Me › Security*): lock when the app is closed or reloaded (default), or stay unlocked for 5 or 15 minutes, 1 or 8 hours after the last use. **Done** (2026-11-26): the device keeps which congregation is open and until when, and what reopens it, sealed with a **device key** (6.5): a Local congregation's root key, or a Cloud account's keys (the app signs in again with them; the session token is never kept). Web: the device key is a non-extractable WebCrypto key in IndexedDB. Apps: a key file in the app's data folder (⚠️ an OS key store is stronger, to do). Lock, sign-out, the time running out or turning the setting off delete it. Notices marked *Got it* are remembered per device. |
+| R-093 | **Remembered sign-in** (2026-11-26, D-50): after you sign in once, the device remembers who you are until you sign out; the app then opens on the congregation choice, without the log-in screen. It keeps no keys: a device account only its username; a Cloud account its username, display name and congregation list, sealed with the device key. Opening a congregation still asks for its secret (or nothing within *Stay unlocked*): a Local congregation its congregation password or the fingerprint; a Cloud congregation the account password or the fingerprint, because the account's keys open its grants. Locking also drops the Cloud account's keys. |
+| R-091 | **Biometric unlock (UI level)**: replaced by R-312 (2026-11-26) for stored congregations. Only the demo still uses a check without keys. |
 | R-086 | **Home widgets** can be removed while customizing (×) and added back (*Add widget*); *Reset layout* restores the default. |
 | R-087 | Every month and year picker has a **Today** button (shown when another month or year is open) that goes back to the current one. |
 | R-088 | **The creator is a person**: the congregation wizard asks for your name and gender and adds you to All users, linked to your account, as administrator. Your card is tagged *You*. Deleting yourself removes your access, except on a Local congregation or when you are the only administrator. Details: `docs/model/m02-users-and-access.md`, "You are a person too". |
@@ -330,9 +331,9 @@ engine.
   not redistribute it.
 
 **`theo-db` also owns the SurrealDB setup.** There is no separate cloud repo:
-- `theo-db/surreal/migrations/*.surql`: schema, access rules, permissions, events.
-- `Db::provision(...)` applies them (R-228).
-- `theo-db/deploy/`: example `docker-compose.yml` and `Caddyfile` with placeholders only.
+- `theo-db/surreal/schema.surql`: schema, access rules, permissions, events. The server owner
+  imports it (D-46, R-226); `docs/self-hosting.md` explains the setup, CORS and the proxy.
+- `theo-db/deploy/`: example `docker-compose.yml` and `Caddyfile` with placeholders only (to do).
 
 | ID | Requirement |
 |---|---|
@@ -405,7 +406,7 @@ in-memory index. The UI signals then update.
 
 | ID | Requirement |
 |---|---|
-| R-121 | `theo-core` and `theo-crypto` MUST NOT depend on Dioxus, `web-sys` or any async runtime. They MUST compile for `wasm32-unknown-unknown` and all native targets. |
+| R-121 | `theo-core` and `theo-crypto` MUST NOT depend on Dioxus, `web-sys` or any async runtime. They MUST compile for `wasm32-unknown-unknown` and all native targets. (`theo-core` reaches IndexedDB only through `theo-db`, which uses `web-sys` in the browser; its own code uses no platform API.) |
 | R-122 | Async APIs MUST NOT require `Send` futures on `wasm32`. |
 | R-123 | Blocking work MUST NOT freeze the UI. On native, SQLite and Argon2 run on a blocking thread pool. On web, the UI shows a progress state during Argon2. A Web Worker MAY be used later. |
 | R-124 | Decrypted data MUST stay in memory only. It is never written to disk, logs, caches or browser storage. |
@@ -481,14 +482,14 @@ The `Db` API speaks in envelopes and opaque keys only. `theo-core` builds the do
 
 | ID | Requirement |
 |---|---|
-| R-221 | **One SurrealDB database per congregation.** This gives strong isolation, simple permission rules, and easy export or deletion of a whole congregation. The schema is `SCHEMAFULL`, with the tables `account`, `member_keys`, `membership`, `role`, `invite`, `vault_header`, `keyring`, `grant`, `record` and `audit`. |
+| R-221 | **One SurrealDB database for all congregations of a server** (D-46, replaces "one database per congregation", which needed owner credentials in the app). Congregations are kept apart by table `PERMISSIONS` on membership: a signed-in account reads and writes only the congregations it is a member of. The schema is `SCHEMAFULL`, with the tables `meta`, `account`, `congregation`, `membership`, `vault_header`, `keyring`, `counter` and `item` (the records); `grant`, `member_keys`, `invite` and `audit` come with joining (5.6). Schema: `theo-db/surreal/schema.surql`. |
 | R-222 | Sign-in MUST use `DEFINE ACCESS account ON DATABASE TYPE RECORD` with `SIGNUP` / `SIGNIN`. The value sent as "password" is the derived **auth key** (6.2), never the account password. The server stores `crypto::argon2::generate(auth_key)`. |
 | R-223 | Every table MUST have `PERMISSIONS` based on the caller's active membership and role (section 5.5). Without a membership, a session can read nothing. |
-| R-224 | Writes MUST use optimistic concurrency (`version` check). On a conflict, the client re-fetches, re-applies the change and retries. If a merge is not possible, the user decides. |
+| R-224 | Writes MUST use optimistic concurrency (`version` check). On a conflict, the client re-fetches, re-applies the change and retries. If a merge is not possible, the user decides. | A save sends its changes in **batches** (`Db::write_many`, up to 100 records): on SurrealDB one request and one transaction per batch, all or nothing, with one change-number update (2026-11-27). |
 | R-225 | The server MUST sit behind a reverse proxy (Caddy). The proxy gives TLS 1.3 with hybrid post-quantum key exchange (`X25519MLKEM768`), rate limits on sign-in and sign-up, and request size limits. |
-| R-226 | Schema changes MUST be versioned `.surql` migration files in `theo-db`. The app applies them in order and records the applied version in the database. |
-| R-227 | Server-side `DEFINE EVENT`s write an **audit log** with metadata only: who changed which record, and when. |
-| R-228 | **Provisioning from the app.** The first admin enters the server URL and the SurrealDB owner credentials once, in the app. The app creates the namespace and database and applies the migrations. It then **forgets the owner credentials**: they are never stored or logged. |
+| R-226 | Schema changes MUST be versioned `.surql` files in `theo-db/surreal/`, written with `OVERWRITE` so a newer file upgrades in place. The **server owner** applies them with their own tools, through the server's `/sql` endpoint (D-46, `docs/self-hosting.md`); the app reads `meta:schema` and refuses a server whose version it does not know. |
+| R-227 | Server-side `DEFINE EVENT`s write an **audit log** with metadata only: who changed which record, and when. **Done** (schema v2): table `audit`, written by events on `item`, `membership`, `invite`, `vault_header`, `keyring` and `grant`. Events run without permission checks, so no client can write, change or delete a line. The owner and full-access members read it in *Settings › Server log*. |
+| R-228 | **No owner credentials in the app** (D-46, replaces "provisioning from the app"). The server owner sets the server up once (applies `schema.surql`, `docs/self-hosting.md`). The app only signs up and signs in ordinary accounts with record access, and keeps the session token in memory only. A Cloud congregation is created on the signed-in Cloud account's server; the wizard asks for no address. |
 
 ### 5.4 Search and querying
 
@@ -524,14 +525,14 @@ Access control has **two layers**, with different jobs:
 
 | ID | Requirement |
 |---|---|
-| R-241 | In Cloud mode, the **server MUST enforce read and write permissions** per collection and scope. A member who knows the congregation password still cannot download collections that their role does not allow. |
+| R-241 | In Cloud mode, the **server MUST enforce read and write permissions** per collection and scope. A member who knows the congregation password still cannot download collections that their role does not allow. | **Done for writes, per collection** (schema v3): each membership lists the collections it may write (`writes`), set only by managers from the member's permissions (`theo_core::invites::writes_for`); `item` create and update check it (`fn::can_write`). Reads are separated by keys (R-247). Still to do: rules per record (`own`, `own_group`) with `scope_id`. |
 | R-242 | To make R-241 possible, records carry `collection` in plaintext and an optional opaque `scope_id` (5.1). This is a deliberate metadata trade-off (7.3). Names and content stay encrypted. |
 | R-243 | The server sets `author` and `updated_at` itself (`VALUE $auth.id`, `time::now()`), so clients cannot fake them. |
 | R-244 | In Local mode, the single user has full rights. Roles still exist in the data, ready for a move to Cloud, but are not enforced. |
 | R-245 | The UI hides or disables actions that the user's permissions do not allow. It uses the same permission model from `theo-core` (one source of truth). |
-| R-246 | **Removing a member, or taking away a role:** the admin revokes the membership or role, and the server denies access at once. The admin's app then **rotates the key domains** that member held. New data uses the new key version, which is granted only to the remaining holders. If the member had full access, the app also asks for a **new congregation password**. The UI explains that data already on the removed person's device cannot be called back. |
+| R-246 | **Removing a member, or taking away a role:** the admin revokes the membership or role, and the server denies access at once. The admin's app then **rotates the key domains** that member held. New data uses the new key version, which is granted only to the remaining holders. If the member had full access, the app also asks for a **new congregation password**. The UI explains that data already on the removed person's device cannot be called back. | **Done** (`AppState::remove_member`): the server drops the membership and the grants in one transaction; the app makes new versions of the domains the member held and grants them to the remaining members; for a full-access member it also replaces the root key and the congregation password (`Store::rotate_root`), and grants the new root key to the remaining full-access members. |
 | R-247 | **Cryptographic read separation is part of v1** (D-12). Each key domain has its own key. A member receives only the domain keys of their roles. A member without the `reports` key cannot decrypt reports, even if the server leaks them. |
-| R-248 | Changes to keys (grants, rotation) happen on the device of a full-access member, because only such a device holds the keys. The app MUST do them automatically when an admin changes roles. If the admin is offline, the change waits until their app is online. |
+| R-248 | Changes to keys (grants, rotation) happen on the device of a full-access member, because only such a device holds the keys. The app MUST do them automatically when an admin changes roles. If the admin is offline, the change waits until their app is online. | **Done when permissions are saved** (`AppState::sync_member`): new domains are granted, lost domains get new versions. Taking full access away is refused there: it needs a new congregation password, so it is done by removing the account and inviting again. |
 
 ### 5.6 Joining a Cloud congregation
 
@@ -569,12 +570,12 @@ FULL-ACCESS INVITE (for example the coordinator or secretary)
 
 | ID | Requirement |
 |---|---|
-| R-251 | Invite data MUST be in the URL **fragment** (`#...`), so web hosts never see it in their logs. |
+| R-251 | Invite data MUST be in the URL **fragment** (`#...`), so web hosts never see it in their logs. | **Done:** `/join#s=<server>&t=<token>` (`ns`/`db` only when not `theo`); the web app removes the fragment from the address bar once read. |
 | R-252 | The invite link MUST NOT contain the congregation password or the root key. A member-invite link unlocks only the domain keys of that invite's roles, so it MUST be sent privately (in person, or in a private message to that person). |
-| R-253 | Invites MUST be single-use and expire (default 7 days). The server stores only the token hash. An admin can revoke an open invite, and the bundle is then deleted. |
+| R-253 | Invites MUST be single-use and expire (default 7 days). The server stores only the token hash. An admin can revoke an open invite, and the bundle is then deleted. | **Done:** the server stores `SHA-256(proof)` as the invite id, where `proof = HKDF(T)`. The person record keeps only that id, never the link: every member who reads people would otherwise see it. |
 | R-254 | An admin MAY require approval. The invite then has no bundle, and the grants are made when an admin approves (R-248). |
 | R-255 | If a member sees "invite already used", the app tells them to contact an admin. The admin revokes that membership and rotates the affected domains (R-246). |
-| R-256 | The congregation password works only for memberships with **full access**. The server lets only those memberships read `vault_header` (R-223). |
+| R-256 | The congregation password works only for memberships with **full access**. The server lets only those memberships read `vault_header` (R-223). | **Done:** `vault_header` is readable only by the `owner` and `full` roles. |
 | R-257 | A member who forgets their **account password** loses only their account, not data. An admin sends a new invite for the same person. |
 
 ---
@@ -627,8 +628,8 @@ for each domain that the member's roles can read:
 
 - **Day-to-day sign-in** in Cloud mode needs only the account password, on any device.
   - It unwraps the personal keys, then the grants, then the member's domain keys.
-  - Full-access members also hold grants for every domain. They need the congregation password only
-    to join, or to recover.
+  - Full-access members hold a grant of the root key itself (D-48), which unwraps every domain.
+    They need the congregation password only to join, or to recover.
 - HKDF is one-way. The server knows `auth_key`, but it cannot compute `account_kek` from it.
 - `salt_a` is deterministic, because the client needs it before sign-in. Bitwarden uses the same
   approach. `salt_c` is random and stored in `vault_header`.
@@ -643,8 +644,8 @@ for each domain that the member's roles can read:
 
 | ID | Requirement |
 |---|---|
-| R-314 | The app MUST **generate** the congregation password by default, as a 6-word passphrase from the EFF wordlist (about 77 bits). The admin MAY choose their own. It MUST have at least 6 characters, an uppercase letter, a lowercase letter, a number and a symbol (decided 2026-11-17); the strength meter is shown as advice. ⚠️ Six characters are weak against offline guessing if encrypted data leaks; a minimum of 10–12 characters is recommended (to decide). **Why:** the server stores the salt and the wrapped key, so a malicious operator could try passwords offline. Argon2id plus a strong passphrase makes that infeasible. |
-| R-315 | Account passwords MUST reach zxcvbn score 3 or more. |
+| R-314 | The app MUST **generate** the congregation password by default, as a 6-word passphrase from the EFF wordlist (about 77 bits). The admin MAY choose their own. It MUST have at least 6 characters, an uppercase letter, a lowercase letter, a number and a symbol (decided 2026-11-17); the strength meter is shown as advice. ⚠️ Six characters are weak against offline guessing if encrypted data leaks; a minimum of 10–12 characters is recommended (to decide). **Why:** the server stores the salt and the wrapped key, so a malicious operator could try passwords offline. Argon2id plus a strong passphrase makes that infeasible. | **Generator done** (2026-11-27, `theo_crypto::passphrase`): 6 words of the EFF large list (7,776 words, CC BY 3.0 US, attribution in the module) chosen with the OS CSPRNG by rejection sampling, ≈ 77.5 bits. It replaced a demo generator (68 words, not cryptographic, ≈ 36 bits). |
+| R-315 | Account passwords MUST reach zxcvbn score 3 or more. | **Done** (2026-11-27): zxcvbn 3 (`theo-app/src/password.rs`), with the username and name as extra weak words. ⚠️ It adds about 0.8 MB (gzip) to the web app (see 9, size budgets). |
 
 ### 6.3 Argon2id parameters
 
@@ -666,12 +667,22 @@ AAD       = "theo/v1/record" ‖ congregation_id ‖ collection ‖ scope_id ‖
 plaintext = pad_padme( CBOR(schema_version, payload) )
 ```
 
+Implemented in `theo-crypto` (2026-11-25; module `envelope`, with `vault`, `keyring`, `account`, `grant`, `sign`):
+
+- `recipients = count (1, ≥ 1) | count × ( key_id (8) | X-Wing ciphertext (1120) | wrapped content key (48) )`.
+  - `key_id` is the first 8 bytes of `SHA-256("theo/v1/key-id" ‖ public key)`.
+  - The wrapping key is `HKDF(shared secret, "theo/v1/seal")`.
+- In the AAD, strings are length-prefixed (4 B LE). The trailing `suite ‖ domain_id ‖ key_version` is the whole envelope header, including the recipients.
+- Padding is `length (4 B LE) | CBOR bytes | zeros`, up to the Padmé size. The caller does the CBOR encoding.
+- Vault header, keyring rows, wrapped personal keys and grants each have their own magic (`THVH`, none, `THPK`, `THGR`) and a format byte. Each is bound to the congregation, and where it applies to the member, domain and key version.
+- The fuzz target is in `theo-crypto/fuzz` (R-308).
+
 | ID | Requirement |
 |---|---|
 | R-303 | Every encryption MUST use a fresh random 24-byte nonce. |
 | R-304 | The AAD MUST bind the ciphertext to its congregation, collection, scope, record ID, version, key domain and key version. The server cannot then move records between rows, collections, scopes, versions or domains without detection. |
 | R-305 | Plaintext SHOULD be padded (Padmé) to hide exact sizes. |
-| R-306 | Serialization MUST be self-describing and able to evolve: CBOR (`minicbor` with indexed fields). |
+| R-306 | Serialization MUST be self-describing and able to evolve: CBOR. Implemented (2026-11-26) with `ciborium` over the models' serde form, field names as keys: `minicbor-serde` was tried and turns JSON `null` into an empty array, which loses `None`. |
 | R-307 | Unknown `format` or `suite` values MUST fail closed, with a clear error. |
 | R-308 | Envelope parsing MUST be fuzz-tested (`cargo-fuzz`). |
 
@@ -682,7 +693,7 @@ plaintext = pad_padme( CBOR(schema_version, payload) )
 | R-309 | Key material MUST be held in `Zeroizing`/`SecretBox` types, and wiped on lock, logout and drop. |
 | R-310 | **Auto-lock** after a configurable idle time (default 5 min), and when a mobile app goes to the background (default on). Locking drops all keys and all decrypted data. |
 | R-311 | **Optional recovery kit.** At setup, the admin MAY create a 256-bit recovery key, shown once as 24 words or a QR code. It wraps `root_key` a second time. Only the user holds it. It is off by default, and the UI explains the trade-off. |
-| R-312 | **Biometric unlock** (replaces "remember on this device", 2026-11-16). After a password unlock, the user MAY turn on biometric unlock per congregation and per device. A key that unwraps the congregation's keys is kept in secure hardware and released only after a biometric check: **Web:** WebAuthn passkey with the PRF extension (the browser stores only a key wrapped by the PRF output; nothing usable without the authenticator). **Windows:** Windows Hello. **macOS / iOS:** Keychain item with biometry access control (Touch ID, Face ID). **Android:** Keystore key bound to BiometricPrompt. **Linux:** not available; password only. Off by default. Turning it off, changing the congregation password or rotating keys deletes the stored key. |
+| R-312 | **Biometric unlock** (replaces "remember on this device", 2026-11-16). After a password unlock, the user MAY turn on biometric unlock per congregation and per device. A key that unwraps the congregation's keys is kept in secure hardware and released only after a biometric check: **Web:** WebAuthn passkey with the PRF extension (the browser stores only a key wrapped by the PRF output; nothing usable without the authenticator). **Windows:** Windows Hello. **macOS / iOS:** Keychain item with biometry access control (Touch ID, Face ID). **Android:** Keystore key bound to BiometricPrompt. **Linux:** not available; password only. Off by default. Turning it off, changing the congregation password or rotating keys deletes the stored key. | **Done on the web** (2026-11-26, `platform::passkey_register`/`passkey_prf`, `theo_crypto::device`): the passkey's PRF output → HKDF → seals the root key of a Local congregation; a browser or authenticator without PRF is refused (a passkey that only proves who you are would not protect the key). Cloud congregations need no passkey: they open with the account. Kept on a password change (the root key does not change; R-246 rotation does not apply to Local). The apps (Windows Hello, Keychain, Android Keystore) are still to do. |
 | R-313 | The app MUST show a clear, unskippable warning at setup: no one can recover a lost congregation password. |
 
 ### 6.6 Post-quantum features
@@ -743,7 +754,7 @@ name stays in the encrypted person record.
 
 | ID | Requirement |
 |---|---|
-| R-331 | The web build MUST ship a strict CSP: `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; base-uri 'none'; form-action 'none'`. **`img-src`:** `'self' data: blob:` plus the tile hosts. The public build allows `https:`, because the provider is configurable (R-043). **`connect-src`:** `'self'`, the jw.org download hosts (S8: `b.jw-cdn.org` for the links, which allows browsers, and the `*.jw-cdn.org` file hosts, which do not, so the web falls back to picking the file), and the SurrealDB server. The public build cannot know the user's server in advance, so it allows `wss:`. A self-hosted build (the `theo-db/deploy` Caddy example) lists exact hosts. Spike S5 records any extra exception that Dioxus needs. |
+| R-331 | The web build MUST ship a strict CSP: `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; base-uri 'none'; form-action 'none'`. **`img-src`:** `'self' data: blob:` plus the tile hosts. The public build allows `https:`, because the provider is configurable (R-043). **`connect-src`:** `'self'`, the jw.org download hosts (S8: `b.jw-cdn.org` for the links, which allows browsers, and the `*.jw-cdn.org` file hosts, which do not, so the web falls back to picking the file), and the SurrealDB server. The public build cannot know the user's server in advance, so it allows `https:` (the app calls SurrealDB with HTTPS requests, not WebSocket, D-47). A self-hosted build (the `theo-db/deploy` Caddy example) lists exact hosts. Spike S5 records any extra exception that Dioxus needs. |
 | R-332 | Hosts that can set headers MUST send CSP as a header, plus HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `frame-ancestors 'none'` and a deny-all `Permissions-Policy`. On GitHub Pages, which cannot set headers, the CSP goes in a `<meta>` tag. Map tile images override the referrer policy with `referrerpolicy="strict-origin"`, because the OSM policy requires a Referer (R-041). |
 | R-333 | Logs (`tracing`) MUST NEVER contain secrets, plaintext, usernames or record content. A log redaction test enforces this. |
 | R-334 | All repos MUST run `cargo-deny` (advisories, licences, banned crates, duplicate versions) and `cargo-audit` in CI. |
@@ -902,10 +913,10 @@ several crates at once.)
 | Crate | Type | Contents | Depends on | Status |
 |---|---|---|---|---|
 | `theo-crypto` | lib | KDF, AEAD, envelopes, hybrid PQ KEM and signatures, key hierarchy, passphrases, zeroization | external crates only | Planned |
-| `theo-core` | lib | Domain models for M-01 to M-13, eligibility, permission model, key domains and grants, use cases, session and lock lifecycle, search, conflict handling, jw.org EPUB parser (parsing only, no network) | `theo-crypto`, `theo-db` | Planned |
-| `theo-db` | lib | **The single database wrapper**: `Db` API, engines (`sqlite`, `indexeddb`, `surreal-remote`, `memory`), conformance suite, SurrealDB migrations (`surreal/`), deployment examples (`deploy/`) | external crates only | Planned |
+| `theo-core` | lib | Domain models for M-01 to M-13, eligibility, permission model, key domains and grants, use cases, session and lock lifecycle, search, conflict handling, jw.org EPUB parser (parsing only, no network) | `theo-crypto`, `theo-db` | In use: models and rules of every module so far (M-01 to M-12, M-14, M-15), the collection → key domain map (`collections.rs`), the encrypted `Store` of a congregation on `theo-db` (`store.rs`) and the synthetic demo congregation (`demo.rs`). |
+| `theo-db` | lib | **The single database wrapper**: `Db` API, engines (`sqlite`, `indexeddb`, `surreal-remote`, `memory`), conformance suite, SurrealDB migrations (`surreal/`), deployment examples (`deploy/`) | external crates only | In use: `Db` API; memory, SQLite, IndexedDB and SurrealDB engines; conformance suite (2026-11-26). |
 | `theo-ui` | lib | Dioxus components, `AppShell`, theme CSS, icons, gallery example | `dioxus` only (no domain knowledge) | In use |
-| `theo-app` | bin | Routes, module screens, wiring, network fetches (EPUB downloads, map tiles), `Dioxus.toml`, platform configs | `theo-core`, `theo-db`, `theo-ui` | In use (with in-memory mocks of the planned crates) |
+| `theo-app` | bin | Routes, module screens, wiring, network fetches (EPUB downloads, map tiles), `Dioxus.toml`, platform configs | `theo-core`, `theo-db`, `theo-ui` | In use: Local congregations are stored encrypted on the device, Cloud congregations encrypted on the account's SurrealDB server; only the demo is an in-memory mock |
 
 ```text
 theo-app ──► theo-ui
@@ -1010,7 +1021,7 @@ extra permissions:
 
 | ID | Requirement |
 |---|---|
-| R-701 | No repo MAY contain a secret: no API keys, passwords, tokens, private keys, DB credentials, signing certificates or `.env` files. **The app needs no build-time secrets at all.** Server URLs and credentials are runtime input from the user. |
+| R-701 | No repo MAY contain a secret: no API keys, passwords, tokens, private keys, DB credentials, signing certificates or `.env` files. **The app needs no build-time secrets at all.** Server URLs and credentials are runtime input from the user. | Note (2026-11-27): release builds read the Cloud server address from the repository secret `THEO_CLOUD_URL` (D-49). It is not a credential (every built app contains it); it is a secret only so it stays out of logs and the repository. |
 | R-702 | Every repo's `.gitignore` covers `.env*`, `*.pem`, `*.key`, `*.p12`, `*.jks`, `*.keystore`, `*.mobileprovision`, `*.sqlite*`, `*.db` and local exports. |
 | R-703 | GitHub **secret scanning** with **push protection**, and Dependabot alerts, are on for every repo. CI runs `gitleaks` on every pull request. |
 | R-704 | Release signing material (Apple, Android, Windows) lives only in GitHub Actions **environment secrets** of a protected `release` environment, with a required reviewer. Provenance uses keyless GitHub artifact attestations. |
@@ -1019,6 +1030,7 @@ extra permissions:
 | R-707 | `main` is protected: pull request + green CI required. Signed commits are recommended. |
 | R-708 | Each repo has a `SECURITY.md` and GitHub private vulnerability reporting turned on. |
 | R-709 | Each repo has a `LICENSE` file (10.4). |
+| R-710 | **Safe code, checked in CI** (2026-11-27): no `unsafe` in our crates (`unsafe_code = "forbid"` in all five); clippy denies `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` outside tests; data read from storage or a server is parsed with checked conversions (a bad value is an error, never a cut number). Dependencies, which do use `unsafe` (crypto, SQLite, browser bindings), are checked by `cargo deny` (`deny.toml`: RustSec advisories, licenses, sources) on every pull request and weekly. |
 
 ---
 
@@ -1118,6 +1130,13 @@ extra permissions:
 | D-30 | 2026-11-19 | Charts: series colours come from two theme tokens (`--chart-1`, `--chart-2`) with their own light and dark steps, checked with a palette validator (colour-blind separation, lightness, contrast). Line charts start at zero, have a legend for two series, end labels, and a tooltip on hover and keyboard focus; a table with the same numbers is on the page | Accepted |
 | D-31 | 2026-11-19 | One month calendar component in `theo-ui` (`Calendar`) for every module that shows things over days (events now; schedules and absences later): a month grid with bars for things that last several days on larger screens, and a compact grid with dots plus a list on phones | Accepted |
 | D-44 | 2026-11-25 | **No workbook relay.** A relay server (a Cloudflare Worker passing the jw.org EPUB to browsers) was built and then dropped: the project keeps no servers (P7). On the web the workbook is downloaded by the user and picked as a file (R-035); desktop and phone download it directly | Rejected |
+| D-45 | 2026-11-25 | **Public talks by number only.** Theo Manager stores talk numbers, never titles: the outlines are not ours to publish. Models of M-04, M-05 and M-06 live in `theo-core` (`docs/model/m04…m06`) | Accepted |
+| D-46 | 2026-11-26 | **SurrealDB without owner credentials.** One database per server holds every congregation, kept apart by permissions on membership; the owner applies `theo-db/surreal/schema.surql` once. The app signs in as a record user with the auth key (never the password), talks plain HTTP (`/signup`, `/signin`, `/rpc` with bound variables) and stores no credentials or tokens. Each member keeps the congregation's name encrypted with their own account key. Replaces R-221 (database per congregation) and R-228 (provisioning from the app) | Accepted |
+| D-47 | 2026-11-26 | **Invites without SIGNUP changes.** A separate record access `join` signs in with the account's auth key and the invite's `proof`; its SIGNIN block (which runs with the access method's rights) checks the invite, creates the membership with the invite's role (`full` or `member`) and spends it. So an existing account can join, and the 1 KiB sign-up body limit does not matter. Personal keys and the encrypted display name are stored on the account after sign-up. A member invite's bundle holds the congregation name and the domain secrets of its permissions (`theo_core::invites::domains_for`); the new member turns them into grants to their own X-Wing key and deletes the bundle. Members open the congregation with their grants only (`Store::open_with_keys`), without the congregation password; full-access members still use the password. ⚠️ To decide: every member gets the **people** domain (the app needs names, the member's person and permissions), so a publisher can decrypt contact details until that domain is split | Accepted |
+| D-48 | 2026-11-26 | **Full-access sign-in with a root-key grant.** The owner and full-access members receive the root key itself as a grant (domain 0, `theo_crypto::grant::grant_root`), X-Wing-encapsulated to their personal key. They then open the congregation with their account password only; the congregation password is needed once (to join with full access) or to recover. A root grant gives no more than the password already gives (the root key unwraps every domain), and it ends with the membership (R-246). Members keep domain grants only | Accepted |
+| D-49 | 2026-11-26 | **Cloud is a service, its address set at build time.** The apps talk to one SurrealDB server chosen when they are built (`THEO_CLOUD_URL`, plus `THEO_CLOUD_NS`/`THEO_CLOUD_DB`, `theo-app/src/cloud.rs`); users never type a server address, and the address is not in the source code (release builds read the repository secret `THEO_CLOUD_URL`). The app still holds no credentials (D-46). Invite links carry only the token (`/join#t=…`); a link naming another server is refused. A build without the variable offers Local only | Accepted |
+| D-50 | 2026-11-26 | **One sign-in, one fingerprint.** Sign-in is remembered per device (R-093) and only congregations lock. One passkey per account per device (credential reused), whose PRF output seals, per item: a Local congregation's root key, or the Cloud account's keys. So after the first time, opening a congregation is one fingerprint: for Cloud it opens the account keys and, through the grants, the congregation. The first unlock with a password suggests the fingerprint (switch on by default). *Stay unlocked* (R-092) skips the question for its time | Accepted |
+| D-51 | 2026-11-27 | **Export, import and moving between Local and Cloud.** Exports are always encrypted, with a password chosen at export (a generated passphrase by default), never the congregation password; the file is CBOR + deflate inside the password envelope. Import replaces everything. A congregation moves between this device (IndexedDB or SQLite) and the Cloud (SurrealDB) keeping its id, keys and congregation password (`Store::copy_to`): the new copy is written completely first, the old one deleted after. Moving to a device is for the owner only and ends everyone else's access, which the app says before it starts. See `docs/design/local-sharing.md`, *Backup* | Accepted |
 | D-32 | 2026-11-19 | Field service meetings keep the **sent version** next to the current one: planners work on a draft month and send it; a change after a send is visible to others only after the next send. Preset availability lists who **can** conduct each preset: nobody is available until ticked. Sending notifies only the people concerned, in *My assignments* on the home page | Accepted |
 | D-25 | 2026-11-17 | **One repository** (`theo-manager`) with a Cargo workspace instead of one repository per crate. GitHub Actions for CI and releases; the web app on GitHub Pages | Accepted |
 | D-20 | 2026-11-16 | `/app` home is a user-arranged dashboard: widgets reorder and resize by dragging (pointer events, works with touch). Layout saved per congregation (R-061) | Accepted |

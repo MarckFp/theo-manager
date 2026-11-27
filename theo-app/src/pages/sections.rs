@@ -208,7 +208,12 @@ pub fn SettingsPage() -> Element {
                     Text { tone: TextTone::Small, "Example: {preview(&c.defaults)}" }
                 }
             }
-            BackupCard {}
+            if state.can_manage_data() {
+                DataCard {}
+            }
+            if state.manages_cloud() {
+                ServerLogCard {}
+            }
             {
                 let log = state.directory().log;
                 rsx! {
@@ -232,62 +237,168 @@ pub fn SettingsPage() -> Element {
     }
 }
 
-/// Create and restore an encrypted backup of the open congregation.
+/// One line of the server's audit log in words: (icon, text).
+fn describe_audit(e: &theo_db::surreal::AuditEntry) -> (Icon, String) {
+    let target = e.target.clone().unwrap_or_default();
+    let verb = |created: &str, changed: &str, deleted: &str| match e.action.as_str() {
+        "create" => created.to_string(),
+        "delete" => deleted.to_string(),
+        _ => changed.to_string(),
+    };
+    match e.what.as_str() {
+        "record" => {
+            let collection = target.split(':').next().unwrap_or_default().replace('_', " ");
+            (Icon::Edit, format!("{} a record in {collection}", verb("Added", "Changed", "Deleted")))
+        }
+        "member" => (Icon::User, verb(&format!("{target} joined"), &format!("Membership of {target} changed"), &format!("{target} left or was removed"))),
+        "invite" if e.action == "use" => (Icon::Invitation, format!("An invite was used ({target})")),
+        "invite" => (Icon::Invitation, verb(&format!("Invite made ({target})"), "Invite changed", "Invite cancelled or removed")),
+        "password" => (Icon::Key, verb("Congregation password set", "Congregation password changed", "Congregation password removed")),
+        "key" => (Icon::Key, verb(&format!("Key {target} made"), &format!("Key {target} changed"), &format!("Key {target} removed"))),
+        "grant" => (Icon::Permission, verb(&format!("Keys given: {target}"), &format!("Keys changed: {target}"), &format!("Keys taken back: {target}"))),
+        other => (Icon::History, format!("{} {other}", e.action)),
+    }
+}
+
+/// The server's audit log of a Cloud congregation (R-227): who changed what, and when. Written by
+/// the server itself, so nobody can change it; it holds no content, only metadata.
 #[component]
-fn BackupCard() -> Element {
+fn ServerLogCard() -> Element {
     let state = use_app_state();
-    let toaster = use_toaster();
-    let name = state.active_congregation().map(|c| c.name).unwrap_or_default();
-    let mut creating = use_signal(|| false);
-    let mut restoring = use_signal(|| false);
+    let mut shown = use_signal(|| PAGE);
+    let log = use_resource(move || async move { state.audit_log(0, shown()).await });
     rsx! {
-        Card { title: "Backup", icon: Icon::Download,
-            Text { tone: TextTone::Muted,
-                "A backup is one file with all the data of {name}, encrypted with the congregation password. Keep it in a safe place. Without the password nobody can open it, not even you."
-            }
-            Cluster { gap: Gap::Sm,
-                ActionButton { action: Action::CreateBackup, variant: ButtonVariant::Secondary, onclick: move |_| creating.set(true) }
-                ActionButton { action: Action::RestoreBackup, variant: ButtonVariant::Ghost, onclick: move |_| restoring.set(true) }
-            }
-        }
-        if creating() {
-            CreateBackupDialog { onclose: move |_| creating.set(false) }
-        }
-        if restoring() {
-            RestoreBackupDialog {
-                onclose: move |_| restoring.set(false),
-                ondone: move |people: usize| {
-                    restoring.set(false);
-                    toaster.success(format!("Backup restored: {people} people."));
+        Card { title: "Server log", icon: Icon::Server,
+            Text { tone: TextTone::Muted, "Kept by the server: who changed what, and when. It never shows the content, which only members can decrypt." }
+            match &*log.read() {
+                None => rsx! { Text { tone: TextTone::Muted, "Loading…" } },
+                Some(Err(e)) => rsx! { Alert { tone: Tone::Error, "The server log could not be read: {e}" } },
+                Some(Ok(entries)) if entries.is_empty() => rsx! { Text { tone: TextTone::Muted, "Nothing recorded yet." } },
+                Some(Ok(entries)) => rsx! {
+                    Text { tone: TextTone::Small, "Lines older than a year are removed." }
+                    ItemList {
+                        items: entries.iter().map(|e| {
+                            let (icon, title) = describe_audit(e);
+                            let at = e.at.trim_start_matches("d'").trim_end_matches('\'').replace('T', " ");
+                            ListEntry {
+                                icon,
+                                title,
+                                subtitle: format!("@{} · {} UTC", e.actor.clone().unwrap_or_else(|| "server".into()), at.get(..16).unwrap_or(&at)),
+                                meta: String::new(),
+                            }
+                        }).collect(),
+                    }
+                    if entries.len() as u32 >= shown() {
+                        Cluster { gap: Gap::Sm,
+                            ActionButton { action: Action::View, variant: ButtonVariant::Ghost, label: "Show more", onclick: move |_| shown += PAGE }
+                        }
+                    }
                 },
             }
         }
     }
 }
 
+/// Lines of the server log per page.
+const PAGE: u32 = 50;
+
+/// Export, import, and where the congregation lives (D-51). For those who may manage its data:
+/// the user of a Local congregation, the owner and full-access members of a Cloud one.
 #[component]
-fn CreateBackupDialog(onclose: EventHandler<()>) -> Element {
+fn DataCard() -> Element {
+    let state = use_app_state();
+    let toaster = use_toaster();
+    let mut exporting = use_signal(|| false);
+    let mut importing = use_signal(|| false);
+    let mut moving = use_signal(|| false);
+    // Only the owner moves a Cloud congregation to a device (it ends everyone else's access).
+    let owner = use_resource(move || async move { state.owns_cloud_congregation().await });
+    let Some(c) = state.active_congregation() else { return rsx! {} };
+    let cloud = matches!(c.mode, StorageMode::Cloud { .. });
+    let can_move = c.stored && if cloud { owner().unwrap_or(false) } else { crate::cloud::available() };
+    let name = c.name.clone();
+    rsx! {
+        Card { title: "Export, import and storage", icon: Icon::Download,
+            Text { tone: TextTone::Muted,
+                "An export is one small file with all the data of {name}: people, meetings, duties, talks, reports, territories, permissions and settings. It is always encrypted, with a password you choose when exporting. Keep it in a safe place."
+            }
+            Cluster { gap: Gap::Sm,
+                ActionButton { action: Action::CreateBackup, label: "Export", variant: ButtonVariant::Secondary, onclick: move |_| exporting.set(true) }
+                ActionButton { action: Action::RestoreBackup, label: "Import", variant: ButtonVariant::Ghost, onclick: move |_| importing.set(true) }
+            }
+            if c.stored {
+                Divider {}
+                Text { tone: TextTone::Muted,
+                    if cloud { "Stored in the Cloud: encrypted on the Theo Manager servers, for every member." } else { "Stored on this device only, encrypted." }
+                }
+                if can_move {
+                    Cluster { gap: Gap::Sm,
+                        ActionButton {
+                            action: if cloud { Action::MoveToDevice } else { Action::MoveToCloud },
+                            variant: ButtonVariant::Secondary,
+                            onclick: move |_| moving.set(true),
+                        }
+                    }
+                } else if cloud {
+                    Text { tone: TextTone::Small, "Only the owner can move it to a device." }
+                }
+            }
+        }
+        if exporting() {
+            ExportDialog { onclose: move |_| exporting.set(false) }
+        }
+        if importing() {
+            RestoreBackupDialog {
+                onclose: move |_| importing.set(false),
+                ondone: move |people: usize| {
+                    importing.set(false);
+                    toaster.success(format!("Imported: {people} people. Everything else was replaced too."));
+                },
+            }
+        }
+        if moving() {
+            MoveDialog { to_cloud: !cloud, onclose: move |_| moving.set(false) }
+        }
+    }
+}
+
+/// Exports the open congregation: always encrypted, with a generated passphrase (default) or a
+/// strong password of your own. Not the congregation password: the file may be handed on.
+#[component]
+fn ExportDialog(onclose: EventHandler<()>) -> Element {
     let mut state = use_app_state();
     let toaster = use_toaster();
-    let mut password = use_signal(String::new);
+    let mut own = use_signal(|| "generated".to_string());
+    let mut generated = use_signal(crate::password::generate);
+    let mut saved = use_signal(|| false);
+    let mut custom = use_signal(String::new);
+    let mut custom2 = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut busy = use_signal(|| false);
-    let create = move |_| {
-        if !state.congregation_password_ok(&password()) {
-            error.set(Some("This is not the congregation password.".into()));
+    let name = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let mine = own() == "own";
+    let score = crate::password::strength(&custom(), &[name.as_str()]);
+    let ready = if mine { score >= 3 && custom2() == custom() } else { saved() && !generated().is_empty() };
+    let export = move |_| {
+        if !ready {
+            error.set(Some(if mine { "Use a strong password (at least \u{201c}Strong\u{201d}) and type it twice.".into() } else { "Confirm that you wrote the password down.".into() }));
             return;
         }
-        let Some(backup) = state.backup() else { return };
+        let password = if mine { custom() } else { generated() };
         busy.set(true);
         spawn(async move {
             // Let the spinner appear before the (deliberately slow) key derivation.
             theo_ui::sleep(std::time::Duration::from_millis(60)).await;
-            match crate::backup::seal(&backup, &password(), theo_crypto::KdfParams::DEFAULT) {
+            let Some(backup) = state.backup() else {
+                busy.set(false);
+                return;
+            };
+            match crate::backup::seal(&backup, &password, theo_crypto::KdfParams::DEFAULT) {
                 Ok(bytes) => {
-                    let file = format!("{}-backup-{}.{}", crate::people::fold(&backup.details.name).replace(' ', "-"), &backup.created[..10], crate::backup::EXTENSION);
+                    let file = format!("{}-{}.{}", crate::people::fold(&backup.details.name).replace(' ', "-"), &backup.created[..10], crate::backup::EXTENSION);
                     match crate::platform::save_file(&file, "application/octet-stream", &bytes) {
                         Ok(msg) => {
-                            state.log("Created a backup.");
+                            state.log("Exported the congregation.");
                             toaster.success(msg);
                             onclose.call(());
                         }
@@ -299,21 +410,153 @@ fn CreateBackupDialog(onclose: EventHandler<()>) -> Element {
             busy.set(false);
         });
     };
+    let choices = vec![
+        Segment { value: "generated".into(), label: "Generated password".into(), icon: Some(Icon::Magic) },
+        Segment { value: "own".into(), label: "My own password".into(), icon: Some(Icon::Key) },
+    ];
     rsx! {
         Dialog {
             open: true,
             onclose: move |_| onclose.call(()),
-            title: "Create backup",
-            description: "Everything in this congregation: people, families, groups, reports, privileges, permissions, settings and the activity log.",
+            title: "Export {name}",
+            description: "One encrypted file with all the data. Import it later here, in another congregation, or after moving between this device and the Cloud.",
             actions: rsx! {
                 ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
-                ActionButton { action: Action::CreateBackup, loading: busy(), onclick: create }
+                ActionButton { action: Action::CreateBackup, label: "Export", loading: busy(), onclick: export }
             },
             Stack {
-                Field { label: "Congregation password", required: true, error: error(), help: "The backup is encrypted with it. You need the same password to restore it.",
-                    PasswordInput { value: password(), autocomplete: "current-password", invalid: error().is_some(), oninput: move |v| { password.set(v); error.set(None); } }
+                if let Some(e) = error() {
+                    Alert { tone: Tone::Error, "{e}" }
                 }
-                Text { tone: TextTone::Small, "Encrypting takes a few seconds on purpose: it makes guessing the password very slow." }
+                Segmented { value: own(), options: choices, onchange: move |v| { own.set(v); error.set(None); } }
+                if mine {
+                    Field { label: "Password of the file", required: true,
+                        PasswordInput { value: custom(), oninput: move |v| { custom.set(v); error.set(None); }, autocomplete: "new-password", strength: Some(score) }
+                    }
+                    Field { label: "Repeat the password", required: true,
+                        PasswordInput { value: custom2(), oninput: move |v| { custom2.set(v); error.set(None); }, autocomplete: "new-password" }
+                    }
+                } else {
+                    Field { label: "Password of the file",
+                        Code { "{generated}" }
+                    }
+                    Cluster { gap: Gap::Sm,
+                        ActionButton { action: Action::Regenerate, variant: ButtonVariant::Secondary, onclick: move |_| { generated.set(crate::password::generate()); saved.set(false); } }
+                    }
+                    Switch { checked: saved(), onchange: move |v| { saved.set(v); error.set(None); }, label: "I have written this password down", description: "It is shown only now." }
+                }
+                Text { tone: TextTone::Small, "Without this password nobody can open the file, not even you. It is not the congregation password, so the file can be handed on without giving that away. Encrypting takes a few seconds on purpose." }
+            }
+        }
+    }
+}
+
+/// Moves the open congregation between this device and the Cloud (D-51): explains what happens,
+/// asks for the account to move it to, and for a Cloud congregation that everybody else loses
+/// access.
+#[component]
+fn MoveDialog(to_cloud: bool, onclose: EventHandler<()>) -> Element {
+    let mut state = use_app_state();
+    let toaster = use_toaster();
+    let mut mode = use_signal(|| "existing".to_string());
+    let mut display = use_signal(String::new);
+    let mut username = use_signal(String::new);
+    let mut password = use_signal(String::new);
+    let mut confirm = use_signal(String::new);
+    let mut agreed = use_signal(|| false);
+    let mut error = use_signal(|| None::<String>);
+    let mut busy = use_signal(|| false);
+    let name = state.active_congregation().map(|c| c.name).unwrap_or_default();
+    let new = mode() == "new";
+    let score = crate::password::strength(&password(), &[username().trim(), display().trim()]);
+    let ready = username().trim().len() >= 3
+        && !password().is_empty()
+        && (!new || (!display().trim().is_empty() && score >= 3 && confirm() == password()))
+        && (to_cloud || agreed());
+    let start = move |_| {
+        if !ready {
+            error.set(Some(if new { "Fill in every field; the password must be strong and typed twice.".into() } else { "Fill in the username and the password.".into() }));
+            return;
+        }
+        busy.set(true);
+        error.set(None);
+        spawn(async move {
+            // Let the spinner appear before the (deliberately slow) key derivation.
+            theo_ui::sleep(std::time::Duration::from_millis(60)).await;
+            let new_name = new.then(|| display.read().trim().to_string());
+            let result = if to_cloud {
+                state.move_to_cloud(&username(), &password(), new_name.as_deref()).await
+            } else {
+                state.move_to_device(&username(), &password(), new_name.as_deref()).await
+            };
+            busy.set(false);
+            match result {
+                Ok(()) => {
+                    toaster.success(if to_cloud { "Moved to the Cloud. Open it with your Cloud account, on any device." } else { "Moved to this device. Open it with the congregation password here." });
+                    onclose.call(());
+                }
+                Err(e) => error.set(Some(e)),
+            }
+        });
+    };
+    let accounts = vec![
+        Segment { value: "existing".into(), label: if to_cloud { "I have a Cloud account".into() } else { "Account on this device".into() }, icon: Some(Icon::User) },
+        Segment { value: "new".into(), label: "New account".into(), icon: Some(Icon::SignUp) },
+    ];
+    rsx! {
+        Dialog {
+            open: true,
+            onclose: move |_| onclose.call(()),
+            title: if to_cloud { "Move {name} to the Cloud" } else { "Move {name} to this device" },
+            description: if to_cloud { "It moves to the Theo Manager Cloud and leaves this device." } else { "It moves to this device and leaves the Cloud." },
+            actions: rsx! {
+                ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
+                ActionButton {
+                    action: if to_cloud { Action::MoveToCloud } else { Action::MoveToDevice },
+                    label: "Move",
+                    variant: if to_cloud { ButtonVariant::Primary } else { ButtonVariant::Destructive },
+                    loading: busy(),
+                    onclick: start,
+                }
+            },
+            Stack {
+                if to_cloud {
+                    Alert { tone: Tone::Info, title: "What happens",
+                        "1. You sign in to your Cloud account, or create one. 2. Everything is copied to the Cloud, encrypted on this device first, with the same congregation password. 3. Only then is the copy on this device deleted. Afterwards you open it with your Cloud account, on any device, and you can invite others."
+                    }
+                } else {
+                    Alert { tone: Tone::Error, title: "Everybody else loses access",
+                        "Only you keep it, on this device. The Cloud copy is deleted for everyone: the other members can no longer open it, open invites stop working, and this cannot be undone. Export it first if you want to keep a copy. Afterwards you open it with the congregation password on this device."
+                    }
+                }
+                if let Some(e) = error() {
+                    Alert { tone: Tone::Error, "{e}" }
+                }
+                Segmented { value: mode(), options: accounts, onchange: move |v| { mode.set(v); error.set(None); } }
+                if new {
+                    Field { label: "Your name", required: true,
+                        TextInput { value: display(), oninput: move |v| display.set(v), autocomplete: "name" }
+                    }
+                }
+                Field { label: "Username", required: true, help: if to_cloud && new { "Not your real name: the server can see usernames." } else { "" },
+                    TextInput { value: username(), oninput: move |v| { username.set(v); error.set(None); }, autocomplete: "username", icon: Icon::User }
+                }
+                Field { label: if to_cloud { "Cloud account password" } else { "Password" }, required: true,
+                    PasswordInput {
+                        value: password(),
+                        oninput: move |v| { password.set(v); error.set(None); },
+                        autocomplete: if new { "new-password" } else { "current-password" },
+                        strength: if new { Some(score) } else { None },
+                    }
+                }
+                if new {
+                    Field { label: "Repeat password", required: true,
+                        PasswordInput { value: confirm(), oninput: move |v| confirm.set(v), autocomplete: "new-password" }
+                    }
+                }
+                if !to_cloud {
+                    Switch { checked: agreed(), onchange: move |v| agreed.set(v), label: "I understand that everybody else loses access", description: "The congregation will exist only on this device." }
+                }
             }
         }
     }
@@ -351,23 +594,23 @@ fn RestoreBackupDialog(onclose: EventHandler<()>, ondone: EventHandler<usize>) -
         Dialog {
             open: true,
             onclose: move |_| onclose.call(()),
-            title: "Restore backup",
-            description: "Choose a backup file of this congregation and type the password it was made with.",
+            title: "Import",
+            description: "Choose an export file (.theobackup) and type its password.",
             actions: rsx! {
                 ActionButton { action: Action::Cancel, onclick: move |_| onclose.call(()) }
-                ActionButton { action: Action::RestoreBackup, variant: ButtonVariant::Destructive, label: "Restore and replace", loading: busy(), onclick: restore }
+                ActionButton { action: Action::RestoreBackup, variant: ButtonVariant::Destructive, label: "Import and replace", loading: busy(), onclick: restore }
             },
             Stack {
-                Alert { tone: Tone::Warning, title: "This replaces all data of {name} on this device",
-                    "Everything that is not in the backup is lost. The congregation password and the storage mode stay as they are."
+                Alert { tone: Tone::Warning, title: "This replaces all data of {name}",
+                    "Everything that is not in the file is lost, for everyone who uses this congregation. The congregation password and where it is stored stay as they are."
                 }
-                Field { label: "Backup file", required: true,
+                Field { label: "Export file", required: true,
                     Cluster { gap: Gap::Sm,
                         FileButton { label: "Choose file", icon: Icon::Upload, accept: ".{crate::backup::EXTENSION}", on_file: move |f| { file.set(Some(f)); error.set(None); } }
                         Text { tone: TextTone::Small, "{chosen}" }
                     }
                 }
-                Field { label: "Password of the backup", required: true, error: error(),
+                Field { label: "Password of the file", required: true, error: error(),
                     PasswordInput { value: password(), autocomplete: "current-password", invalid: error().is_some(), oninput: move |v| { password.set(v); error.set(None); } }
                 }
             }
@@ -428,36 +671,31 @@ pub fn Me() -> Element {
                 }
                 Card { title: "Security", icon: Icon::Shield,
                     Stack {
-                        if let (Some(label), Some(c)) = (biometric_label(), congregation.clone()) {
+                        if let (Some(label), Some(c)) = (biometric_label().filter(|_| congregation.as_ref().is_some_and(|c| state.passkey_available(&c.id))), congregation.clone()) {
                             Switch {
-                                checked: c.biometric || crate::platform::stored_biometric(&c.id).is_some(),
+                                checked: state.has_passkey(&c.id),
                                 onchange: move |v| {
                                     let id = c.id.clone();
                                     if v {
-                                        // The browser asks for the fingerprint or face, then remembers it.
-                                        let username = state.account().map(|a| a.username).unwrap_or_default();
-                                        let display = state.account().map(|a| a.display_name).unwrap_or_default();
+                                        // The browser asks for the fingerprint, face or PIN and makes a passkey.
                                         spawn(async move {
-                                            match crate::platform::biometric_register(&username, &display).await {
-                                                Ok(credential) => {
-                                                    crate::platform::store_biometric(&id, Some(&credential));
-                                                    state.set_biometric(&id, true);
-                                                    toaster.success("Biometric unlock is on for this device.");
-                                                }
-                                                Err(e) => toaster.error(format!("Biometric unlock is not on: {e}")),
+                                            match state.enable_passkey(&id).await {
+                                                Ok(()) => toaster.success("Passkey unlock is on for this device."),
+                                                Err(e) => toaster.error(format!("Passkey unlock is not on: {e}")),
                                             }
                                         });
                                     } else {
-                                        crate::platform::store_biometric(&id, None);
-                                        state.set_biometric(&id, false);
-                                        toaster.success("Biometric unlock is off.");
+                                        state.disable_passkey(&id);
+                                        toaster.success("Passkey unlock is off.");
                                     }
                                 },
                                 label: "Unlock {c.name} with {label}",
-                                description: "The key stays in this device's secure hardware.",
+                                description: "The congregation's key is sealed by the passkey and kept only on this device; without the passkey's fingerprint, face or PIN it cannot be opened.",
                             }
+                        } else if congregation.as_ref().is_some_and(|c| matches!(c.mode, StorageMode::Cloud { .. })) {
+                            Text { tone: TextTone::Muted, "This Cloud congregation opens with your account; it needs no passkey of its own." }
                         } else {
-                            Text { tone: TextTone::Muted, "Biometric unlock is not available on this device." }
+                            Text { tone: TextTone::Muted, "Passkey unlock is not available here yet: it needs the browser's passkeys (the installed apps will use the device's own key store)." }
                         }
                         StayUnlockedField {}
                     }

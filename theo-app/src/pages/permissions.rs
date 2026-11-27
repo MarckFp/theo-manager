@@ -134,6 +134,15 @@ fn PermissionsEditor(id: u32) -> Element {
         let a = draft();
         let actor = state.account().map(|x| x.display_name).unwrap_or_default();
         match state.update_directory(|dir| dir.set_access(id, a, &actor)) {
+            Ok(()) if state.manages_cloud() => {
+                // Cloud: what the server lets them write, and the keys of what they now read.
+                spawn(async move {
+                    match state.sync_member(id).await {
+                        Ok(()) => toaster.success("Permissions saved."),
+                        Err(e) => toaster.error(format!("Permissions saved in the congregation, but not yet on the server: {e}")),
+                    }
+                });
+            }
             Ok(()) => toaster.success("Permissions saved."),
             Err(e) => toaster.error(e),
         }

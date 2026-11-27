@@ -1,8 +1,8 @@
 # Data model
 
 One file per module (`REQUIREMENTS.md` 1.3). Each file says which records the module has, which
-fields they have, and the rules that `theo-core` enforces. The Rust types follow these files; they
-do not exist yet.
+fields they have, and the rules that `theo-core` enforces. The Rust types in `theo-core/src`
+follow these files. `theo-core/src/collections.rs` gives each collection its key domain.
 
 | Module | File | Status |
 |---|---|---|
@@ -11,6 +11,9 @@ do not exist yet.
 | M-09 Field service groups | [m09-field-service-groups.md](m09-field-service-groups.md) | Reviewed 2026-11-17, all decided |
 | M-10 Field service reports | [m10-field-service-reports.md](m10-field-service-reports.md) | Reviewed 2026-11-17, all decided |
 | M-03 Midweek meeting | [m03-midweek-meeting.md](m03-midweek-meeting.md) | First version 2026-11-24, 2 open questions |
+| M-04 Weekend meeting | [m04-weekend-meeting.md](m04-weekend-meeting.md) | First version 2026-11-25 (model only), 2 open questions |
+| M-05 Duties | [m05-duties.md](m05-duties.md) | First version 2026-11-25 (model only), 2 open questions |
+| M-06 Public talks | [m06-public-talks.md](m06-public-talks.md) | First version 2026-11-25 (model only), 2 open questions |
 | M-07 Territories | [m07-territories.md](m07-territories.md) | First version 2026-11-20, 2 open questions |
 | M-08 Public witnessing | [m16-public-witnessing.md](m16-public-witnessing.md) | First version 2026-11-19 |
 | M-11 Meeting attendance | [m11-meeting-attendance.md](m11-meeting-attendance.md) | First version 2026-11-19, 2 open questions |

@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of *My ministry*: a publisher logs each day's time, credit hours and Bible studies, and
+//! *My ministry*: a publisher logs each day's time, credit hours and Bible studies, and
 //! at the end of the month sends the totals as their field service report (M-10). Only the
 //! publisher sees their log. Rules: `docs/model/m10-field-service-reports.md`, "My ministry".
 
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn days_add_up_and_send_whole_hours() {
-        let mut d = crate::mock::demo_directory(36);
+        let mut d = crate::demo::demo_directory(36);
         d.ministry_log.clear();
         // September 2026: the 8th and 9th are in one week (Tuesday, Wednesday), the 14th in the next.
         let ym = (2026, 9);

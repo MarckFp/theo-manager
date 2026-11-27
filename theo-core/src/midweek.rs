@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of the midweek meeting (M-03): the plan of each week (sections, parts, songs, the
+//! The midweek meeting (M-03): the plan of each week (sections, parts, songs, the
 //! Bible reading), who has each part (main hall and, when on, the auxiliary classroom), the
 //! candidates for a part, filling, sending with notices, and statistics.
 //!
@@ -949,7 +949,7 @@ mod tests {
     }
 
     fn setup() -> Directory {
-        let mut d = crate::mock::demo_directory(36);
+        let mut d = crate::demo::demo_directory(36);
         d.midweek_weeks.clear();
         d.notices.clear();
         d.absences.clear();

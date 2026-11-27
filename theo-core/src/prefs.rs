@@ -143,9 +143,17 @@ pub fn language_label(code: &str) -> &'static str {
     LANGUAGES.iter().find(|(c, _)| *c == code).map(|(_, l)| *l).unwrap_or("English")
 }
 
-/// The device language (browser or OS locale), if the app supports it; otherwise English.
+static DEVICE_LOCALE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Tells the domain the device's locale (browser or OS, for example `"es-ES"`). The app calls it
+/// once at start; theo-core does not read the platform itself (R-121).
+pub fn set_device_locale(locale: &str) {
+    let _ = DEVICE_LOCALE.set(locale.to_lowercase());
+}
+
+/// The device language, if the app supports it; otherwise English.
 pub fn detected_language() -> String {
-    let locale = sys_locale::get_locale().unwrap_or_default().to_lowercase();
+    let locale = DEVICE_LOCALE.get().map(String::as_str).unwrap_or("");
     let primary = locale.split(['-', '_']).next().unwrap_or("");
     if LANGUAGES.iter().any(|(c, _)| *c == primary) { primary.to_string() } else { "en".to_string() }
 }
@@ -173,7 +181,8 @@ impl Default for Preferences {
 }
 
 /// A user's overrides. `None` means "use the congregation default".
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Overrides {
     pub date: Option<DateFormat>,
     pub time: Option<TimeFormat>,
@@ -229,6 +238,13 @@ impl Preferences {
         let (h, m) = (it.next().unwrap_or(0), it.next().unwrap_or(0));
         self.format_time(h, m)
     }
+}
+
+const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/// The English name of a month (1 = January).
+pub fn month_name(m: u32) -> &'static str {
+    MONTHS[(m.clamp(1, 12) - 1) as usize]
 }
 
 /// Today's date in UTC (the time zone of the congregation is applied later, with theo-core).

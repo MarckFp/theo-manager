@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of events (M-12): conventions, assemblies, the Memorial, the circuit overseer's visit
+//! Events (M-12): conventions, assemblies, the Memorial, the circuit overseer's visit
 //! and custom events, for everyone or for chosen people, optionally with absences.
 //! Rules: `docs/model/m12-events.md`.
 
@@ -177,7 +177,8 @@ pub fn add_days(iso: &str, n: i64) -> Option<String> {
     Some(format!("{y:04}-{m:02}-{d:02}"))
 }
 
-fn days_between(a: &str, b: &str) -> Option<i64> {
+/// Days from `a` to `b` (negative when `b` is earlier).
+pub(crate) fn days_between(a: &str, b: &str) -> Option<i64> {
     Some(day_number(b)? - day_number(a)?)
 }
 
@@ -294,7 +295,7 @@ mod tests {
 
     #[test]
     fn events_create_and_remove_their_absences() {
-        let mut dir = crate::mock::demo_directory(20);
+        let mut dir = crate::demo::demo_directory(20);
         dir.events.clear();
         dir.absences.clear();
         let mut d = EventDraft::new(EventKind::CircuitAssembly, "2027-03-06");

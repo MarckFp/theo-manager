@@ -235,6 +235,12 @@ pub enum Accent {
     Two,
     /// The third colour (`--chart-3`).
     Three,
+    /// The fourth colour (`--chart-4`).
+    Four,
+    /// The fifth colour (`--chart-5`).
+    Five,
+    /// The sixth colour (`--chart-6`).
+    Six,
 }
 
 impl Accent {
@@ -243,6 +249,9 @@ impl Accent {
             Accent::One => "bg-chart-1/15 text-chart-1",
             Accent::Two => "bg-chart-2/15 text-chart-2",
             Accent::Three => "bg-chart-3/15 text-chart-3",
+            Accent::Four => "bg-chart-4/15 text-chart-4",
+            Accent::Five => "bg-chart-5/15 text-chart-5",
+            Accent::Six => "bg-chart-6/15 text-chart-6",
         }
     }
 
@@ -251,6 +260,9 @@ impl Accent {
             Accent::One => "text-chart-1",
             Accent::Two => "text-chart-2",
             Accent::Three => "text-chart-3",
+            Accent::Four => "text-chart-4",
+            Accent::Five => "text-chart-5",
+            Accent::Six => "text-chart-6",
         }
     }
 }

@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of absences (M-01, R-017): who is away when. Schedules will not assign people during
+//! Absences (M-01, R-017): who is away when. Schedules will not assign people during
 //! an absence (R-012). Rules: `docs/model/m01-people.md`, "Absences".
 
 use crate::people::Directory;
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn absences_are_checked_and_found() {
-        let mut d = crate::mock::demo_directory(14);
+        let mut d = crate::demo::demo_directory(14);
         d.absences.clear();
         assert!(d.save_absence(None, Some(3), "2026-12-10", "2026-12-01", "").is_err());
         let id = d.save_absence(None, Some(3), "2026-12-01", "2026-12-10", " Holiday ").unwrap_or(0);
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn family_absences_are_found() {
-        let mut d = crate::mock::demo_directory(40);
+        let mut d = crate::demo::demo_directory(40);
         d.absences.clear();
         let Some(f) = d.families.iter().find(|f| f.members.len() >= 2).cloned() else { return };
         let (a, b) = (f.members[0], f.members[1]);

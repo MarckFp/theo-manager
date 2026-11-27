@@ -1,6 +1,7 @@
 //! Person page cards: emergency contacts and labels; and the dialog that manages the labels of
 //! the congregation. Rules: `docs/model/m01-people.md`, "Emergency contacts" and "Labels".
 
+use crate::people::LabelTone as _;
 use crate::people::{EmergencyContact, LabelColor};
 use crate::state::use_app_state;
 use dioxus::prelude::*;

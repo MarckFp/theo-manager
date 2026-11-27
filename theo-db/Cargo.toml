@@ -1,0 +1,48 @@
+[package]
+name = "theo-db"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+description = "Theo Manager storage: one Db API over SQLite, IndexedDB, SurrealDB and memory. It stores only encrypted records (REQUIREMENTS.md 5)."
+publish = false
+
+[dependencies]
+getrandom = "0.4"
+web-time = "1"
+# SurrealDB over HTTP: JSON bodies, binary values as base64.
+serde_json = "1"
+base64 = "0.23"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Desktop and phone: one SQLite file per congregation. Bundled, so no system library is needed.
+rusqlite = { version = "0.43", features = ["bundled"] }
+# SurrealDB requests, on a background thread.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+futures-channel = "0.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }
+# Browser: IndexedDB (one database per congregation).
+idb = "0.6"
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Location", "Request", "RequestInit", "Response", "Headers"] }
+
+[dev-dependencies]
+pollster = "1"
+# The live SurrealDB test makes real invite tokens.
+theo-crypto = { path = "../theo-crypto" }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+# No crashing shortcuts in shipped code (tests may panic: clippy.toml).
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"

@@ -1,0 +1,23 @@
+[package]
+name = "theo-crypto-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+# R-308: run with `cargo +nightly fuzz run envelope` from theo-crypto/ (needs cargo-fuzz).
+# Its own workspace, so the stable build and CI never compile it.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+theo-crypto = { path = ".." }
+
+[[bin]]
+name = "envelope"
+path = "fuzz_targets/envelope.rs"
+test = false
+doc = false
+bench = false

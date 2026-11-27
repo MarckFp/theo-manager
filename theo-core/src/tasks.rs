@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of custom tasks (Departments › Custom tasks): any task the congregation needs that
+//! Custom tasks (Departments › Custom tasks): any task the congregation needs that
 //! has no page of its own, with the people who do it. Scheduling comes with the other departments.
 
 use crate::people::{fold, Directory};
@@ -46,7 +46,7 @@ impl Directory {
 mod tests {
     #[test]
     fn task_names_are_required_and_unique() {
-        let mut d = crate::mock::demo_directory(14);
+        let mut d = crate::demo::demo_directory(14);
         assert!(d.save_custom_task(None, " ", "", vec![]).is_err());
         let id = d.save_custom_task(None, "Window cleaning", "Twice a year", vec![1, 3, 999]).unwrap_or(0);
         assert_eq!(d.custom_task(id).map(|t| t.people.clone()), Some(vec![1, 3]));

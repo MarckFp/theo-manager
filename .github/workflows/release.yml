@@ -29,6 +29,8 @@ concurrency:
 
 env:
   DX_VERSION: "0.7.10"
+  # The Cloud server the apps talk to (theo-app/src/cloud.rs)
+  THEO_CLOUD_URL: ${{ secrets.THEO_CLOUD_URL }}
   # Android NDK: https://developer.android.com/ndk/downloads
   NDK_VERSION: "30.0.16248370"
   # Java only runs Gradle (the app is compiled for Java 17). Stay on 21 (LTS) until dx's Android

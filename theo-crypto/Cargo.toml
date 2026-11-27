@@ -3,7 +3,7 @@ name = "theo-crypto"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.100"
-description = "Theo Manager cryptography: password-based backup envelopes (more of 6.2 follows)."
+description = "Theo Manager cryptography: vault, key domains, record envelopes, post-quantum grants and signatures (REQUIREMENTS.md section 6)."
 publish = false
 
 [dependencies]
@@ -11,6 +11,13 @@ argon2 = { version = "0.6", default-features = false, features = ["alloc"] }
 chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
 zeroize = "1"
+# Key derivation (HKDF-SHA-256) and hashing.
+hkdf = "0.13"
+sha2 = { version = "0.11", default-features = false }
+# Post-quantum hybrids (6.1): X-Wing (X25519 + ML-KEM-768) and ML-DSA-65 + Ed25519.
+x-wing = { version = "0.1.1", features = ["zeroize", "hazmat"] }
+ml-dsa = { version = "0.1.2", default-features = false, features = ["zeroize"] }
+ed25519-dalek = "3"
 
 # Browsers: random numbers from the Web Crypto API.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -23,3 +30,8 @@ unsafe_code = "forbid"
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+# No crashing shortcuts in shipped code (tests may panic: clippy.toml).
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"

@@ -1,5 +1,5 @@
-//! ⚠️ MOCK of M-10 Field service reports, kept in memory with the rest of the [`Directory`].
-//! Rules: `docs/model/m10-field-service-reports.md`. The real types go to `theo-core`.
+//! M-10 Field service reports, kept with the rest of the [`Directory`].
+//! Rules: `docs/model/m10-field-service-reports.md`.
 
 use crate::people::{fold, Activity, Directory, Person, PublisherType};
 use crate::prefs;
@@ -80,11 +80,11 @@ pub fn service_year_label(start: i32) -> String {
 }
 
 pub fn month_label((y, m): Ym) -> String {
-    format!("{} {y}", theo_ui::month_name(m))
+    format!("{} {y}", crate::prefs::month_name(m))
 }
 
 pub fn short_month((_, m): Ym) -> String {
-    theo_ui::month_name(m)[..3].to_string()
+    crate::prefs::month_name(m)[..3].to_string()
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -521,7 +521,7 @@ mod tests {
     use super::*;
 
     fn dir() -> Directory {
-        crate::mock::demo_directory(40)
+        crate::demo::demo_directory(40)
     }
 
     fn draft(took_part: &str, hours: &str, credit: &str, studies: &str) -> ReportDraft {

@@ -1,7 +1,29 @@
 //! # theo-crypto
 //!
-//! The cryptography of Theo Manager (`REQUIREMENTS.md` section 6). This first part is the
-//! **password envelope** used for congregation backups: Argon2id turns the congregation password
+//! The cryptography of Theo Manager (`REQUIREMENTS.md` section 6). Everything is encrypted on the
+//! device; the server only ever sees ciphertext, salts and public keys.
+//!
+//! | Module | What it does |
+//! |---|---|
+//! | [`vault`] | Congregation password → Argon2id → unwraps the 32-byte **root key**; optional recovery key (R-311) |
+//! | [`keyring`] | Versioned **key domains** (R-316) wrapped by the root key; record keys, blind indexes, domain X-Wing keys |
+//! | [`envelope`] | The record format of 6.4: suite 0x01 (domain key) and 0x02 (sealed to X-Wing recipients, R-327), AAD binding, Padmé |
+//! | [`device`] | Keys kept sealed on one device: *Stay unlocked* and passkey (PRF) unlock |
+//! | [`account`] | Account password → `auth_key` + `account_kek`; personal keys (X-Wing, ML-DSA-65, Ed25519) |
+//! | [`grant`] | A domain secret X-Wing-encapsulated to one member (R-321) |
+//! | [`invite`] | Invite tokens: the proof the server checks, and the sealed bundle of domain keys (5.6) |
+//! | [`sign`] | Hybrid ML-DSA-65 + Ed25519 signatures (R-323) |
+//! | [`passphrase`] | Generated congregation passwords: 6 words of the EFF large list, ≈ 77.5 bits (R-314) |
+//! | [`kem`] | X-Wing (X25519 + ML-KEM-768) keys |
+//!
+//! Symmetric parts use XChaCha20-Poly1305 with a fresh random 24-byte nonce (R-303), HKDF-SHA-256
+//! with `"theo/v1/…"` labels, and Argon2id. Public-key parts are always **hybrid** (classical +
+//! NIST PQC), so they hold as long as either half is unbroken. Secrets live in `Zeroizing` types
+//! (R-309) and unknown formats fail closed (R-307).
+//!
+//! ## Backup envelope
+//!
+//! The **password envelope** for congregation backups: Argon2id turns the congregation password
 //! into a key, and XChaCha20-Poly1305 encrypts the data and detects any change to it.
 //!
 //! Envelope format (all integers little-endian):
@@ -13,6 +35,25 @@
 //!
 //! Everything before the ciphertext is the header. It is authenticated as associated data, so
 //! nobody can lower the Argon2 parameters or swap the salt without the tag failing.
+
+pub mod account;
+pub mod device;
+pub mod envelope;
+pub mod grant;
+pub mod invite;
+pub mod kem;
+pub mod keyring;
+pub mod passphrase;
+pub mod sign;
+mod util;
+pub mod vault;
+
+pub use account::{account_salt, AccountKeys, PersonalKeys, PublicIdentity};
+pub use envelope::RecordContext;
+pub use kem::{KemPublicKey, KemSecretKey};
+pub use keyring::{DomainId, DomainKeys, DomainSecret, Keyring};
+pub use sign::{HybridSigner, HybridVerifier};
+pub use vault::{RecoveryKey, RootKey, Vault};
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
@@ -39,8 +80,16 @@ pub struct KdfParams {
 impl KdfParams {
     /// RFC 9106 second recommended option: 64 MiB, 3 passes, 4 lanes (R-301).
     pub const DEFAULT: KdfParams = KdfParams { m_kib: 64 * 1024, t: 3, p: 4 };
-    /// OWASP minimum; envelopes below it are refused (R-301).
-    const MINIMUM: KdfParams = KdfParams { m_kib: 19 * 1024, t: 2, p: 1 };
+    /// OWASP minimum; anything below it is refused (R-301).
+    pub const MINIMUM: KdfParams = KdfParams { m_kib: 19 * 1024, t: 2, p: 1 };
+
+    /// Refuses parameters below [`KdfParams::MINIMUM`].
+    pub fn check(self) -> Result<(), Error> {
+        if self.m_kib < Self::MINIMUM.m_kib || self.t < Self::MINIMUM.t || self.p < Self::MINIMUM.p {
+            return Err(Error::WeakParameters);
+        }
+        Ok(())
+    }
 }
 
 /// Why an envelope could not be made or opened.
@@ -56,6 +105,18 @@ pub enum Error {
     WrongPasswordOrDamaged,
     /// The system could not give random bytes.
     Random,
+    /// The data was changed or damaged (its authentication tag does not match).
+    Damaged,
+    /// A key has the wrong size or shape, or an input is too long.
+    InvalidKey,
+    /// The envelope format is newer than this app (R-307).
+    UnknownFormat,
+    /// The encryption suite is unknown (R-307).
+    UnknownSuite,
+    /// This device does not hold the key needed (domain version, or not a recipient).
+    NoKey,
+    /// A signature is not valid.
+    BadSignature,
 }
 
 impl std::fmt::Display for Error {
@@ -66,13 +127,19 @@ impl std::fmt::Display for Error {
             Error::WeakParameters => "This backup uses invalid encryption settings.",
             Error::WrongPasswordOrDamaged => "Wrong password, or the file was changed or damaged.",
             Error::Random => "The device could not create random numbers.",
+            Error::Damaged => "The data was changed or damaged.",
+            Error::InvalidKey => "A key or value has an invalid size or form.",
+            Error::UnknownFormat => "This data was made by a newer version of Theo Manager. Update the app first.",
+            Error::UnknownSuite => "This data uses an unknown encryption method.",
+            Error::NoKey => "You do not have the key to open this data.",
+            Error::BadSignature => "The signature is not valid.",
         })
     }
 }
 
 impl std::error::Error for Error {}
 
-fn derive_key(password: &str, salt: &[u8], params: KdfParams) -> Result<Zeroizing<[u8; 32]>, Error> {
+pub(crate) fn derive_key(password: &str, salt: &[u8], params: KdfParams) -> Result<Zeroizing<[u8; 32]>, Error> {
     let p = Params::new(params.m_kib, params.t, params.p, Some(32)).map_err(|_| Error::WeakParameters)?;
     let mut key = Zeroizing::new([0u8; 32]);
     Argon2::new(Algorithm::Argon2id, Version::V0x13, p)
@@ -119,9 +186,7 @@ pub fn open_with_password(password: &str, sealed: &[u8]) -> Result<Vec<u8>, Erro
     }
     let u32_at = |i: usize| u32::from_le_bytes([sealed[i], sealed[i + 1], sealed[i + 2], sealed[i + 3]]);
     let params = KdfParams { m_kib: u32_at(5), t: u32_at(9), p: u32_at(13) };
-    if params.m_kib < KdfParams::MINIMUM.m_kib || params.t < KdfParams::MINIMUM.t || params.p < KdfParams::MINIMUM.p {
-        return Err(Error::WeakParameters);
-    }
+    params.check()?;
     let salt = &sealed[17..17 + SALT_LEN];
     let nonce = &sealed[17 + SALT_LEN..HEADER_LEN];
     let key = derive_key(password, salt, params)?;

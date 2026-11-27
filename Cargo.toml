@@ -1,12 +1,13 @@
 # Theo Manager: one repository, one Cargo workspace (decision D-25).
 #   theo-ui   design system (components, styles, icons)
-#   theo-crypto  cryptography (backup envelopes now; key hierarchy later)
+#   theo-core    domain models, rules, eligibility and permissions
+#   theo-crypto  cryptography (vault, key domains, envelopes, PQC grants and signatures)
 #   theo-app  the app for web, desktop and mobile
-# Planned crates (theo-core, theo-db) join this workspace when they are written.
+#   theo-db      storage: one Db API over SQLite, IndexedDB and memory (SurrealDB next)
 
 [workspace]
 resolver = "3"
-members = ["theo-crypto", "theo-ui", "theo-app"]
+members = ["theo-crypto", "theo-db", "theo-core", "theo-ui", "theo-app"]
 
 # Profiles live here: Cargo ignores profiles in member crates.
 [profile.release]

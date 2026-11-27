@@ -3,41 +3,36 @@
 //! UI rule (REQUIREMENTS.md 8.4, R-431): this crate never writes markup or styles. Screens are
 //! built only from `theo-ui` components. `tests/ui_rules.rs` enforces it.
 
-mod absences;
 mod assignments;
-mod attendance;
-mod access;
 mod backup;
-mod events;
+mod cloud;
 mod export;
+mod local;
 mod mock;
 mod nav;
 mod pages;
 mod password;
 mod people;
 mod platform;
-mod prefs;
-mod privileges;
-mod public_witnessing;
-mod reports;
-mod service_meetings;
 mod state;
-mod tasks;
 mod territories;
 mod territory_card;
 mod widgets;
-mod midweek;
+// The domain lives in theo-core; these keep the `crate::module` paths the screens use.
+pub use theo_core::{absences, access, attendance, events, midweek, ministry, prefs, privileges, public_witnessing, reports, service_meetings, tasks};
 mod workbook;
-mod ministry;
 
 use dioxus::prelude::*;
 use dioxus_i18n::prelude::*;
 use pages::*;
 use state::AppState;
-use theo_ui::ThemeRoot;
+use theo_ui::{AuthLayout, Cluster, Justify, Spinner, ThemeRoot};
 use unic_langid::LanguageIdentifier;
 
 fn main() {
+    prefs::set_device_locale(&sys_locale::get_locale().unwrap_or_default());
+    // Before the router starts: it drops the fragment, where invite links keep their token.
+    platform::capture_location_fragment();
     dioxus::launch(App);
 }
 
@@ -55,6 +50,9 @@ pub enum Route {
     Signup {},
     #[route("/unlock")]
     Unlock {},
+    /// Join a Cloud congregation with an invite link (5.6); the invite is in the fragment.
+    #[route("/join")]
+    Join {},
     #[route("/congregations/new")]
     NewCongregation {},
     #[nest("/app")]
@@ -183,7 +181,15 @@ fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", r#type: "image/svg+xml", href: FAVICON }
         ThemeRoot { theme: (state.theme)(),
-            Router::<Route> {}
+            // *Stay unlocked* reopens the congregation after a reload before any screen decides
+            // where to go (otherwise the router would send you to log in first).
+            if (state.restoring)() {
+                AuthLayout { title: "Opening your congregation",
+                    Cluster { justify: Justify::Center, Spinner {} }
+                }
+            } else {
+                Router::<Route> {}
+            }
         }
     }
 }

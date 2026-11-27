@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of app permissions (M-02). Rules: `docs/model/m02-users-and-access.md`.
+//! App permissions (M-02). Rules: `docs/model/m02-users-and-access.md`.
 //!
 //! Permissions belong to the **link between an account and a person** (the membership), never to
 //! the person alone: only people who joined the app through an invite can have them. A person
@@ -146,12 +146,40 @@ pub struct LogEntry {
     pub text: String,
 }
 
-fn page_label(key: &str) -> String {
+/// Every page a permission can be given for (`section/page`), with its name. The app's
+/// navigation adds icons and descriptions; this is the permission model's own list (R-245).
+pub const PAGES: &[(&str, &str)] = &[
+    ("users/all", "All users"),
+    ("users/privileges", "Privileges"),
+    ("users/absences", "Absences"),
+    ("users/permissions", "Permissions"),
+    ("users/elderly-care", "Elderly care"),
+    ("users/moved-away", "Moved away"),
+    ("meetings/midweek", "Midweek meeting"),
+    ("meetings/weekend", "Weekend meeting"),
+    ("meetings/talks", "Public talks"),
+    ("meetings/outgoing", "Outgoing talks"),
+    ("meetings/attendance", "Meeting attendance"),
+    ("meetings/events", "Events"),
+    ("ministry/reports", "Field service reports"),
+    ("ministry/groups", "Field service groups"),
+    ("ministry/territories", "Territories"),
+    ("ministry/witnessing", "Public witnessing"),
+    ("ministry/service-meetings", "Meetings for field service"),
+    ("departments/audio-video", "Audio, video and stage"),
+    ("departments/attendants", "Attendants"),
+    ("departments/microphones", "Microphones"),
+    ("departments/cleaning", "Cleaning"),
+    ("departments/maintenance", "Maintenance"),
+    ("departments/custom-tasks", "Custom tasks"),
+];
+
+/// The name of a page key ("meetings/midweek" → "Midweek meeting").
+pub fn page_label(key: &str) -> String {
     if key == "settings" {
         return "Congregation settings".into();
     }
-    let (section, page) = key.split_once('/').unwrap_or((key, ""));
-    crate::nav::page_of(section, page).map(|p| p.label).unwrap_or_else(|| key.to_string())
+    PAGES.iter().find(|(k, _)| *k == key).map(|(_, l)| l.to_string()).unwrap_or_else(|| key.to_string())
 }
 
 fn level_label(l: Level) -> &'static str {
@@ -244,7 +272,7 @@ mod tests {
 
     #[test]
     fn only_linked_accounts_get_permissions_and_the_owner_stays_admin() {
-        let mut d = crate::mock::demo_directory(14);
+        let mut d = crate::demo::demo_directory(14);
         // Person 3 (Tom) has no account.
         assert!(d.set_access(3, Access::administrator(), "Test").is_err());
         assert_eq!(d.access(3), Access::default());
@@ -262,7 +290,7 @@ mod tests {
 
     #[test]
     fn presets_fill_permissions_and_changes_are_logged() {
-        let mut d = crate::mock::demo_directory(14);
+        let mut d = crate::demo::demo_directory(14);
         // Andrew (13) has an account and no permissions.
         let secretary = preset("secretary").map(|p| (p.access)()).unwrap_or_default();
         assert!(d.set_access(13, secretary, "Demo User").is_ok());
@@ -279,7 +307,7 @@ mod tests {
 
     #[test]
     fn moving_away_ends_the_permissions() {
-        let mut d = crate::mock::demo_directory(14);
+        let mut d = crate::demo::demo_directory(14);
         let linked = d.accounts().iter().map(|p| p.id).find(|n| !d.is_owner(*n)).unwrap_or(0);
         let a = Access { own_group_read: true, ..Default::default() };
         assert!(d.set_access(linked, a, "Test").is_ok());

@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of public witnessing (M-08): shifts at a place and time with the people who take part
+//! Public witnessing (M-08): shifts at a place and time with the people who take part
 //! (shift supervisors, men, women or anyone), weekly presets with availability, filling and
 //! assigning a month, sending, and statistics. Same flow as meetings for field service (M-15).
 //! Rules: `docs/model/m16-public-witnessing.md`.
@@ -669,7 +669,7 @@ mod tests {
 
     /// Witnesses: men 2, 3 and women 4, 5 (by setting genders); 2 can supervise.
     fn setup() -> Directory {
-        let mut d = crate::mock::demo_directory(10);
+        let mut d = crate::demo::demo_directory(10);
         d.shift_presets.clear();
         d.shifts.clear();
         d.absences.clear();

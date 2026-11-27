@@ -1,6 +1,7 @@
 //! `/app` home: *For you* (personal widgets, everyone) first, then *Congregation* (widgets of
 //! the pages the user may see). Widgets show more when they are made bigger.
 
+use crate::assignments::AssignmentStyle as _;
 use crate::mock;
 use crate::people::{parse_date, today_iso, Activity, Directory, PublisherType};
 use crate::reports::{month_label, reporting_month, service_year, service_year_label, Kind, ReportStatus, YEARLY_GOAL};

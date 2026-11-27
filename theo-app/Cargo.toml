@@ -16,12 +16,20 @@ path = "src/main.rs"
 dioxus = { version = "0.7.10", features = ["router"] }
 theo-ui = { path = "../theo-ui" }
 theo-crypto = { path = "../theo-crypto" }
+# Wipes keys that pass through the app (stay unlocked, passkey unlock).
+zeroize = "1"
+# Password strength (R-315): common passwords, names, keyboard patterns.
+zxcvbn = { version = "3.1", default-features = false }
+# Export files: compact (CBOR), then compressed (deflate, miniz_oxide below) before encryption.
+ciborium = "0.2"
+theo-core = { path = "../theo-core" }
+theo-db = { path = "../theo-db" }
 # Backup payload (already in the tree through Dioxus).
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 web-time = "1"
 # Reading the workbook EPUB (src/workbook.rs): deflate only, pure Rust (also in the browser).
-miniz_oxide = "0.8"
+miniz_oxide = "0.9"
 # UI translations (Fluent). Strings are not translated yet; the language switch works.
 dioxus-i18n = "0.6"
 unic-langid = { version = "0.9", features = ["macros"] }
@@ -31,6 +39,8 @@ sys-locale = "0.3"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 futures-channel = "0.3"
+# Where the app keeps its files (SQLite databases, device settings) on desktop.
+dirs = "7"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
@@ -38,7 +48,7 @@ sys-locale = { version = "0.3", features = ["js"] }
 # Saving exports as a download (already in the tree through dioxus-web).
 wasm-bindgen = "0.2"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "MediaQueryList", "Storage", "Response"] }
+web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Url", "Window", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "MediaQueryList", "Storage", "Response", "Location", "History"] }
 
 [features]
 default = ["web"]
@@ -52,3 +62,8 @@ unsafe_code = "forbid"
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+# No crashing shortcuts in shipped code (tests may panic: clippy.toml).
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"

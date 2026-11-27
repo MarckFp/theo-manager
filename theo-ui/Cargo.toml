@@ -28,3 +28,8 @@ unsafe_code = "forbid"
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+# No crashing shortcuts in shipped code (tests may panic: clippy.toml).
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"

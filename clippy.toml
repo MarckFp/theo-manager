@@ -1,0 +1,2 @@
+# Tests may panic: a failed assertion is how a test reports.
+allow-panic-in-tests = true

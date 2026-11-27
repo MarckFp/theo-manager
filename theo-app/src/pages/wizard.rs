@@ -75,26 +75,28 @@ pub fn NewCongregation() -> Element {
     let mut wk_time = use_signal(|| "10:00".to_string());
     // Step 3
     let mut mode = use_signal(|| "local".to_string());
-    let mut server = use_signal(String::new);
+    // A Cloud congregation lives on the signed-in Cloud account's server: no address to type.
+    let cloud_server = state.cloud_server();
+    let has_cloud = cloud_server.is_some();
     // Step 4
-    let mut generated = use_signal(crate::mock::passphrase);
+    let mut generated = use_signal(crate::password::generate);
     let mut own = use_signal(|| false);
     let mut custom = use_signal(String::new);
     let mut custom2 = use_signal(String::new);
     let mut saved = use_signal(|| false);
+    let mut creating = use_signal(|| false);
 
     if state.session.read().is_none() {
         return rsx! { Redirect { to: Route::Login {} } };
     }
 
     let has_any = !state.my_congregations().is_empty();
-    let score = crate::mock::strength(&custom());
+    let score = crate::password::strength(&custom(), &[name().trim()]);
     let t = tried();
     let name_err = (t && step() == 0 && name().trim().is_empty()).then(|| "Enter the congregation name.".to_string());
     let first_err = (t && step() == 0 && my_first().trim().is_empty()).then(|| "Enter your first name.".to_string());
     let last_err = (t && step() == 0 && my_last().trim().is_empty()).then(|| "Enter your last name.".to_string());
     let gender_err = (t && step() == 0 && my_gender().is_empty()).then(|| "Choose one.".to_string());
-    let server_err = (t && step() == 2 && mode() == "cloud" && !server().starts_with("https://")).then(|| "Enter an https:// address.".to_string());
     let custom_err = (t && step() == 3 && own() && !crate::password::meets_rules(&custom())).then(|| "The password does not meet all the rules below.".to_string());
     let custom2_err = (t && step() == 3 && own() && custom2() != custom()).then(|| "The passwords do not match.".to_string());
     let saved_err = (t && step() == 3 && !saved()).then(|| "Confirm that you saved the password.".to_string());
@@ -102,13 +104,14 @@ pub fn NewCongregation() -> Element {
     let step_valid = move |s: usize| -> bool {
         match s {
             0 => !name().trim().is_empty() && !my_first().trim().is_empty() && !my_last().trim().is_empty() && !my_gender().is_empty(),
-            2 => mode() == "local" || server().starts_with("https://"),
-            3 => saved() && (!own() || (crate::password::meets_rules(&custom()) && custom2() == custom())),
+            2 => mode() == "local" || has_cloud,
+            3 => saved() && if own() { crate::password::meets_rules(&custom()) && custom2() == custom() } else { !generated().is_empty() },
             _ => true,
         }
     };
 
-    let storage = if mode() == "cloud" { StorageMode::Cloud { server: server() } } else { StorageMode::Local };
+    let storage = if mode() == "cloud" { StorageMode::Cloud { server: cloud_server.clone().unwrap_or_default() } } else { StorageMode::Local };
+    let create_server = cloud_server.clone().unwrap_or_default();
     let final_password = if own() { custom() } else { generated() };
     let is_last = step() + 1 == STEPS.len();
 
@@ -136,9 +139,9 @@ pub fn NewCongregation() -> Element {
                         step.set(step() + 1);
                         return;
                     }
-                    let mode = if mode() == "cloud" { StorageMode::Cloud { server: server() } } else { StorageMode::Local };
+                    let mode = if mode() == "cloud" { StorageMode::Cloud { server: create_server.clone() } } else { StorageMode::Local };
                     let password = if own() { custom() } else { generated() };
-                    state.create_congregation(CongregationDraft {
+                    let draft = CongregationDraft {
                         name: name(),
                         number: number(),
                         language: language(),
@@ -150,15 +153,27 @@ pub fn NewCongregation() -> Element {
                         my_first_name: my_first(),
                         my_last_name: my_last(),
                         my_gender: my_gender(),
+                    };
+                    creating.set(true);
+                    spawn(async move {
+                        // Let the spinner appear before the (deliberately slow) key derivation.
+                        theo_ui::sleep(std::time::Duration::from_millis(60)).await;
+                        let result = state.create_congregation(draft).await;
+                        creating.set(false);
+                        match result {
+                            Ok(_) => {
+                                toaster.success(format!("{} is ready.", name().trim()));
+                                nav.replace(Route::Dashboard {});
+                            }
+                            Err(e) => toaster.error(format!("The congregation could not be created: {e}")),
+                        }
                     });
-                    toaster.success(format!("{} is ready.", name().trim()));
-                    nav.replace(Route::Dashboard {});
                 },
                 actions: rsx! {
                     if step() > 0 {
                         ActionButton { action: Action::Back, onclick: move |_| { tried.set(false); step.set(step() - 1); } }
                     }
-                    ActionButton { action: if is_last { Action::Finish } else { Action::Next }, kind: ButtonKind::Submit }
+                    ActionButton { action: if is_last { Action::Finish } else { Action::Next }, kind: ButtonKind::Submit, loading: creating() }
                 },
                 match step() {
                     0 => rsx! {
@@ -227,10 +242,15 @@ pub fn NewCongregation() -> Element {
                             ],
                         }
                         if mode() == "cloud" {
-                            Field { label: "Server address", required: true, error: server_err.clone(), help: "A SurrealDB server. It only stores encrypted data.",
-                                TextInput { value: server(), oninput: move |v| server.set(v), kind: InputKind::Url, icon: Icon::Server, placeholder: "https://db.example.org", invalid: server_err.is_some() }
+                            if let Some(url) = cloud_server.clone() {
+                                Alert { tone: Tone::Info, title: "On {url}",
+                                    "The server of your account. It stores only encrypted data, and only the members of the congregation can reach it."
+                                }
+                            } else {
+                                Alert { tone: Tone::Warning, title: "A Cloud account is needed",
+                                    "Cloud congregations live on the server of your account. Sign up or log in with a Cloud account to create one."
+                                }
                             }
-                            Alert { tone: Tone::Info, "In this preview, cloud congregations are kept in memory. The server connection comes in phase 2." }
                         }
                     },
                     3 => rsx! {
@@ -243,7 +263,7 @@ pub fn NewCongregation() -> Element {
                                 Text { tone: TextTone::Strong, "Your generated password" }
                                 Code { "{generated}" }
                                 Cluster {
-                                    ActionButton { action: Action::Regenerate, onclick: move |_| generated.set(crate::mock::passphrase()) }
+                                    ActionButton { action: Action::Regenerate, onclick: move |_| generated.set(crate::password::generate()) }
                                 }
                             }
                         }

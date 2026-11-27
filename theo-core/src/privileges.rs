@@ -1,5 +1,5 @@
-//! ⚠️ MOCK of privileges (M-01): what each person may take part in. Rules:
-//! `docs/model/m01-people.md`, "Privileges". The real types go to `theo-core` (R-010).
+//! Privileges (M-01): what each person may take part in. Rules:
+//! `docs/model/m01-people.md`, "Privileges".
 //!
 //! Privileges are not app permissions: they say who can be assigned to a part or a duty.
 //! Permissions (M-02) say what an account may see and change in the app.
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn privileges_are_removed_when_the_person_no_longer_qualifies() {
-        let mut d = crate::mock::demo_directory(40);
+        let mut d = crate::demo::demo_directory(40);
         d.set_privilege(1, P::Prayer, true);
         assert!(d.person(1).is_some_and(|p| p.privileges.contains(&P::Prayer)));
         assert!(d.privileges_lost(1, PublisherType::UnbaptisedPublisher, Gender::Male).contains(&P::Prayer));

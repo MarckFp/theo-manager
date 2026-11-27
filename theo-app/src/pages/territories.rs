@@ -4,6 +4,8 @@
 //! history) and an editor (map drawing). Publishers see the territories they have.
 //! Rules: `docs/model/m07-territories.md`.
 
+use crate::territories::Tiles as _;
+use crate::people::LabelTone as _;
 use crate::people::{parse_date, today_iso, Directory, Label, LabelColor};
 use crate::prefs::Preferences;
 use crate::state::use_app_state;

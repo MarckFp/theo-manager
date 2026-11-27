@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of meetings for field service (M-15): when and where the congregation meets for the
+//! Meetings for field service (M-15): when and where the congregation meets for the
 //! ministry, and who conducts. Presets (weekly slots) with availability, filling a month, an
 //! automatic assignment, and sending: only sent meetings are seen by everyone.
 //! Rules: `docs/model/m15-field-service-meetings.md`.
@@ -530,7 +530,7 @@ mod tests {
 
     /// A directory with 3 conductors (ids 2, 3, 4) and two presets.
     fn setup() -> Directory {
-        let mut d = crate::mock::demo_directory(10);
+        let mut d = crate::demo::demo_directory(10);
         d.service_presets.clear();
         d.service_meetings.clear();
         d.absences.clear();

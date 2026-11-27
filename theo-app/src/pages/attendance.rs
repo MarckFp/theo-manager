@@ -232,7 +232,7 @@ fn StatisticsTab(year: i32) -> Element {
     let mut ranked: Vec<(Ym, f64, String)> = months
         .iter()
         .filter_map(|a| {
-            let both = a.stats(Meeting::Midweek).add(a.stats(Meeting::Weekend));
+            let both = a.stats(Meeting::Midweek) + a.stats(Meeting::Weekend);
             both.average().map(|v| {
                 (a.month, v, format!("Midweek {} · weekend {}", show_average(a.stats(Meeting::Midweek).average()), show_average(a.stats(Meeting::Weekend).average())))
             })

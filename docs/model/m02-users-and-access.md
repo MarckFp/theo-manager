@@ -75,6 +75,12 @@ Table `membership` (Cloud, R-221), readable only by its member and by administra
 | `pages` | map of page → `read` or `write` | Pages are the sub-menus (`"congregation/audio-video"`). Missing = no access. |
 | `own_group_reports`, `own_group_read`, `all_groups_read` | bool | The group scope uses the member's home group (M-09). |
 
+**As built (schema v3, 2026-11-26).** The permissions themselves stay in the encrypted data
+(`Directory.access`). The server's `membership` row holds only what it must enforce: `role`
+(`owner`, `full` or `member`) and `writes`, the collections the member may write, computed from the
+permissions (`theo_core::invites::writes_for`). Administrators are `owner` or `full` and write
+everything.
+
 **Enforcement.** The app hides what an account may not use (R-245). In Cloud mode the server
 checks the same permissions on every read and write (R-241), and each permission maps to the key
 domains it needs (6.2): an account gets only the keys of what it may read (R-247).

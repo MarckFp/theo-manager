@@ -1,4 +1,4 @@
-//! ⚠️ MOCK of meeting attendance (M-11): how many people attended each meeting, like the
+//! Meeting attendance (M-11): how many people attended each meeting, like the
 //! paper record: per month, five weeks × the midweek and weekend meeting.
 //! Rules: `docs/model/m11-meeting-attendance.md`.
 
@@ -79,13 +79,17 @@ pub struct Totals {
     pub total: u32,
 }
 
+impl std::ops::Add for Totals {
+    type Output = Totals;
+
+    fn add(self, o: Totals) -> Totals {
+        Totals { meetings: self.meetings + o.meetings, total: self.total + o.total }
+    }
+}
+
 impl Totals {
     pub fn of(values: impl Iterator<Item = u32>) -> Self {
         values.fold(Totals::default(), |t, v| Totals { meetings: t.meetings + 1, total: t.total + v })
-    }
-
-    pub fn add(self, o: Totals) -> Totals {
-        Totals { meetings: self.meetings + o.meetings, total: self.total + o.total }
     }
 
     pub fn average(&self) -> Option<f64> {
@@ -160,7 +164,7 @@ impl Directory {
 
     /// Totals of one meeting over a service year.
     pub fn year_totals(&self, start: i32, m: Meeting) -> Totals {
-        self.attendance_year(start).iter().fold(Totals::default(), |t, a| t.add(a.stats(m)))
+        self.attendance_year(start).iter().fold(Totals::default(), |t, a| t + a.stats(m))
     }
 
     /// The highest attendance of a service year (the first one, when several are equal).
